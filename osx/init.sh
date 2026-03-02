@@ -20,8 +20,7 @@ if [ ! -f "$SCRIPT_PATH/setup/base.sh" ]; then
   TMP_DIR=$(mktemp -d)
   trap "rm -rf '$TMP_DIR'" EXIT
   git clone --depth=1 "$REPO_URL" "$TMP_DIR"
-  chmod +x "$TMP_DIR/osx/init.sh" "$TMP_DIR/osx/setup/"*.sh "$TMP_DIR/osx/helpers/"*.sh
-  exec "$TMP_DIR/osx/init.sh" "$@"
+  exec bash "$TMP_DIR/osx/init.sh" "$@"
 fi
 
 # Default
@@ -176,10 +175,10 @@ if [[ "$INSTALL_BASE" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install base profile\n\n"
   i=$(($i + 1))
 
-  $SCRIPT_PATH/setup/base.sh
+  bash "$SCRIPT_PATH/setup/base.sh"
 
   # Configure proto proxies
-  $SCRIPT_PATH/helpers/proto.sh
+  bash "$SCRIPT_PATH/helpers/proto.sh"
 fi
 
 
@@ -188,7 +187,7 @@ if [[ "$INSTALL_EXTRAS" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install extras profile\n\n"
   i=$(($i + 1))
 
-  $SCRIPT_PATH/setup/extras.sh
+  bash "$SCRIPT_PATH/setup/extras.sh"
 fi
 
 
@@ -197,7 +196,7 @@ if [[ "$INSTALL_JAVASCRIPT" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install javascript profile\n\n"
   i=$(($i + 1))
 
-  $SCRIPT_PATH/setup/javascript.sh
+  bash "$SCRIPT_PATH/setup/javascript.sh"
 fi
 
 
@@ -206,7 +205,7 @@ if [[ "$INSTALL_PYTHON" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install python profile\n\n"
   i=$(($i + 1))
 
-  $SCRIPT_PATH/setup/python.sh
+  bash "$SCRIPT_PATH/setup/python.sh"
 fi
 
 
@@ -215,7 +214,7 @@ if [[ "$INSTALL_AI" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install ai profile\n\n"
   i=$(($i + 1))
 
-  $SCRIPT_PATH/setup/ai.sh
+  bash "$SCRIPT_PATH/setup/ai.sh"
 fi
 
 
@@ -233,7 +232,7 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
 
 
   # Configure proto proxies
-  $SCRIPT_PATH/helpers/proto.sh
+  bash "$SCRIPT_PATH/helpers/proto.sh"
 
 
   # Install .vscode configs
@@ -262,7 +261,7 @@ if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install cli completions\n\n"
   i=$(($i + 1))
 
-  $SCRIPT_PATH/helpers/completions.sh
+  bash "$SCRIPT_PATH/helpers/completions.sh"
   git clone https://github.com/zsh-users/zsh-completions.git ${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions && gsed -i 's|^# fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src|fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src|g' "$HOME/.zshrc"
 fi
 
