@@ -1,0 +1,44 @@
+{
+  "recommendations": [
+    // ansible
+    "redhat.ansible",
+
+    // csv
+    "mechatroner.rainbow-csv",
+
+    // general
+    "ms-vscode-remote.remote-containers",
+    "ms-vsliveshare.vsliveshare",
+    "oderwat.indent-rainbow",
+    "pflannery.vscode-versionlens",
+    "SonarSource.sonarlint-vscode",
+    "wmaurer.change-case",
+    "coder.coder-remote",
+    "rangav.vscode-thunder-client",
+    "gruntfuggly.todo-tree",
+
+    // github actions
+    "github.vscode-github-actions",
+
+    // git
+    "GitHub.vscode-pull-request-github",
+    "vivaxy.vscode-conventional-commits",
+
+    // kubernetes
+    "ms-kubernetes-tools.vscode-kubernetes-tools",
+
+    // markdown
+    "shd101wyy.markdown-preview-enhanced",
+    "yzhang.markdown-all-in-one",
+
+    // pdf
+    "tomoki1207.pdf",
+
+    // prisma ORM
+    "prisma.prisma",
+
+    // themes & icons
+    "GitHub.github-vscode-theme",
+    "pkief.material-icon-theme",
+  ]
+}

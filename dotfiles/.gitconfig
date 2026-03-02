@@ -1,0 +1,26 @@
+[push]
+	default = simple
+[status]
+	showUntrackedFiles = all
+[diff]
+	wordRegex = .
+	tool = meld
+[branch]
+	autosetuprebase = always
+	rebase = preserve
+[credential]
+	helper = cache --timeout=3600
+[color]
+	ui = true
+[rerere]
+	enabled = true
+[init]
+	defaultBranch = main
+[pull]
+	rebase = true
+[commit]
+	gpgsign = true
+[user]
+	email = contact@kevindb.dev
+	name = KevinDeBenedetti
+# 	signingkey = ~/.ssh/id_rsa.pub
