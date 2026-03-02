@@ -10,9 +10,9 @@ Personal macOS dotfiles and setup scripts.
 bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/osx/init.sh) -p "base,javascript" -d -c
 ```
 
-> Le script clone automatiquement le repo dans un dossier temporaire s'il n'est pas présent localement, puis s'exécute.
+> The script automatically clones the repository into a temporary directory if not found locally, then re-executes from there.
 
-### Depuis une copie locale
+### From a local copy
 
 ```sh
 git clone https://github.com/KevinDeBenedetti/dotfiles.git && cd dotfiles
