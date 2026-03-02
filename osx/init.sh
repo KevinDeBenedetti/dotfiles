@@ -20,6 +20,7 @@ if [ ! -f "$SCRIPT_PATH/setup/base.sh" ]; then
   TMP_DIR=$(mktemp -d)
   trap "rm -rf '$TMP_DIR'" EXIT
   git clone --depth=1 "$REPO_URL" "$TMP_DIR"
+  chmod +x "$TMP_DIR/osx/init.sh" "$TMP_DIR/osx/setup/"*.sh "$TMP_DIR/osx/helpers/"*.sh
   exec "$TMP_DIR/osx/init.sh" "$@"
 fi
 
