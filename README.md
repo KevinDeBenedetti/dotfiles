@@ -12,13 +12,6 @@ bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/ma
 
 > The script automatically clones the repository into a temporary directory if not found locally, then re-executes from there.
 
-### From a local copy
-
-```sh
-git clone https://github.com/KevinDeBenedetti/dotfiles.git && cd dotfiles
-./osx/init.sh -h
-```
-
 ## Usage
 
 ```sh
