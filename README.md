@@ -43,16 +43,6 @@ git clone https://github.com/kevindebenedetti/dotfiles.git && cd dotfiles
 | `ai`         | Ollama, GitHub Copilot CLI                                                                                       |
 | `extras`     | VLC, Spotify, Audacity, Discord, Transmission…                                                                   |
 
-## Dotfiles
-
-Configs copied to `$HOME` with `-d`:
-
-- `.zshrc` — zsh config (oh-my-zsh + custom theme)
-- `.gitconfig` — git globals
-- `.prototools` — proto toolchain versions
-- `.config/` — tool configs
-- `.vscode/settings.json`, `mcp.json` — VS Code settings + MCP
-
 ## Structure
 
 ```
