@@ -4,8 +4,18 @@ Personal macOS dotfiles and setup scripts.
 
 ## Quick Start
 
+### Fresh macOS install (remote)
+
 ```sh
-git clone https://github.com/kevindebenedetti/dotfiles.git && cd dotfiles
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/osx/init.sh) -p "base,javascript" -d -c
+```
+
+> Le script clone automatiquement le repo dans un dossier temporaire s'il n'est pas présent localement, puis s'exécute.
+
+### Depuis une copie locale
+
+```sh
+git clone https://github.com/KevinDeBenedetti/dotfiles.git && cd dotfiles
 ./osx/init.sh -h
 ```
 
