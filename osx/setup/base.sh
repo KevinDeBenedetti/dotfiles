@@ -22,12 +22,8 @@ install_lite_setup() {
   # Install homebrew graphic app packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (graphic)\n\n"
   brew install --cask \
-    docker \
+    docker
 
-
-  # Install addition cheatsheets
-  curl -fsSL https://raw.githubusercontent.com/kevindebenedetti/tools/main/shell/clone-subdir.sh | bash -s -- \
-    -u "https://github.com/kevindebenedetti/cheatsheets" -s "sheets" -o "$HOME/.config/cheat/cheatsheets/personal" -d
 }
 
 install_additional_setup() {

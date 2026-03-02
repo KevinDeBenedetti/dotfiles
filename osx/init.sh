@@ -148,6 +148,7 @@ brew install --verbose --formula \
   unzip \
   wget \
   xz
+i=$(($i + 1))
 
 # Install oh-my-zsh
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
@@ -235,15 +236,6 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
       echo "$extension" | xargs -L 1 code --install-extension
     done
   fi
-
-
-  # Install copilot instructions
-  curl -fsSL https://raw.githubusercontent.com/kevindebenedetti/tools/main/shell/clone-subdir.sh | bash -s -- \
-    -u "https://github.com/kevindebenedetti/tools" \
-    -b "main" \
-    -s "copilot/instructions" \
-    -o "$HOME/.config/copilot" \
-    -d
 
 
   # Update brew links if architecture is arm64
