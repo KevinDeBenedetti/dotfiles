@@ -249,6 +249,19 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   cp "$SCRIPT_PATH/../dotfiles/.gitconfig" "$HOME/.gitconfig"
   cp -R $SCRIPT_PATH/../dotfiles/.config/* "$HOME/.config"
 
+  # Create SSH allowed signers file for local commit signature verification
+  SSH_SIGNING_KEY="$HOME/.ssh/id_rsa.pub"
+  ALLOWED_SIGNERS="$HOME/.ssh/allowed_signers"
+  GIT_EMAIL=$(git config --global user.email 2>/dev/null || echo "contact@kevindb.dev")
+  if [ -f "$SSH_SIGNING_KEY" ]; then
+    mkdir -p "$HOME/.ssh"
+    echo "$GIT_EMAIL $(cat $SSH_SIGNING_KEY)" > "$ALLOWED_SIGNERS"
+    chmod 600 "$ALLOWED_SIGNERS"
+    printf "${red}[git]${no_color} SSH allowed_signers file created at $ALLOWED_SIGNERS\n"
+  else
+    printf "${red}[warning]${no_color} SSH key not found at $SSH_SIGNING_KEY — skipping allowed_signers setup.\n"
+  fi
+
 
   # Configure proto proxies
   bash "$SCRIPT_PATH/helpers/proto.sh"

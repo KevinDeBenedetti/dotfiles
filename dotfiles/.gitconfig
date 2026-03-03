@@ -20,7 +20,13 @@
 	rebase = true
 [commit]
 	gpgsign = true
+[tag]
+	gpgSign = true
+[gpg]
+	format = ssh
+[gpg "ssh"]
+	allowedSignersFile = ~/.ssh/allowed_signers
 [user]
 	email = contact@kevindb.dev
 	name = KevinDeBenedetti
-# 	signingkey = ~/.ssh/id_rsa.pub
+	signingkey = ~/.ssh/id_rsa.pub
