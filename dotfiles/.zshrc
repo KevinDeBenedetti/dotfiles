@@ -57,6 +57,7 @@ export COMPLETION_DIR=$HOME/.oh-my-zsh/completions
 source $ZSH/oh-my-zsh.sh
 
 # aliases
+# alias sed="gsed"
 alias cs="cheat_glow"
 alias dsp="docker system prune -a -f"
 alias hs="history | grep"
