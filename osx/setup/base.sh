@@ -49,7 +49,7 @@ install_lite_setup() {
 
   # Install homebrew graphic app packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (graphic)\n\n"
-  install_cask docker-desktop
+  install_cask docker
 
 }
 
