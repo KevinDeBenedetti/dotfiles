@@ -38,6 +38,9 @@ FULL_MODE_SETUP="true"
 TEXT_HELPER="\nThis script aims to install a full setup for osx.
 Following flags are available:
 
+  -a    Full install: enables all profiles (ai, base, extras, javascript, python),
+        copies dotfiles, installs completions and removes tmp files.
+
   -c    Install cli completions.
 
   -d    Copy dotfiles.
@@ -61,8 +64,17 @@ print_help() {
 }
 
 # Parse options
-while getopts hcdlp:r flag; do
+while getopts hacdlp:r flag; do
   case "${flag}" in
+    a)
+      INSTALL_AI="true"
+      INSTALL_BASE="true"
+      INSTALL_EXTRAS="true"
+      INSTALL_JAVASCRIPT="true"
+      INSTALL_PYTHON="true"
+      INSTALL_COMPLETIONS="true"
+      COPY_DOTFILES="true"
+      REMOVE_TMP_CONTENT="true";;
     c)
       INSTALL_COMPLETIONS="true";;
     d)
