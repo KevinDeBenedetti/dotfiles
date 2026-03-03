@@ -1,4 +1,8 @@
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   security:
@@ -11,3 +15,14 @@ jobs:
       run-node-audit: false   # no Node.js project
       run-python-audit: false # no Python project
       run-codeql: false        # shell scripts are not supported by CodeQL
+
+  release:
+    needs: security
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: KevinDeBenedetti/.github/.github/workflows/release.yml@main
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      release-type: simple
+    secrets: inherit
