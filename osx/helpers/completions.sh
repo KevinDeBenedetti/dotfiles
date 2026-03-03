@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 # Colorize terminal
 red='\e[0;31m'
 no_color='\033[0m'
