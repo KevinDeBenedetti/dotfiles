@@ -21,7 +21,7 @@ install_lite_setup() {
 
   # Install homebrew cli packages
   printf "\n\n${red}[python] =>${no_color} Install homebrew packages (cli)\n\n"
-  brew install --verbose --formula \
+  brew install --formula \
     uv
 }
 

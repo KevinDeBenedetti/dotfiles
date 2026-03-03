@@ -33,7 +33,6 @@ INSTALL_COMPLETIONS="false"
 COPY_DOTFILES="false"
 REMOVE_TMP_CONTENT="false"
 FULL_MODE_SETUP="true"
-FORCE_INSTALL="false"
 
 # Declare script helper
 TEXT_HELPER="\nThis script aims to install a full setup for osx.
@@ -42,8 +41,6 @@ Following flags are available:
   -c    Install cli completions.
 
   -d    Copy dotfiles.
-
-  -f    Force reinstall / override existing packages and config files.
 
   -l    Run with lite mode, only major tools will be installed.
 
@@ -64,14 +61,12 @@ print_help() {
 }
 
 # Parse options
-while getopts hcdflp:r flag; do
+while getopts hcdlp:r flag; do
   case "${flag}" in
     c)
       INSTALL_COMPLETIONS="true";;
     d)
       COPY_DOTFILES="true";;
-    f)
-      FORCE_INSTALL="true";;
     l)
       FULL_MODE_SETUP="false";;
     p)
@@ -138,7 +133,6 @@ fi
 # Settings
 printf "\nScript settings:
   -> install ${red}full setup${no_color}: ${red}$FULL_MODE_SETUP${no_color}
-  -> force install / override: ${red}$FORCE_INSTALL${no_color}
   -> install ${red}[ai]${no_color} profile: ${red}$INSTALL_AI${no_color}
   -> install ${red}[base]${no_color} profile: ${red}$INSTALL_BASE${no_color}
   -> install ${red}[extras]${no_color} profile: ${red}$INSTALL_EXTRAS${no_color}
@@ -146,7 +140,6 @@ printf "\nScript settings:
   -> install ${red}[python]${no_color} profile: ${red}$INSTALL_PYTHON${no_color}\n"
 
 export FULL_MODE_SETUP=$FULL_MODE_SETUP
-export FORCE_INSTALL=$FORCE_INSTALL
 export HOMEBREW_NO_AUTO_UPDATE=1
 
 # Update brew once
@@ -154,19 +147,20 @@ printf "\n${red}${i}.${no_color} Update homebrew\n\n"
 brew update --verbose || printf "\n${red}[warning]${no_color} brew update failed (non-fatal), continuing with existing index...\n\n"
 i=$(($i + 1))
 
+# Install formula, skipping already-managed ones
+install_formula() {
+  if brew list --formula "$1" &>/dev/null; then
+    printf "${red}[brew]${no_color} $1 already installed — skipping.\n"
+  else
+    brew install --formula "$1"
+  fi
+}
+
 # Install common
 printf "\n${red}${i}.${no_color} Install commons\n\n"
-BREW_CMD=$([ "$FORCE_INSTALL" = "true" ] && echo "reinstall" || echo "install")
-brew $BREW_CMD --formula \
-  ca-certificates \
-  curl \
-  gnupg \
-  gsed \
-  gzip \
-  jq \
-  unzip \
-  wget \
-  xz
+for pkg in ca-certificates curl gnupg gsed gzip jq unzip wget xz; do
+  install_formula "$pkg"
+done
 i=$(($i + 1))
 
 # Install oh-my-zsh
@@ -268,8 +262,13 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
     mkdir -p "$HOME/Library/Application Support/Code/User"
     cp "$SCRIPT_PATH/../dotfiles/.vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
     cp "$SCRIPT_PATH/../dotfiles/.vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
+    INSTALLED_EXTENSIONS=$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')
     while IFS= read -r extension; do
-      code --install-extension "$extension"
+      if echo "$INSTALLED_EXTENSIONS" | grep -qi "^${extension}$"; then
+        printf "${red}[vscode]${no_color} $extension already installed — skipping.\n"
+      else
+        code --install-extension "$extension"
+      fi
     done < <(grep -v '//' "$SCRIPT_PATH/../dotfiles/.vscode/extensions.json" \
       | grep -E '\S' \
       | jq -r '.recommendations[]')
@@ -290,16 +289,10 @@ if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
 
   bash "$SCRIPT_PATH/helpers/completions.sh"
   ZSH_COMP_PLUGIN="${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions"
-  if [ -d "$ZSH_COMP_PLUGIN" ]; then
-    if [ "$FORCE_INSTALL" = "true" ]; then
-      printf "${red}[completions]${no_color} Removing existing zsh-completions plugin (force)...\n"
-      rm -rf "$ZSH_COMP_PLUGIN"
-      git clone https://github.com/zsh-users/zsh-completions.git "$ZSH_COMP_PLUGIN"
-    else
-      printf "${red}[completions]${no_color} zsh-completions already present — skipping clone.\n"
-    fi
-  else
+  if [ ! -d "$ZSH_COMP_PLUGIN" ]; then
     git clone https://github.com/zsh-users/zsh-completions.git "$ZSH_COMP_PLUGIN"
+  else
+    printf "${red}[completions]${no_color} zsh-completions already present — skipping clone.\n"
   fi
   if ! grep -q 'fpath+=.*zsh-completions' "$HOME/.zshrc" 2>/dev/null; then
     gsed -i 's|^# fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src|fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src|g' "$HOME/.zshrc"
@@ -311,5 +304,5 @@ if [[ "$REMOVE_TMP_CONTENT" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Remove tmp files\n\n"
   i=$(($i + 1))
 
-  rm -rf /tmp/*
+  rm -rf /tmp/* 2>/dev/null || true
 fi

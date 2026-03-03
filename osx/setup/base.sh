@@ -6,11 +6,6 @@ no_color='\033[0m'
 
 # Install a cask, adopting any existing manually-installed app into Homebrew management
 install_cask() {
-  if [ "${FORCE_INSTALL:-false}" = "true" ]; then
-    printf "${red}[base]${no_color} Force reinstalling $1...\n"
-    brew reinstall --cask "$1"
-    return
-  fi
   if brew list --cask "$1" &>/dev/null; then
     printf "${red}[base]${no_color} $1 already managed by Homebrew — skipping.\n"
   else
