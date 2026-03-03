@@ -16,7 +16,7 @@ export LANGUAGE=en_US.UTF-8
 export XDG_CONFIG_HOME="$HOME/.config"
 
 # preferred editor for local and remote sessions
-export EDITOR='nvim'
+export EDITOR='vim'
 
 # theme (https://github.com/ohmyzsh/ohmyzsh/wiki/Themes)
 ZSH_THEME="kevin-de-benedetti" # gnzh
@@ -24,29 +24,15 @@ ZSH_THEME="kevin-de-benedetti" # gnzh
 # plugins
 plugins=(
   aliases
-  ansible
   brew
-  bun
   colored-man-pages
   docker
   docker-compose
   gh
   git
   gitignore
-  helm
-  kind
-  kubectl
-  kubectx
-  microk8s
-  minikube
-  nmap
-  node
-  npm
-  oc
   rsync
-  scw
   sudo
-  systemadmin
 )
 
 # brew settings
@@ -59,7 +45,6 @@ if type brew &>/dev/null; then
 
   # use homebrew packages instead of default system packages
   export PATH="/usr/local/bin:$PATH"
-  export PATH="$HOME/.docker/bin:$PATH"
 
   # lesspipe.sh
   export LESSOPEN="|/usr/local/bin/lesspipe.sh %s"

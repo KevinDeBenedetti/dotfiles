@@ -24,51 +24,32 @@ install_cask() {
 install_lite_setup() {
   # Install homebrew cli packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (cli)\n\n"
-  if [ "${FORCE_INSTALL:-false}" = "true" ]; then
-    brew reinstall --formula \
-      cheat \
-      fzf \
-      proto \
-      sshs \
-      tree \
-      watch \
-      yq \
-      rsync
-  else
-    brew install --formula \
-      cheat \
-      fzf \
-      proto \
-      sshs \
-      tree \
-      watch \
-      yq \
-      rsync
-  fi
+  brew install --formula \
+    cheat \
+    docker \
+    docker-compose \
+    fzf \
+    proto \
+    sshs \
+    tree \
+    watch \
+    yq \
+    rsync
 
 
   # Install homebrew graphic app packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (graphic)\n\n"
-  install_cask docker
 
 }
 
 install_additional_setup() {
   # Install homebrew cli packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (cli)\n\n"
-  if [ "${FORCE_INSTALL:-false}" = "true" ]; then
-    brew reinstall --formula \
-      gh \
-      lazydocker \
-      lazygit \
-      nmap
-  else
-    brew install --formula \
-      gh \
-      lazydocker \
-      lazygit \
-      nmap
-  fi
+  brew install --formula \
+    gh \
+    lazydocker \
+    lazygit \
+    nmap
 
   # Install homebrew graphic app packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (graphic)\n\n"

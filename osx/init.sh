@@ -156,12 +156,8 @@ i=$(($i + 1))
 
 # Install common
 printf "\n${red}${i}.${no_color} Install commons\n\n"
-if [ "$FORCE_INSTALL" = "true" ]; then
-  BREW_CMD="reinstall"
-else
-  BREW_CMD="install"
-fi
-brew $BREW_CMD --verbose --formula \
+BREW_CMD=$([ "$FORCE_INSTALL" = "true" ] && echo "reinstall" || echo "install")
+brew $BREW_CMD --formula \
   ca-certificates \
   curl \
   gnupg \
@@ -255,11 +251,11 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   GIT_EMAIL=$(git config --global user.email 2>/dev/null || echo "contact@kevindb.dev")
   if [ -f "$SSH_SIGNING_KEY" ]; then
     mkdir -p "$HOME/.ssh"
-    echo "$GIT_EMAIL $(cat $SSH_SIGNING_KEY)" > "$ALLOWED_SIGNERS"
+    printf '%s %s\n' "$GIT_EMAIL" "$(tr -d '\r' < "$SSH_SIGNING_KEY" | tr -d '\n')" > "$ALLOWED_SIGNERS"
     chmod 600 "$ALLOWED_SIGNERS"
     printf "${red}[git]${no_color} SSH allowed_signers file created at $ALLOWED_SIGNERS\n"
   else
-    printf "${red}[warning]${no_color} SSH key not found at $SSH_SIGNING_KEY — skipping allowed_signers setup.\n"
+    printf "${red}[warning]${no_color} No SSH public key found — skipping allowed_signers setup.\n"
   fi
 
 
