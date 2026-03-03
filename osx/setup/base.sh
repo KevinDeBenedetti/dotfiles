@@ -4,14 +4,19 @@
 red='\e[0;31m'
 no_color='\033[0m'
 
-# Install a cask only if not already installed (avoids errors on existing apps)
+# Install a cask, adopting any existing manually-installed app into Homebrew management
 install_cask() {
+  if [ "${FORCE_INSTALL:-false}" = "true" ]; then
+    printf "${red}[base]${no_color} Force reinstalling $1...\n"
+    brew reinstall --cask "$1"
+    return
+  fi
   if brew list --cask "$1" &>/dev/null; then
-    printf "${red}[base]${no_color} $1 already installed via Homebrew — skipping.\n"
-  elif [ -d "/Applications/$(ls /Applications | grep -i "^$(echo "$1" | sed 's/-/ /g')" | head -1)" ] 2>/dev/null; then
-    printf "${red}[base]${no_color} $1 already present in /Applications — skipping.\n"
+    printf "${red}[base]${no_color} $1 already managed by Homebrew — skipping.\n"
   else
-    brew install --cask "$1"
+    # --adopt takes ownership of apps already present in /Applications
+    # without re-downloading or reinstalling them
+    brew install --cask --adopt "$1"
   fi
 }
 
@@ -19,15 +24,27 @@ install_cask() {
 install_lite_setup() {
   # Install homebrew cli packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (cli)\n\n"
-  brew install --formula \
-    cheat \
-    fzf \
-    proto \
-    sshs \
-    tree \
-    watch \
-    yq \
-    rsync
+  if [ "${FORCE_INSTALL:-false}" = "true" ]; then
+    brew reinstall --formula \
+      cheat \
+      fzf \
+      proto \
+      sshs \
+      tree \
+      watch \
+      yq \
+      rsync
+  else
+    brew install --formula \
+      cheat \
+      fzf \
+      proto \
+      sshs \
+      tree \
+      watch \
+      yq \
+      rsync
+  fi
 
 
   # Install homebrew graphic app packages
@@ -39,11 +56,19 @@ install_lite_setup() {
 install_additional_setup() {
   # Install homebrew cli packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (cli)\n\n"
-  brew install --formula \
-    gh \
-    lazydocker \
-    lazygit \
-    nmap
+  if [ "${FORCE_INSTALL:-false}" = "true" ]; then
+    brew reinstall --formula \
+      gh \
+      lazydocker \
+      lazygit \
+      nmap
+  else
+    brew install --formula \
+      gh \
+      lazydocker \
+      lazygit \
+      nmap
+  fi
 
   # Install homebrew graphic app packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (graphic)\n\n"

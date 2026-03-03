@@ -1,8 +1,5 @@
 {
   "recommendations": [
-    // ansible
-    "redhat.ansible",
-
     // csv
     "mechatroner.rainbow-csv",
 
@@ -11,7 +8,6 @@
     "ms-vsliveshare.vsliveshare",
     "oderwat.indent-rainbow",
     "pflannery.vscode-versionlens",
-    "SonarSource.sonarlint-vscode",
     "wmaurer.change-case",
     "coder.coder-remote",
     "rangav.vscode-thunder-client",
