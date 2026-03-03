@@ -1,0 +1,9 @@
+on: [push, pull_request]
+
+jobs:
+  security:
+    uses: KevinDeBenedetti/.github/.github/workflows/security.yml@main
+    with:
+      run-node-audit: false   # no Node.js project
+      run-python-audit: false # no Python project
+      run-codeql: false        # shell scripts are not supported by CodeQL

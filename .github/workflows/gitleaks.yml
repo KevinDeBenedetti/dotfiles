@@ -1,5 +1,0 @@
-on: [push, pull_request]
-
-jobs:
-  security:
-    uses: KevinDeBenedetti/.github/.github/workflows/gitleaks.yml@main
