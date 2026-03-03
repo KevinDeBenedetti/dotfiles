@@ -225,7 +225,13 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
 
   mkdir -p "$HOME/.config"
   cp "$SCRIPT_PATH/../dotfiles/.zshrc" "$HOME/.zshrc" && gsed -i 's/^# alias sed=.*/alias sed="gsed"/g' "$HOME/.zshrc"
-  cp "$SCRIPT_PATH/../dotfiles/.oh-my-zsh/kevindebenedetti.zsh-theme" "$HOME/.oh-my-zsh/custom/themes/kevindebenedetti.zsh-theme"
+  THEME_SRC="$SCRIPT_PATH/../dotfiles/.oh-my-zsh/kevindebenedetti.zsh-theme"
+  if [ -f "$THEME_SRC" ]; then
+    mkdir -p "$HOME/.oh-my-zsh/custom/themes"
+    cp "$THEME_SRC" "$HOME/.oh-my-zsh/custom/themes/kevindebenedetti.zsh-theme"
+  else
+    printf "${red}[warning]${no_color} Theme file not found, skipping: $THEME_SRC\n"
+  fi
   cp "$SCRIPT_PATH/../dotfiles/.prototools" "$HOME/.proto/.prototools"
   cp "$SCRIPT_PATH/../dotfiles/.gitconfig" "$HOME/.gitconfig"
   cp -R $SCRIPT_PATH/../dotfiles/.config/* "$HOME/.config"
