@@ -23,7 +23,8 @@ install_additional_setup() {
     transmission \
     spotify \
     macs-fan-control \
-    radio-silence
+    radio-silence \
+    kdrive
 }
 
 
