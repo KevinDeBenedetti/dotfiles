@@ -166,7 +166,7 @@ if [ ! -d "$HOME/.oh-my-zsh" ]; then
   printf "\n${red}${i}.${no_color} Install oh-my-zsh\n\n"
   i=$(($i + 1))
 
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 fi
 
 
@@ -225,10 +225,10 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
 
   mkdir -p "$HOME/.config"
   cp "$SCRIPT_PATH/../dotfiles/.zshrc" "$HOME/.zshrc" && gsed -i 's/^# alias sed=.*/alias sed="gsed"/g' "$HOME/.zshrc"
-  THEME_SRC="$SCRIPT_PATH/../dotfiles/.oh-my-zsh/kevindebenedetti.zsh-theme"
+  THEME_SRC="$SCRIPT_PATH/../dotfiles/.oh-my-zsh/kevin-de-benedetti.zsh-theme"
   if [ -f "$THEME_SRC" ]; then
     mkdir -p "$HOME/.oh-my-zsh/custom/themes"
-    cp "$THEME_SRC" "$HOME/.oh-my-zsh/custom/themes/kevindebenedetti.zsh-theme"
+    cp "$THEME_SRC" "$HOME/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme"
   else
     printf "${red}[warning]${no_color} Theme file not found, skipping: $THEME_SRC\n"
   fi
@@ -244,6 +244,7 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
 
   # Install .vscode configs
   if [ -x "$(command -v code)" ]; then
+    mkdir -p "$HOME/Library/Application Support/Code/User"
     cp "$SCRIPT_PATH/../dotfiles/.vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
     cp "$SCRIPT_PATH/../dotfiles/.vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
     mapfile -t VSCODE_EXTENSIONS < <(cat "$SCRIPT_PATH/../dotfiles/.vscode/extensions.json" \
