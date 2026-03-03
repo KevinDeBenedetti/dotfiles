@@ -92,29 +92,3 @@ Example `~/.config/dotfiles/env.local.sh`:
 ```sh
 export CONTEXT7_API_KEY="your-real-key-here"
 ```
-
-## Structure
-
-```
-.gitignore               # Excludes local override files from git
-dotfiles/
-  .zshrc                 # Zsh config (copied + patched on install)
-  .gitconfig             # Git config (with [include] for local overrides)
-  .prototools            # Proto version manager config
-  .oh-my-zsh/
-    *.zsh-theme          # Custom oh-my-zsh theme
-  .config/
-    dotfiles/
-      env.sh             # Shared environment variables
-      functions.sh       # Utility shell functions
-  .vscode/
-    settings.json        # VS Code user settings
-    mcp.json             # VS Code MCP config
-    extensions.json      # VS Code recommended extensions
-osx/
-  init.sh                # Entry point
-  setup/                 # Profile install scripts (base, js, python, ai, extras)
-  helpers/
-    proto.sh             # Injects PROTO_HOME into .zshrc
-    completions.sh       # Generates zsh completions (fzf, gh, proto, uv)
-```
