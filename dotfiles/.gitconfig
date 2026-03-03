@@ -30,3 +30,8 @@
 	email = contact@kevindb.dev
 	name = KevinDeBenedetti
 	signingkey = ~/.ssh/id_rsa.pub
+
+# Machine-specific overrides (user.email, user.signingkey, etc.) — not tracked by git
+# Create ~/.gitconfig.local with your local [user] or any other section to override.
+[include]
+	path = ~/.gitconfig.local

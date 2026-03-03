@@ -11,6 +11,7 @@ i=1
 
 # Get project directories
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+DOTFILES_PATH="$( cd -- "$SCRIPT_PATH/../dotfiles" >/dev/null 2>&1 ; pwd -P )"
 
 # Remote execution support: if sub-scripts are missing (e.g. running via "bash <(curl ...)"),
 # clone the repo to a temp dir and re-exec from there with the same arguments.
@@ -82,11 +83,11 @@ while getopts hacdlp:r flag; do
     l)
       FULL_MODE_SETUP="false";;
     p)
-      [[ "$OPTARG" =~ "ai" ]] && INSTALL_AI="true"
-      [[ "$OPTARG" =~ "base" ]] && INSTALL_BASE="true"
-      [[ "$OPTARG" =~ "extras" ]] && INSTALL_EXTRAS="true"
-      [[ "$OPTARG" =~ "javascript" ]] && INSTALL_JAVASCRIPT="true"
-      [[ "$OPTARG" =~ "python" ]] && INSTALL_PYTHON="true";;
+      [[ ",$OPTARG," =~ ",ai," ]] && INSTALL_AI="true"
+      [[ ",$OPTARG," =~ ",base," ]] && INSTALL_BASE="true"
+      [[ ",$OPTARG," =~ ",extras," ]] && INSTALL_EXTRAS="true"
+      [[ ",$OPTARG," =~ ",javascript," ]] && INSTALL_JAVASCRIPT="true"
+      [[ ",$OPTARG," =~ ",python," ]] && INSTALL_PYTHON="true";;
     r)
       REMOVE_TMP_CONTENT="true";;
     h | *)
@@ -95,6 +96,15 @@ while getopts hacdlp:r flag; do
   esac
 done
 
+# Warn if no profile or action flag was provided
+if [[ "$INSTALL_AI" = "false" && "$INSTALL_BASE" = "false" && "$INSTALL_EXTRAS" = "false" \
+   && "$INSTALL_JAVASCRIPT" = "false" && "$INSTALL_PYTHON" = "false" \
+   && "$COPY_DOTFILES" = "false" && "$INSTALL_COMPLETIONS" = "false" \
+   && "$REMOVE_TMP_CONTENT" = "false" ]]; then
+  printf "\n${red}[warning]${no_color} No profile or action flag provided. Nothing to do.\n"
+  print_help
+  exit 1
+fi
 
 # utils
 install_clt() {
@@ -232,24 +242,43 @@ if [[ "$INSTALL_AI" = "true" ]]; then
 fi
 
 
-# Copy dotfiles
+# Helper: backup a file if it exists and is not already a symlink to our dotfiles
+backup_if_exists() {
+  local target="$1"
+  if [ -f "$target" ] && [ ! -L "$target" ]; then
+    cp "$target" "${target}.bak.$(date +%Y%m%d)"
+    printf "${red}[backup]${no_color} Backed up $target\n"
+  fi
+}
+
+# Link dotfiles
 if [[ "$COPY_DOTFILES" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Copy dotfiles\n\n"
+  printf "\n${red}${i}.${no_color} Link dotfiles\n\n"
   i=$(($i + 1))
 
   mkdir -p "$HOME/.config"
-  cp "$SCRIPT_PATH/../dotfiles/.zshrc" "$HOME/.zshrc" && gsed -i 's/^# alias sed=.*/alias sed="gsed"/g' "$HOME/.zshrc"
-  THEME_SRC="$SCRIPT_PATH/../dotfiles/.oh-my-zsh/kevin-de-benedetti.zsh-theme"
+  backup_if_exists "$HOME/.zshrc"
+  # .zshrc needs machine-specific edits (sed alias, brew paths) so we copy instead of symlink
+  cp "$DOTFILES_PATH/.zshrc" "$HOME/.zshrc" && gsed -i 's/^# alias sed=.*/alias sed="gsed"/g' "$HOME/.zshrc"
+  THEME_SRC="$DOTFILES_PATH/.oh-my-zsh/kevin-de-benedetti.zsh-theme"
   if [ -f "$THEME_SRC" ]; then
     mkdir -p "$HOME/.oh-my-zsh/custom/themes"
-    cp "$THEME_SRC" "$HOME/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme"
+    backup_if_exists "$HOME/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme"
+    ln -sf "$THEME_SRC" "$HOME/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme"
   else
     printf "${red}[warning]${no_color} Theme file not found, skipping: $THEME_SRC\n"
   fi
   mkdir -p "$HOME/.proto"
-  cp "$SCRIPT_PATH/../dotfiles/.prototools" "$HOME/.proto/.prototools"
-  cp "$SCRIPT_PATH/../dotfiles/.gitconfig" "$HOME/.gitconfig"
-  cp -R $SCRIPT_PATH/../dotfiles/.config/* "$HOME/.config"
+  backup_if_exists "$HOME/.proto/.prototools"
+  ln -sf "$DOTFILES_PATH/.prototools" "$HOME/.proto/.prototools"
+  backup_if_exists "$HOME/.gitconfig"
+  ln -sf "$DOTFILES_PATH/.gitconfig" "$HOME/.gitconfig"
+  # Symlink .config subdirectories/files individually
+  for item in "$DOTFILES_PATH/.config/"*; do
+    local_name=$(basename "$item")
+    backup_if_exists "$HOME/.config/$local_name"
+    ln -sf "$item" "$HOME/.config/$local_name"
+  done
 
   # Create SSH allowed signers file for local commit signature verification
   SSH_SIGNING_KEY="$HOME/.ssh/id_rsa.pub"
@@ -265,6 +294,46 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   fi
 
 
+  # Create local override stubs if they don't already exist
+  # These files are gitignored — safe to fill in per-machine without touching the repo
+  if [ ! -f "$HOME/.zshrc.local" ]; then
+    cat > "$HOME/.zshrc.local" <<'EOF'
+# Machine-specific zsh overrides — not tracked by git
+# Add aliases, exports, path additions, etc. specific to this machine.
+# This file is sourced at the end of .zshrc and always wins.
+
+# Example:
+# export MY_WORK_TOKEN="secret"
+# alias myserver="ssh me@192.168.1.1"
+EOF
+    printf "${red}[local]${no_color} Created stub: ~/.zshrc.local\n"
+  fi
+
+  if [ ! -f "$HOME/.gitconfig.local" ]; then
+    cat > "$HOME/.gitconfig.local" <<'EOF'
+# Machine-specific git overrides — not tracked by git
+# Overrides values from .gitconfig (user.email, signingkey, etc.)
+
+# Uncomment and fill in to override the shared .gitconfig:
+# [user]
+# 	email = you@example.com
+# 	signingkey = ~/.ssh/id_ed25519.pub
+EOF
+    printf "${red}[local]${no_color} Created stub: ~/.gitconfig.local\n"
+  fi
+
+  if [ ! -f "$HOME/.config/dotfiles/env.local.sh" ]; then
+    cat > "$HOME/.config/dotfiles/env.local.sh" <<'EOF'
+# Machine-specific environment variables — not tracked by git
+# Overrides / supplements env.sh values for this machine.
+# Sourced automatically at the end of .zshrc.
+
+# Example:
+# export CONTEXT7_API_KEY="your-real-key-here"
+EOF
+    printf "${red}[local]${no_color} Created stub: ~/.config/dotfiles/env.local.sh\n"
+  fi
+
   # Configure proto proxies
   bash "$SCRIPT_PATH/helpers/proto.sh"
 
@@ -272,8 +341,10 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   # Install .vscode configs
   if [ -x "$(command -v code)" ]; then
     mkdir -p "$HOME/Library/Application Support/Code/User"
-    cp "$SCRIPT_PATH/../dotfiles/.vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
-    cp "$SCRIPT_PATH/../dotfiles/.vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
+    backup_if_exists "$HOME/Library/Application Support/Code/User/settings.json"
+    ln -sf "$DOTFILES_PATH/.vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
+    backup_if_exists "$HOME/Library/Application Support/Code/User/mcp.json"
+    ln -sf "$DOTFILES_PATH/.vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
     INSTALLED_EXTENSIONS=$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')
     while IFS= read -r extension; do
       if echo "$INSTALLED_EXTENSIONS" | grep -qi "^${extension}$"; then
@@ -281,7 +352,7 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
       else
         code --install-extension "$extension"
       fi
-    done < <(grep -v '//' "$SCRIPT_PATH/../dotfiles/.vscode/extensions.json" \
+    done < <(grep -v '//' "$DOTFILES_PATH/.vscode/extensions.json" \
       | grep -E '\S' \
       | jq -r '.recommendations[]')
   fi
@@ -316,5 +387,8 @@ if [[ "$REMOVE_TMP_CONTENT" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Remove tmp files\n\n"
   i=$(($i + 1))
 
-  rm -rf /tmp/* 2>/dev/null || true
+  # Only clean up our own temp directory (created during remote bootstrap)
+  if [ -n "${TMP_DIR:-}" ] && [ -d "$TMP_DIR" ]; then
+    rm -rf "$TMP_DIR"
+  fi
 fi

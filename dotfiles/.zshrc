@@ -109,3 +109,8 @@ TLDR_OS=osx # linux
 
 # cheat
 export CHEAT_USE_FZF=true
+
+# Local overrides — machine-specific config, not tracked by git
+# Place aliases, exports, functions, path additions, etc. in these files.
+[ -f "$HOME/.config/dotfiles/env.local.sh" ] && source "$HOME/.config/dotfiles/env.local.sh"
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
