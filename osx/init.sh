@@ -232,6 +232,7 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   else
     printf "${red}[warning]${no_color} Theme file not found, skipping: $THEME_SRC\n"
   fi
+  mkdir -p "$HOME/.proto"
   cp "$SCRIPT_PATH/../dotfiles/.prototools" "$HOME/.proto/.prototools"
   cp "$SCRIPT_PATH/../dotfiles/.gitconfig" "$HOME/.gitconfig"
   cp -R $SCRIPT_PATH/../dotfiles/.config/* "$HOME/.config"
