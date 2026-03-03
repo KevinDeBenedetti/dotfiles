@@ -1,6 +1,6 @@
 # Dotfiles
 
-> A big thank you to @this-is-tobi, the supreme guide of dotfiles, for the inspiration and advice. [https://github.com/this-is-tobi/dotfiles](https://github.com/this-is-tobi/dotfiles)
+> A big thank you to [@this-is-tobi](https://github.com/this-is-tobi), the supreme guide of dotfiles, for the inspiration and advice. [https://github.com/this-is-tobi/dotfiles](https://github.com/this-is-tobi/dotfiles)
 
 Personal macOS dotfiles and setup scripts.
 
