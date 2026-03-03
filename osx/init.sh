@@ -247,13 +247,11 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
     mkdir -p "$HOME/Library/Application Support/Code/User"
     cp "$SCRIPT_PATH/../dotfiles/.vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
     cp "$SCRIPT_PATH/../dotfiles/.vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
-    mapfile -t VSCODE_EXTENSIONS < <(cat "$SCRIPT_PATH/../dotfiles/.vscode/extensions.json" \
-      | grep -v '//' \
+    while IFS= read -r extension; do
+      code --install-extension "$extension"
+    done < <(grep -v '//' "$SCRIPT_PATH/../dotfiles/.vscode/extensions.json" \
       | grep -E '\S' \
       | jq -r '.recommendations[]')
-    for extension in "${VSCODE_EXTENSIONS[@]}"; do
-      echo "$extension" | xargs -L 1 code --install-extension
-    done
   fi
 
 

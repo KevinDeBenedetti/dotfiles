@@ -39,6 +39,6 @@
 
     // themes & icons
     "GitHub.github-vscode-theme",
-    "pkief.material-icon-theme",
+    "pkief.material-icon-theme"
   ]
 }
