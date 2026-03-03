@@ -3,6 +3,10 @@ on: [push, pull_request]
 jobs:
   security:
     uses: KevinDeBenedetti/.github/.github/workflows/security.yml@main
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     with:
       run-node-audit: false   # no Node.js project
       run-python-audit: false # no Python project
