@@ -14,14 +14,20 @@ SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 DOTFILES_PATH="$( cd -- "$SCRIPT_PATH/../dotfiles" >/dev/null 2>&1 ; pwd -P )"
 
 # Remote execution support: if sub-scripts are missing (e.g. running via "bash <(curl ...)"),
-# clone the repo to a temp dir and re-exec from there with the same arguments.
+# clone the repo to a permanent directory and re-exec from there with the same arguments.
+# Using a permanent location (not mktemp) ensures that symlinks created by the install script
+# remain valid across reboots — macOS wipes per-user temp dirs (/var/folders/.../T/) on logout.
 REPO_URL="https://github.com/KevinDeBenedetti/dotfiles.git"
+DOTFILES_INSTALL_DIR="${DOTFILES_INSTALL_DIR:-$HOME/.dotfiles}"
 if [ ! -f "$SCRIPT_PATH/setup/base.sh" ]; then
-  printf "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository...\n\n"
-  TMP_DIR=$(mktemp -d)
-  trap "rm -rf '$TMP_DIR'" EXIT
-  git clone --depth=1 "$REPO_URL" "$TMP_DIR"
-  exec bash "$TMP_DIR/osx/init.sh" "$@"
+  if [ -d "$DOTFILES_INSTALL_DIR/.git" ]; then
+    printf "\n${red}[bootstrap]${no_color} Dotfiles repo found at $DOTFILES_INSTALL_DIR — pulling latest...\n\n"
+    git -C "$DOTFILES_INSTALL_DIR" pull --ff-only || printf "${red}[bootstrap]${no_color} Pull failed (non-fatal), using existing checkout.\n"
+  else
+    printf "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository to $DOTFILES_INSTALL_DIR...\n\n"
+    git clone --depth=1 "$REPO_URL" "$DOTFILES_INSTALL_DIR"
+  fi
+  exec bash "$DOTFILES_INSTALL_DIR/osx/init.sh" "$@"
 fi
 
 # Default
@@ -386,9 +392,7 @@ fi
 if [[ "$REMOVE_TMP_CONTENT" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Remove tmp files\n\n"
   i=$(($i + 1))
-
-  # Only clean up our own temp directory (created during remote bootstrap)
-  if [ -n "${TMP_DIR:-}" ] && [ -d "$TMP_DIR" ]; then
-    rm -rf "$TMP_DIR"
-  fi
+  # Nothing to clean up — the bootstrap now clones to ~/.dotfiles (permanent),
+  # so there is no temporary directory to remove.
+  printf "${red}[cleanup]${no_color} No temporary files to remove.\n"
 fi
