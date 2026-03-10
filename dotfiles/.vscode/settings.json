@@ -1,0 +1,269 @@
+{
+  // visuals
+  "telemetry.telemetryLevel": "off",
+  "window.autoDetectColorScheme": true,
+  "workbench.preferredLightColorTheme": "GitHub Light Default",
+  "workbench.preferredDarkColorTheme": "GitHub Dark Default",
+  "workbench.colorTheme": "GitHub Dark Default",
+  "workbench.fontAliasing": "antialiased",
+  "workbench.iconTheme": "material-icon-theme",
+  "workbench.editor.showTabs": "multiple",
+  "terminal.integrated.fontFamily": "Hack Nerd Font Mono",
+  "editor.fontFamily": "Input Mono, Fira Code, monospace",
+  "editor.fontLigatures": "'ss01', 'ss02', 'ss03', 'ss06', 'zero'",
+  "editor.cursorBlinking": "phase",
+  "editor.suggestSelection": "first",
+  "editor.wordWrap": "on",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.tabSize": 2,
+  "editor.minimap.enabled": false,
+  "search.exclude": {
+    "**/.git": true,
+    "**/.nuxt": true,
+    "**/.pnpm": true,
+    "**/.vscode": true,
+    "**/.yarn": true,
+    "**/dist/**": true,
+    "**/logs": true,
+    "**/node_modules": true,
+    "**/out/**": true,
+    "**/package-lock.json": true,
+    "**/pnpm-lock.yaml": true,
+    "**/yarn.lock": true
+  },
+  // general
+  "files.autoSave": "afterDelay",
+  "editor.unicodeHighlight.invisibleCharacters": false,
+  "security.workspace.trust.untrustedFiles": "open",
+  "workbench.startupEditor": "none",
+  // git
+  "git.autofetch": true,
+  "git.untrackedChanges": "separate",
+  // github
+  "githubPullRequests.pullBranch": "never",
+  // eslint
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "never"
+  },
+  "eslint.format.enable": true,
+  "eslint.quiet": true,
+  "eslint.validate": [
+    "javascript",
+    "typescript",
+    "javascriptreact",
+    "typescriptreact",
+    "vue",
+    "html",
+    "markdown",
+    "json",
+    "jsonc",
+    "json5"
+  ],
+  // stylelint
+  "css.validate": false,
+  "less.validate": true,
+  "scss.validate": true,
+  "files.associations": {
+    "*.css": "postcss",
+  },
+  // languages
+  "[typescript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "typescript.preferences.quoteStyle": "single",
+  "typescript.preferences.importModuleSpecifierEnding": "js",
+  "typescript.suggest.completeJSDocs": true,
+  "typescript.suggest.jsdoc.generateReturns": true,
+  "[javascript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "javascript.preferences.quoteStyle": "single",
+  "javascript.preferences.importModuleSpecifierEnding": "js",
+  "javascript.suggest.completeJSDocs": true,
+  "javascript.suggest.jsdoc.generateReturns": true,
+  "[html]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[markdown]": {
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": true,
+      "strings": true
+    },
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one"
+  },
+  "[yaml]": {
+    "diffEditor.ignoreTrimWhitespace": true,
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  // conventional commits
+  "conventionalCommits.showNewVersionNotes": false,
+  // kubernetes
+  "vs-kubernetes": {
+    "vs-kubernetes.crd-code-completion": "enabled"
+  },
+  "vscode-kubernetes.log-viewer.follow": true,
+  "vscode-kubernetes.log-viewer.timestamp": false,
+  "vscode-kubernetes.log-viewer.since": -1,
+  "vscode-kubernetes.log-viewer.tail": -1,
+  "vscode-kubernetes.log-viewer.destination": "Webview",
+  "vscode-kubernetes.log-viewer.wrap": true,
+  // markdown preview
+  "markdown-preview-enhanced.previewTheme": "github-dark.css",
+  "markdown-preview-enhanced.codeBlockTheme": "github-dark.css",
+  // copilot
+  "github.copilot.chat.agent.autoFix": true,
+  "github.copilot.chat.reviewAgent.enabled": true,
+  "github.copilot.chat.agent.thinkingTool": true,
+  "github.copilot.chat.editor.temporalContext.enabled": true,
+  "github.copilot.chat.edits.temporalContext.enabled": true,
+  "github.copilot.chat.languageContext.fix.typescript.enabled": true,
+  "github.copilot.chat.languageContext.inline.typescript.enabled": true,
+  "github.copilot.chat.languageContext.typescript.enabled": true,
+  "github.copilot.editor.enableCodeActions": false,
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "file": "/Users/kevin/.config/dotfiles/copilot/instructions/commit-message.md"
+    },
+  ],
+  "github.copilot.chat.pullRequestDescriptionGeneration.instructions":[
+    {
+      "file": "/Users/kevin/.config/dotfiles/copilot/instructions/pull-request.md"
+    },
+  ],
+  "github.copilot.chat.reviewSelection.instructions": [
+    {
+      "file": "/Users/kevin/.config/dotfiles/copilot/instructions/code-review.md"
+    },
+  ],
+  "github.copilot.enable": {
+    "*": true,
+    "markdown": true,
+    "plaintext": false,
+    "scminput": false
+  },
+  "chat.agent.maxRequests": 100,
+  "chat.tools.edits.autoApprove": {
+    "**/*": true,
+    "**/.vscode/*.json": false,
+    "**/.git/**": false,
+    "**/{package.json,package-lock.json,server.xml,build.rs,web.config,.gitattributes,.env}": false,
+    "**/*.{csproj,fsproj,vbproj}": false
+  },
+  "chat.tools.terminal.autoApprove": {
+    "cd": true,
+    "echo": true,
+    "ls": true,
+    "pwd": true,
+    "cat": true,
+    "head": true,
+    "tail": true,
+    "findstr": true,
+    "wc": true,
+    "tr": true,
+    "cut": true,
+    "cmp": true,
+    "which": true,
+    "basename": true,
+    "dirname": true,
+    "realpath": true,
+    "readlink": true,
+    "stat": true,
+    "file": true,
+    "du": true,
+    "df": true,
+    "sleep": true,
+    "git status": true,
+    "git log": true,
+    "git show": true,
+    "git diff": true,
+    "Get-ChildItem": true,
+    "Get-Content": true,
+    "Get-Date": true,
+    "Get-Random": true,
+    "Get-Location": true,
+    "Write-Host": true,
+    "Write-Output": true,
+    "Split-Path": true,
+    "Join-Path": true,
+    "Start-Sleep": true,
+    "Where-Object": true,
+    "/^Select-[a-z0-9]/i": true,
+    "/^Measure-[a-z0-9]/i": true,
+    "/^Compare-[a-z0-9]/i": true,
+    "/^Format-[a-z0-9]/i": true,
+    "/^Sort-[a-z0-9]/i": true,
+    "column": true,
+    "/^column\\b.*-c\\s+[0-9]{4,}/": false,
+    "date": true,
+    "/^date\\b.*(-s|--set)\\b/": false,
+    "find": true,
+    "/^find\\b.*-(delete|exec|execdir|fprint|fprintf|fls|ok|okdir)\\b/": false,
+    "grep": true,
+    "/^grep\\b.*-(f|P)\\b/": false,
+    "sort": true,
+    "/^sort\\b.*-(o|S)\\b/": false,
+    "tree": true,
+    "/^tree\\b.*-o\\b/": false,
+    "/\\(.+\\)/": {
+      "approve": false,
+      "matchCommandLine": true
+    },
+    "/\\{.+\\}/": {
+      "approve": false,
+      "matchCommandLine": true
+    },
+    "/`.+`/": {
+      "approve": false,
+      "matchCommandLine": true
+    },
+    "rm": false,
+    "rmdir": false,
+    "del": false,
+    "Remove-Item": false,
+    "ri": false,
+    "rd": false,
+    "erase": false,
+    "dd": false,
+    "kill": false,
+    "ps": false,
+    "top": false,
+    "Stop-Process": false,
+    "spps": false,
+    "taskkill": false,
+    "taskkill.exe": false,
+    "curl": false,
+    "wget": false,
+    "Invoke-RestMethod": false,
+    "Invoke-WebRequest": false,
+    "irm": false,
+    "iwr": false,
+    "chmod": false,
+    "chown": false,
+    "Set-ItemProperty": false,
+    "sp": false,
+    "Set-Acl": false,
+    "jq": false,
+    "xargs": false,
+    "eval": false,
+    "Invoke-Expression": false,
+    "iex": false,
+    "helm": true,
+    "bun": true,
+    "npx": true,
+    "bunx": true,
+    "timeout": true,
+    "pnpm": true,
+    "docker": true,
+    "kubectl": true,
+  },
+  "chat.tools.global.autoApprove": false,
+  "chat.useAgentsMdFile": true,
+  "chat.mcp.autostart": "newAndOutdated",
+  // extensions
+  "database-client.autoSync": true,
+  "docker.extension.enableComposeLanguageServer": false,
+}
