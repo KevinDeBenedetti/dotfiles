@@ -17,15 +17,3 @@ jobs:
       run-node-audit: false # no Node.js project
       run-codeql: false     # shell scripts are not supported by CodeQL
     secrets: inherit
-
-  release:
-    needs: security
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@main
-    permissions:
-      contents: write
-      pull-requests: write
-    with:
-      config-file: .github/release/release-please-config.json
-      manifest-file: .github/release/.release-please-manifest.json
-    secrets: inherit
