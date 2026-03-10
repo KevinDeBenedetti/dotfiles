@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.2.0...v0.3.0) (2026-03-10)
+
+
+### Features
+
+* **settings:** enable auto save for files in VSCode ([e6522cf](https://github.com/KevinDeBenedetti/dotfiles/commit/e6522cf96d4a7a8159790c6e18fbfa5ef10bde11))
+
+
+### Bug Fixes
+
+* **bootstrap:** clone to permanent ~/.dotfiles instead of mktemp ([b8d3bd3](https://github.com/KevinDeBenedetti/dotfiles/commit/b8d3bd3ba7b38620cd406deb375cfbc29a591ed9))
+* **ci-cd:** correct workflow paths in CI/CD configuration ([f79b1a9](https://github.com/KevinDeBenedetti/dotfiles/commit/f79b1a9dff282eaa18c70a85aaba62e99eb989ec))
+
 ## [0.2.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.1.0...v0.2.0) (2026-03-03)
 
 
