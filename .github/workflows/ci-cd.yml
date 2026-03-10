@@ -1,3 +1,5 @@
+name: CI/CD
+
 on:
   push:
     branches: [main]
@@ -6,20 +8,20 @@ on:
 
 jobs:
   security:
-    uses: KevinDeBenedetti/.github/.github/workflows/security.yml@main
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@main
     permissions:
       contents: read
       actions: read
       security-events: write
     with:
-      run-node-audit: false   # no Node.js project
-      run-python-audit: false # no Python project
-      run-codeql: false        # shell scripts are not supported by CodeQL
+      run-node-audit: false # no Node.js project
+      run-codeql: false     # shell scripts are not supported by CodeQL
+    secrets: inherit
 
   release:
     needs: security
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: KevinDeBenedetti/.github/.github/workflows/release.yml@main
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@main
     permissions:
       contents: write
       pull-requests: write
