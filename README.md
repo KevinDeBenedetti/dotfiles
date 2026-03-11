@@ -10,7 +10,7 @@ Personal macOS dotfiles and setup scripts.
 
 ```sh
 # Full install — all profiles, dotfiles, completions
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/osx/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/macos/init.sh) -a
 ```
 
 > The script automatically clones the repository into a temporary directory if not found locally, then re-executes from there.
@@ -19,16 +19,16 @@ bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/ma
 
 ```sh
 # Full install (all profiles + dotfiles + completions + cleanup)
-./osx/init.sh -a
+./os/macos/init.sh -a
 
 # Full install in lite mode (skip optional/heavy packages)
-./osx/init.sh -a -l
+./os/macos/init.sh -a -l
 
 # Selective profiles
-./osx/init.sh -p "base,javascript" -d -c
+./os/macos/init.sh -p "base,javascript" -d -c
 
 # Link dotfiles only
-./osx/init.sh -d
+./os/macos/init.sh -d
 ```
 
 ## Flags
@@ -59,15 +59,15 @@ bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/ma
 
 Running `-d` symlinks config files from the repo into `$HOME`. Any existing file is backed up first (e.g. `~/.zshrc.bak.20260303`) before being replaced.
 
-| Source (repo)                     | Target (`$HOME`)                                        | Method  |
-| --------------------------------- | ------------------------------------------------------- | ------- |
-| `dotfiles/.zshrc`                 | `~/.zshrc`                                              | copy¹   |
-| `dotfiles/.gitconfig`             | `~/.gitconfig`                                          | symlink |
-| `dotfiles/.prototools`            | `~/.proto/.prototools`                                  | symlink |
-| `dotfiles/.oh-my-zsh/*.zsh-theme` | `~/.oh-my-zsh/custom/themes/`                           | symlink |
-| `dotfiles/.config/*`              | `~/.config/`                                            | symlink |
-| `dotfiles/.vscode/settings.json`  | `~/Library/Application Support/Code/User/settings.json` | symlink |
-| `dotfiles/.vscode/mcp.json`       | `~/Library/Application Support/Code/User/mcp.json`      | symlink |
+| Source (repo)                  | Target (`$HOME`)                                        | Method  |
+| ------------------------------ | ------------------------------------------------------- | ------- |
+| `config/zsh/.zshrc`            | `~/.zshrc`                                              | copy¹   |
+| `config/git/.gitconfig`        | `~/.gitconfig`                                          | symlink |
+| `config/proto/.prototools`     | `~/.proto/.prototools`                                  | symlink |
+| `config/oh-my-zsh/*.zsh-theme` | `~/.oh-my-zsh/custom/themes/`                           | symlink |
+| `config/shell/*`               | `~/.config/dotfiles/`                                   | symlink |
+| `config/vscode/settings.json`  | `~/Library/Application Support/Code/User/settings.json` | symlink |
+| `config/vscode/mcp.json`       | `~/Library/Application Support/Code/User/mcp.json`      | symlink |
 
 > ¹ `.zshrc` is copied (not symlinked) because the install script applies machine-specific patches to it (`gsed` alias, arm64 Homebrew paths).
 
