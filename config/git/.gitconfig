@@ -1,0 +1,37 @@
+[push]
+	default = simple
+[status]
+	showUntrackedFiles = all
+[diff]
+	wordRegex = .
+	tool = meld
+[branch]
+	autosetuprebase = always
+	rebase = preserve
+[credential]
+	helper = cache --timeout=3600
+[color]
+	ui = true
+[rerere]
+	enabled = true
+[init]
+	defaultBranch = main
+[pull]
+	rebase = true
+[commit]
+	gpgsign = true
+[tag]
+	gpgSign = true
+[gpg]
+	format = ssh
+[gpg "ssh"]
+	allowedSignersFile = ~/.ssh/allowed_signers
+[user]
+	email = contact@kevindb.dev
+	name = KevinDeBenedetti
+	signingkey = ~/.ssh/id_rsa.pub
+
+# Machine-specific overrides (user.email, user.signingkey, etc.) — not tracked by git
+# Create ~/.gitconfig.local with your local [user] or any other section to override.
+[include]
+	path = ~/.gitconfig.local

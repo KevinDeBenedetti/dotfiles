@@ -11,7 +11,8 @@ i=1
 
 # Get project directories
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-DOTFILES_PATH="$( cd -- "$SCRIPT_PATH/../dotfiles" >/dev/null 2>&1 ; pwd -P )"
+REPO_ROOT="$( cd -- "$SCRIPT_PATH/../.." >/dev/null 2>&1 ; pwd -P )"
+CONFIG_DIR="$REPO_ROOT/config"
 
 # Remote execution support: if sub-scripts are missing (e.g. running via "bash <(curl ...)"),
 # clone the repo to a permanent directory and re-exec from there with the same arguments.
@@ -27,7 +28,7 @@ if [ ! -f "$SCRIPT_PATH/setup/base.sh" ]; then
     printf "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository to $DOTFILES_INSTALL_DIR...\n\n"
     git clone --depth=1 "$REPO_URL" "$DOTFILES_INSTALL_DIR"
   fi
-  exec bash "$DOTFILES_INSTALL_DIR/osx/init.sh" "$@"
+  exec bash "$DOTFILES_INSTALL_DIR/os/macos/init.sh" "$@"
 fi
 
 # Default
@@ -265,8 +266,8 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   mkdir -p "$HOME/.config"
   backup_if_exists "$HOME/.zshrc"
   # .zshrc needs machine-specific edits (sed alias, brew paths) so we copy instead of symlink
-  cp "$DOTFILES_PATH/.zshrc" "$HOME/.zshrc" && gsed -i 's/^# alias sed=.*/alias sed="gsed"/g' "$HOME/.zshrc"
-  THEME_SRC="$DOTFILES_PATH/.oh-my-zsh/kevin-de-benedetti.zsh-theme"
+  cp "$CONFIG_DIR/zsh/.zshrc" "$HOME/.zshrc" && gsed -i 's/^# alias sed=.*/alias sed="gsed"/g' "$HOME/.zshrc"
+  THEME_SRC="$CONFIG_DIR/oh-my-zsh/kevin-de-benedetti.zsh-theme"
   if [ -f "$THEME_SRC" ]; then
     mkdir -p "$HOME/.oh-my-zsh/custom/themes"
     backup_if_exists "$HOME/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme"
@@ -276,14 +277,15 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   fi
   mkdir -p "$HOME/.proto"
   backup_if_exists "$HOME/.proto/.prototools"
-  ln -sf "$DOTFILES_PATH/.prototools" "$HOME/.proto/.prototools"
+  ln -sf "$CONFIG_DIR/proto/.prototools" "$HOME/.proto/.prototools"
   backup_if_exists "$HOME/.gitconfig"
-  ln -sf "$DOTFILES_PATH/.gitconfig" "$HOME/.gitconfig"
-  # Symlink .config subdirectories/files individually
-  for item in "$DOTFILES_PATH/.config/"*; do
+  ln -sf "$CONFIG_DIR/git/.gitconfig" "$HOME/.gitconfig"
+  # Symlink shell config files into ~/.config/dotfiles/
+  mkdir -p "$HOME/.config/dotfiles"
+  for item in "$CONFIG_DIR/shell/"*; do
     local_name=$(basename "$item")
-    backup_if_exists "$HOME/.config/$local_name"
-    ln -sf "$item" "$HOME/.config/$local_name"
+    backup_if_exists "$HOME/.config/dotfiles/$local_name"
+    ln -sf "$item" "$HOME/.config/dotfiles/$local_name"
   done
 
   # Create SSH allowed signers file for local commit signature verification
@@ -329,6 +331,7 @@ EOF
   fi
 
   if [ ! -f "$HOME/.config/dotfiles/env.local.sh" ]; then
+    mkdir -p "$HOME/.config/dotfiles"
     cat > "$HOME/.config/dotfiles/env.local.sh" <<'EOF'
 # Machine-specific environment variables — not tracked by git
 # Overrides / supplements env.sh values for this machine.
@@ -348,9 +351,9 @@ EOF
   if [ -x "$(command -v code)" ]; then
     mkdir -p "$HOME/Library/Application Support/Code/User"
     backup_if_exists "$HOME/Library/Application Support/Code/User/settings.json"
-    ln -sf "$DOTFILES_PATH/.vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
+    ln -sf "$CONFIG_DIR/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
     backup_if_exists "$HOME/Library/Application Support/Code/User/mcp.json"
-    ln -sf "$DOTFILES_PATH/.vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
+    ln -sf "$CONFIG_DIR/vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
     INSTALLED_EXTENSIONS=$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')
     while IFS= read -r extension; do
       if echo "$INSTALLED_EXTENSIONS" | grep -qi "^${extension}$"; then
@@ -358,7 +361,7 @@ EOF
       else
         code --install-extension "$extension"
       fi
-    done < <(grep -v '//' "$DOTFILES_PATH/.vscode/extensions.json" \
+    done < <(grep -v '//' "$CONFIG_DIR/vscode/extensions.json" \
       | grep -E '\S' \
       | jq -r '.recommendations[]')
   fi

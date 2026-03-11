@@ -1,0 +1,7 @@
+# Machine-specific local overrides — never committed
+.zshrc.local
+.gitconfig.local
+env.local.sh
+
+# macOS
+.DS_Store
