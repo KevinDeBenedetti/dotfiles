@@ -1,3 +1,6 @@
+---
+name: CI/CD
+
 on:
   push:
     branches: [main]
@@ -5,24 +8,20 @@ on:
     branches: [main]
 
 jobs:
+  ci:
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@main
+    with:
+      run-docker: true
+      docker-targets: '["test-bats","test-init","test-dotfiles"]'
+
   security:
-    uses: KevinDeBenedetti/.github/.github/workflows/security.yml@main
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@main
     permissions:
       contents: read
       actions: read
       security-events: write
+      pull-requests: read
     with:
-      run-node-audit: false   # no Node.js project
-      run-python-audit: false # no Python project
-      run-codeql: false        # shell scripts are not supported by CodeQL
-
-  release:
-    needs: security
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: KevinDeBenedetti/.github/.github/workflows/release.yml@main
-    permissions:
-      contents: write
-      pull-requests: write
-    with:
-      release-type: simple
+      run-node-audit: false # no Node.js project
+      run-codeql: false     # shell scripts are not supported by CodeQL
     secrets: inherit

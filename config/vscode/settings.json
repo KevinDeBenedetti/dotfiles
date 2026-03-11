@@ -32,6 +32,7 @@
     "**/yarn.lock": true
   },
   // general
+  "files.autoSave": "afterDelay",
   "editor.unicodeHighlight.invisibleCharacters": false,
   "security.workspace.trust.untrustedFiles": "open",
   "workbench.startupEditor": "none",

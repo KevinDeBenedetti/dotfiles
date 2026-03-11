@@ -11,17 +11,25 @@ i=1
 
 # Get project directories
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-DOTFILES_PATH="$( cd -- "$SCRIPT_PATH/../dotfiles" >/dev/null 2>&1 ; pwd -P )"
+REPO_ROOT="$( cd -- "$SCRIPT_PATH/../.." >/dev/null 2>&1 ; pwd -P )"
+CONFIG_DIR="$REPO_ROOT/config"
+HELPERS_DIR="$REPO_ROOT/os/helpers"
 
 # Remote execution support: if sub-scripts are missing (e.g. running via "bash <(curl ...)"),
-# clone the repo to a temp dir and re-exec from there with the same arguments.
+# clone the repo to a permanent directory and re-exec from there with the same arguments.
+# Using a permanent location (not mktemp) ensures that symlinks created by the install script
+# remain valid across reboots — macOS wipes per-user temp dirs (/var/folders/.../T/) on logout.
 REPO_URL="https://github.com/KevinDeBenedetti/dotfiles.git"
-if [ ! -f "$SCRIPT_PATH/setup/base.sh" ]; then
-  printf "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository...\n\n"
-  TMP_DIR=$(mktemp -d)
-  trap "rm -rf '$TMP_DIR'" EXIT
-  git clone --depth=1 "$REPO_URL" "$TMP_DIR"
-  exec bash "$TMP_DIR/osx/init.sh" "$@"
+DOTFILES_INSTALL_DIR="${DOTFILES_INSTALL_DIR:-$HOME/.dotfiles}"
+if [ ! -f "$SCRIPT_PATH/setup-base.sh" ]; then
+  if [ -d "$DOTFILES_INSTALL_DIR/.git" ]; then
+    printf "\n${red}[bootstrap]${no_color} Dotfiles repo found at $DOTFILES_INSTALL_DIR — pulling latest...\n\n"
+    git -C "$DOTFILES_INSTALL_DIR" pull --ff-only || printf "${red}[bootstrap]${no_color} Pull failed (non-fatal), using existing checkout.\n"
+  else
+    printf "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository to $DOTFILES_INSTALL_DIR...\n\n"
+    git clone --depth=1 "$REPO_URL" "$DOTFILES_INSTALL_DIR"
+  fi
+  exec bash "$DOTFILES_INSTALL_DIR/os/macos/init.sh" "$@"
 fi
 
 # Default
@@ -199,10 +207,10 @@ if [[ "$INSTALL_BASE" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install base profile\n\n"
   i=$(($i + 1))
 
-  bash "$SCRIPT_PATH/setup/base.sh"
+  bash "$SCRIPT_PATH/setup-base.sh"
 
   # Configure proto proxies
-  bash "$SCRIPT_PATH/helpers/proto.sh"
+  bash "$HELPERS_DIR/proto.sh"
 fi
 
 
@@ -211,7 +219,7 @@ if [[ "$INSTALL_EXTRAS" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install extras profile\n\n"
   i=$(($i + 1))
 
-  bash "$SCRIPT_PATH/setup/extras.sh"
+  bash "$SCRIPT_PATH/setup-extras.sh"
 fi
 
 
@@ -220,7 +228,7 @@ if [[ "$INSTALL_JAVASCRIPT" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install javascript profile\n\n"
   i=$(($i + 1))
 
-  bash "$SCRIPT_PATH/setup/javascript.sh"
+  bash "$SCRIPT_PATH/setup-javascript.sh"
 fi
 
 
@@ -229,7 +237,7 @@ if [[ "$INSTALL_PYTHON" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install python profile\n\n"
   i=$(($i + 1))
 
-  bash "$SCRIPT_PATH/setup/python.sh"
+  bash "$SCRIPT_PATH/setup-python.sh"
 fi
 
 
@@ -238,7 +246,7 @@ if [[ "$INSTALL_AI" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install ai profile\n\n"
   i=$(($i + 1))
 
-  bash "$SCRIPT_PATH/setup/ai.sh"
+  bash "$SCRIPT_PATH/setup-ai.sh"
 fi
 
 
@@ -259,8 +267,8 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   mkdir -p "$HOME/.config"
   backup_if_exists "$HOME/.zshrc"
   # .zshrc needs machine-specific edits (sed alias, brew paths) so we copy instead of symlink
-  cp "$DOTFILES_PATH/.zshrc" "$HOME/.zshrc" && gsed -i 's/^# alias sed=.*/alias sed="gsed"/g' "$HOME/.zshrc"
-  THEME_SRC="$DOTFILES_PATH/.oh-my-zsh/kevin-de-benedetti.zsh-theme"
+  cp "$CONFIG_DIR/zsh/.zshrc" "$HOME/.zshrc" && gsed -i 's/^# alias sed=.*/alias sed="gsed"/g' "$HOME/.zshrc"
+  THEME_SRC="$CONFIG_DIR/oh-my-zsh/kevin-de-benedetti.zsh-theme"
   if [ -f "$THEME_SRC" ]; then
     mkdir -p "$HOME/.oh-my-zsh/custom/themes"
     backup_if_exists "$HOME/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme"
@@ -270,14 +278,15 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   fi
   mkdir -p "$HOME/.proto"
   backup_if_exists "$HOME/.proto/.prototools"
-  ln -sf "$DOTFILES_PATH/.prototools" "$HOME/.proto/.prototools"
+  ln -sf "$CONFIG_DIR/proto/.prototools" "$HOME/.proto/.prototools"
   backup_if_exists "$HOME/.gitconfig"
-  ln -sf "$DOTFILES_PATH/.gitconfig" "$HOME/.gitconfig"
-  # Symlink .config subdirectories/files individually
-  for item in "$DOTFILES_PATH/.config/"*; do
+  ln -sf "$CONFIG_DIR/git/.gitconfig" "$HOME/.gitconfig"
+  # Symlink shell config files into ~/.config/dotfiles/
+  mkdir -p "$HOME/.config/dotfiles"
+  for item in "$CONFIG_DIR/shell/"*; do
     local_name=$(basename "$item")
-    backup_if_exists "$HOME/.config/$local_name"
-    ln -sf "$item" "$HOME/.config/$local_name"
+    backup_if_exists "$HOME/.config/dotfiles/$local_name"
+    ln -sf "$item" "$HOME/.config/dotfiles/$local_name"
   done
 
   # Create SSH allowed signers file for local commit signature verification
@@ -323,6 +332,7 @@ EOF
   fi
 
   if [ ! -f "$HOME/.config/dotfiles/env.local.sh" ]; then
+    mkdir -p "$HOME/.config/dotfiles"
     cat > "$HOME/.config/dotfiles/env.local.sh" <<'EOF'
 # Machine-specific environment variables — not tracked by git
 # Overrides / supplements env.sh values for this machine.
@@ -335,16 +345,16 @@ EOF
   fi
 
   # Configure proto proxies
-  bash "$SCRIPT_PATH/helpers/proto.sh"
+  bash "$HELPERS_DIR/proto.sh"
 
 
   # Install .vscode configs
   if [ -x "$(command -v code)" ]; then
     mkdir -p "$HOME/Library/Application Support/Code/User"
     backup_if_exists "$HOME/Library/Application Support/Code/User/settings.json"
-    ln -sf "$DOTFILES_PATH/.vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
+    ln -sf "$CONFIG_DIR/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
     backup_if_exists "$HOME/Library/Application Support/Code/User/mcp.json"
-    ln -sf "$DOTFILES_PATH/.vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
+    ln -sf "$CONFIG_DIR/vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
     INSTALLED_EXTENSIONS=$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')
     while IFS= read -r extension; do
       if echo "$INSTALLED_EXTENSIONS" | grep -qi "^${extension}$"; then
@@ -352,7 +362,7 @@ EOF
       else
         code --install-extension "$extension"
       fi
-    done < <(grep -v '//' "$DOTFILES_PATH/.vscode/extensions.json" \
+    done < <(grep -v '//' "$CONFIG_DIR/vscode/extensions.json" \
       | grep -E '\S' \
       | jq -r '.recommendations[]')
   fi
@@ -370,7 +380,7 @@ if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Install cli completions\n\n"
   i=$(($i + 1))
 
-  bash "$SCRIPT_PATH/helpers/completions.sh"
+  bash "$HELPERS_DIR/completions.sh"
   ZSH_COMP_PLUGIN="${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions"
   if [ ! -d "$ZSH_COMP_PLUGIN" ]; then
     git clone https://github.com/zsh-users/zsh-completions.git "$ZSH_COMP_PLUGIN"
@@ -386,9 +396,7 @@ fi
 if [[ "$REMOVE_TMP_CONTENT" = "true" ]]; then
   printf "\n${red}${i}.${no_color} Remove tmp files\n\n"
   i=$(($i + 1))
-
-  # Only clean up our own temp directory (created during remote bootstrap)
-  if [ -n "${TMP_DIR:-}" ] && [ -d "$TMP_DIR" ]; then
-    rm -rf "$TMP_DIR"
-  fi
+  # Nothing to clean up — the bootstrap now clones to ~/.dotfiles (permanent),
+  # so there is no temporary directory to remove.
+  printf "${red}[cleanup]${no_color} No temporary files to remove.\n"
 fi

@@ -43,6 +43,7 @@ install_additional_setup() {
   brew install --formula \
     gh \
     lazydocker \
+    colima \
     lazygit \
     nmap
 
