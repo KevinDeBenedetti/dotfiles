@@ -19,6 +19,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
+      pull-requests: read
     with:
       run-node-audit: false # no Node.js project
       run-codeql: false     # shell scripts are not supported by CodeQL
