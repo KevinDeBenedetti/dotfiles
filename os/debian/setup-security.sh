@@ -12,7 +12,6 @@ SUDO="${SUDO:-}"
 configure_ssh() {
   printf "\n\n${red}[security] =>${no_color} Harden SSH configuration\n\n"
 
-  local sshd_config="/etc/ssh/sshd_config"
   local hardening_conf="/etc/ssh/sshd_config.d/99-hardening.conf"
 
   # Create a drop-in config for hardening (overrides defaults)
