@@ -142,7 +142,7 @@ randompass() {
 	*)
 		while true; do
 			local password
-			password=$(LC_ALL=C tr -dc 'A-Za-z0-9=!?%~_-' < /dev/urandom | head -c "${1:-24}")
+			password=$(LC_ALL=C tr -dc 'A-Za-z0-9=!?%~_-' < /dev/urandom 2>/dev/null | head -c "${1:-24}")
 			[[ $password != *[=\!?\%~_-]* ]] && continue
 			[[ $password != *[A-Z]* ]] && continue
 			[[ $password != *[a-z]* ]] && continue
