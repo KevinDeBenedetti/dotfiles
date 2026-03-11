@@ -1,8 +1,8 @@
-local COLOR_OFF='\033[0m'
-local COLOR_BLUE='\033[0;34m'
-local COLOR_RED='\033[0;31m'
-local COLOR_GREEN='\033[0;32m'
-local COLOR_YELLOW='\033[0;33m'
+COLOR_OFF='\033[0m'
+COLOR_BLUE='\033[0;34m'
+COLOR_RED='\033[0;31m'
+COLOR_GREEN='\033[0;32m'
+COLOR_YELLOW='\033[0;33m'
 
 lsfn() {
   fns=(
@@ -17,7 +17,7 @@ lsfn() {
 		timestampd
 		timestampe
 	)
-	for fn in ${fns[@]}; do
+	for fn in "${fns[@]}"; do
 		echo "${COLOR_BLUE}[$fn]${COLOR_OFF}\n"
 		$fn -h
 		echo "\n"
@@ -125,7 +125,8 @@ kbp() {
 		printf "  kbp <port_number>   kill process using the given port.\n"
 		;;
 	*)
-		kill -9 $(lsof -i :$1 | tail -n +2 | awk '{print $2}')
+		# shellcheck disable=SC2046
+		kill -9 $(lsof -i :"$1" | tail -n +2 | awk '{print $2}')
 		;;
 	esac
 }
@@ -140,7 +141,8 @@ randompass() {
 		;;
 	*)
 		while true; do
-			local password=$(LC_ALL=C tr -dc 'A-Za-z0-9=!?%~_-' < /dev/urandom | head -c ${1:-24})
+			local password
+			password=$(LC_ALL=C tr -dc 'A-Za-z0-9=!?%~_-' < /dev/urandom | head -c "${1:-24}")
 			[[ $password != *[=\!?\%~_-]* ]] && continue
 			[[ $password != *[A-Z]* ]] && continue
 			[[ $password != *[a-z]* ]] && continue
