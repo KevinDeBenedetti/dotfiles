@@ -70,15 +70,19 @@ Core CLI tools installed via `apt`. Split into lite (always) and additional (ful
 
 **Lite:**
 
-| Tool                                     | Description                                     |
-| ---------------------------------------- | ----------------------------------------------- |
-| `docker.io` + `docker-compose`           | Container runtime and orchestration             |
-| [`fzf`](https://github.com/junegunn/fzf) | Fuzzy finder for shell history, files, and more |
-| `ssh`                                    | OpenSSH client                                  |
-| `tree`                                   | Directory tree visualizer                       |
-| `watch`                                  | Repeat a command at intervals                   |
-| [`yq`](https://mikefarah.gitbook.io/yq)  | Portable YAML/JSON/TOML processor               |
-| `rsync`                                  | Incremental file transfer                       |
+| Tool                                                        | Description                                         |
+| ----------------------------------------------------------- | --------------------------------------------------- |
+| [Docker CE](https://docs.docker.com/engine/install/debian/) | Docker engine from the official upstream repository |
+| `docker-ce`, `docker-ce-cli`, `containerd.io`               | Core engine, CLI client, and container runtime      |
+| `docker-buildx-plugin`, `docker-compose-plugin`             | BuildKit and Compose v2 plugins                     |
+| [`fzf`](https://github.com/junegunn/fzf)                    | Fuzzy finder for shell history, files, and more     |
+| `ssh`                                                       | OpenSSH client                                      |
+| `tree`                                                      | Directory tree visualizer                           |
+| `watch`                                                     | Repeat a command at intervals                       |
+| [`yq`](https://mikefarah.gitbook.io/yq)                     | Portable YAML/JSON/TOML processor                   |
+| `rsync`                                                     | Incremental file transfer                           |
+
+> Docker CE is installed from `https://download.docker.com/linux/debian` using the official GPG key. The calling user is automatically added to the `docker` group.
 
 **Additional (full mode):**
 
@@ -87,6 +91,121 @@ Core CLI tools installed via `apt`. Split into lite (always) and additional (ful
 | [`gh`](https://cli.github.com)        | GitHub CLI — PRs, issues, repos from the terminal                            |
 | `nmap`                                | Network exploration and port scanning                                        |
 | [`proto`](https://moonrepo.dev/proto) | Multi-language toolchain version manager (installed via curl if not present) |
+
+### `security`
+
+Hardens the system using a layered approach. Activated with `-p security` or included in `-a` (full install).
+
+#### Environment variables
+
+Set these before invoking the script to customize security behaviour:
+
+| Variable            | Default | Description                                               |
+| ------------------- | ------- | --------------------------------------------------------- |
+| `SSH_PORT`          | `22`    | TCP port sshd listens on                                  |
+| `SSH_ALLOWED_USERS` | *(all)* | Space-separated list of users permitted to log in via SSH |
+
+```sh
+# Example: custom port + restrict SSH to a single user
+SSH_PORT=2222 SSH_ALLOWED_USERS="deploy" bash <(curl -fsSL ...) -a
+```
+
+#### SSH hardening (`/etc/ssh/sshd_config.d/99-hardening.conf`)
+
+| Setting                  | Value                | Effect                                   |
+| ------------------------ | -------------------- | ---------------------------------------- |
+| `Port`                   | `$SSH_PORT`          | Configurable port (default: `22`)        |
+| `PermitRootLogin`        | `no`                 | Disable direct root login                |
+| `PasswordAuthentication` | `no`                 | Key-only authentication                  |
+| `MaxAuthTries`           | `3`                  | Block brute-force attempts               |
+| `X11Forwarding`          | `no`                 | No X11 tunnelling                        |
+| `AllowTcpForwarding`     | `no`                 | No arbitrary port forwarding             |
+| `ClientAliveInterval`    | `300`                | Disconnect after 5 min idle              |
+| `AllowUsers`             | `$SSH_ALLOWED_USERS` | Restrict login to named users (optional) |
+
+#### UFW firewall
+
+Default policy: deny all incoming, allow all outgoing. Rules added:
+
+| Rule            | Protocol | Comment                    |
+| --------------- | -------- | -------------------------- |
+| `$SSH_PORT/tcp` | TCP      | SSH (respects custom port) |
+| `80/tcp`        | TCP      | HTTP                       |
+| `443/tcp`       | TCP      | HTTPS                      |
+
+#### Fail2Ban (`/etc/fail2ban/jail.local`)
+
+| Setting     | Value      |
+| ----------- | ---------- |
+| `bantime`   | 1 hour     |
+| `findtime`  | 10 minutes |
+| `maxretry`  | 3 attempts |
+| `backend`   | `systemd`  |
+| `banaction` | `ufw`      |
+
+#### Sysctl hardening (`/etc/sysctl.d/99-security.conf`)
+
+**Network:**
+
+| Parameter                            | Value | Effect                              |
+| ------------------------------------ | ----- | ----------------------------------- |
+| `net.ipv4.tcp_syncookies`            | `1`   | SYN flood protection                |
+| `net.ipv4.tcp_rfc1337`               | `1`   | TIME_WAIT assassination protection  |
+| `net.ipv4.ip_forward`                | `0`   | No IP forwarding                    |
+| `net.ipv4.conf.all.accept_redirects` | `0`   | Ignore ICMP redirects (MITM)        |
+| `net.ipv4.conf.all.rp_filter`        | `1`   | Reverse path filtering (anti-spoof) |
+| `net.ipv6.conf.all.accept_ra`        | `0`   | Disable IPv6 router advertisements  |
+
+**Kernel:**
+
+| Parameter                   | Value   | Effect                                    |
+| --------------------------- | ------- | ----------------------------------------- |
+| `kernel.kptr_restrict`      | `2`     | Hide kernel pointer addresses in `/proc`  |
+| `kernel.dmesg_restrict`     | `1`     | Restrict kernel log access to root        |
+| `kernel.randomize_va_space` | `2`     | Full ASLR enabled                         |
+| `kernel.yama.ptrace_scope`  | `1`     | Restrict `ptrace` to parent processes     |
+| `net.core.bpf_jit_harden`   | `2`     | Harden BPF JIT compiler                   |
+| `vm.mmap_min_addr`          | `65536` | Prevent null pointer dereference exploits |
+
+**Filesystem:**
+
+| Parameter                | Value | Effect                                               |
+| ------------------------ | ----- | ---------------------------------------------------- |
+| `fs.suid_dumpable`       | `0`   | No core dumps for setuid binaries                    |
+| `fs.protected_symlinks`  | `1`   | Protect symlinks in world-writable sticky dirs       |
+| `fs.protected_hardlinks` | `1`   | Only owner can follow hardlinks                      |
+| `fs.protected_fifos`     | `2`   | Restrict FIFO creation in sticky directories         |
+| `fs.protected_regular`   | `2`   | Restrict regular file creation in sticky directories |
+
+#### Shared memory & `/tmp` (`/etc/fstab`)
+
+| Mount point | Options                       |
+| ----------- | ----------------------------- |
+| `/run/shm`  | `noexec,nosuid`               |
+| `/tmp`      | `noexec,nosuid,nodev,size=1G` |
+
+#### AppArmor
+
+Installs `apparmor` and `apparmor-utils`, adds GRUB boot parameters (`apparmor=1 security=apparmor`), enables the service, and sets all loaded profiles to `enforce` mode.
+
+#### CrowdSec *(full mode only)*
+
+Collaborative threat-intelligence IPS. Installs from `install.crowdsec.net` and adds:
+- `crowdsec-firewall-bouncer-iptables` — automatic firewall banning
+- Collections: `crowdsecurity/linux`, `crowdsecurity/sshd`
+
+#### Unattended upgrades
+
+Configures automatic security patches only (`${distro_id}:${distro_codename}-security`). Auto-reboot is **disabled**.
+
+#### Security audit tools *(full mode only)*
+
+| Tool         | Description                  |
+| ------------ | ---------------------------- |
+| `lynis`      | System and security auditing |
+| `rkhunter`   | Rootkit scanner              |
+| `chkrootkit` | Another rootkit checker      |
+| `auditd`     | Kernel audit framework       |
 
 ### `kubernetes`
 
@@ -178,13 +297,23 @@ usermod -aG sudo <username>
 # Then log out and back in
 ```
 
-**Docker daemon not started after install:**
+**Docker CE daemon not started after install:**
 
 ```sh
 sudo systemctl enable docker
 sudo systemctl start docker
-# Allow current user to run docker without sudo
-sudo usermod -aG docker $USER
+# Log out and back in for group membership to take effect
+# (the script already runs: usermod -aG docker $USER)
+```
+
+**Docker GPG key or repository error:**
+
+```sh
+# Re-add the GPG key manually
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
 ```
 
 **`kubectl` not found after install:**

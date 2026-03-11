@@ -63,13 +63,23 @@ bats tests/
 Test the full Debian setup in an isolated container:
 
 ```sh
-# Run all test stages
-docker compose -f tests/docker/docker-compose.test.yml build
+# Build all test stages
+docker-compose -f tests/docker/docker-compose.test.yml build
 
 # Run individual stages
-docker build -f tests/docker/Dockerfile.test --target test-bats -t dotfiles-test-bats .
-docker build -f tests/docker/Dockerfile.test --target test-init -t dotfiles-test-init .
+docker build -f tests/docker/Dockerfile.test --target test-bats     -t dotfiles-test-bats     .
+docker build -f tests/docker/Dockerfile.test --target test-init     -t dotfiles-test-init     .
 docker build -f tests/docker/Dockerfile.test --target test-dotfiles -t dotfiles-test-dotfiles .
+docker build -f tests/docker/Dockerfile.test --target test-security -t dotfiles-test-security .
+docker build -f tests/docker/Dockerfile.test --target test-full     -t dotfiles-test-full     .
+```
+
+Or via `make`:
+
+```sh
+make docker-test-bats
+make docker-test-security
+make docker-test-full
 ```
 
 | Stage           | Description                                         |
@@ -77,3 +87,5 @@ docker build -f tests/docker/Dockerfile.test --target test-dotfiles -t dotfiles-
 | `test-bats`     | Runs all Bats unit tests inside a Debian container  |
 | `test-init`     | Validates init.sh flag parsing (no actual installs) |
 | `test-dotfiles` | Runs a dotfile-only install and verifies symlinks   |
+| `test-security` | Installs security profile and verifies configs      |
+| `test-full`     | Full integration test — all profiles end-to-end     |

@@ -6,6 +6,14 @@ DOCKER_COMPOSE := tests/docker/docker-compose.test.yml
 TESTS_DIR      := tests
 
 VM_NAME 			:= dotfiles-vm
+SSH_PORT      := $(or $(SSH_PORT),22)
+
+# Terminal colors
+RED    := \033[0;31m
+GREEN  := \033[0;32m
+YELLOW := \033[1;33m
+CYAN   := \033[0;36m
+RESET  := \033[0m
 # ──────────────────────────────────────────────────────────────────────────────
 # Help
 # ──────────────────────────────────────────────────────────────────────────────
@@ -123,17 +131,25 @@ vm-test: ## Verify the setup inside the VM
 	@multipass exec $(VM_NAME) -- bash -c '\
 		echo "" ;\
 		echo "=== 📦 Packages ===" ;\
-		for cmd in zsh git vim curl wget; do \
+		for cmd in zsh git vim curl wget docker; do \
 			command -v $$cmd > /dev/null 2>&1 \
 				&& echo "  ✅ $$cmd: $$(command -v $$cmd)" \
 				|| echo "  ❌ MISSING: $$cmd" ;\
 		done ;\
 		echo "" ;\
+		echo "=== 🐳 Docker CE ===" ;\
+		docker --version 2>/dev/null \
+			&& echo "  ✅ Docker CE: $$(docker --version)" \
+			|| echo "  ⚠️  Docker CE not installed" ;\
+		dpkg -l docker-ce 2>/dev/null | grep -q "^ii" \
+			&& echo "  ✅ docker-ce package installed" \
+			|| echo "  ⚠️  docker-ce not found" ;\
+		echo "" ;\
 		echo "=== 🔒 SSH Config ===" ;\
-		grep -q "PermitRootLogin no" /etc/ssh/sshd_config \
+		sudo grep -rq "PermitRootLogin no" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null \
 			&& echo "  ✅ PermitRootLogin no" \
 			|| echo "  ⚠️  PermitRootLogin not hardened" ;\
-		grep -q "PasswordAuthentication no" /etc/ssh/sshd_config \
+		sudo grep -rq "PasswordAuthentication no" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null \
 			&& echo "  ✅ PasswordAuthentication no" \
 			|| echo "  ⚠️  PasswordAuthentication not disabled" ;\
 		echo "" ;\
@@ -141,6 +157,39 @@ vm-test: ## Verify the setup inside the VM
 		sudo ufw status | grep -q "Status: active" \
 			&& echo "  ✅ UFW active" \
 			|| echo "  ⚠️  UFW not active" ;\
+		echo "" ;\
+		echo "=== 🛡️  AppArmor ===" ;\
+		sudo systemctl is-active apparmor 2>/dev/null | grep -q "^active" \
+			&& echo "  ✅ AppArmor active" \
+			|| echo "  ⚠️  AppArmor not active" ;\
+		command -v aa-status > /dev/null 2>&1 \
+			&& sudo aa-status --verbose 2>/dev/null | head -4 \
+			|| echo "  ⚠️  aa-status not available" ;\
+		echo "" ;\
+		echo "=== ⚙️  Sysctl Hardening ===" ;\
+		for param in \
+			"kernel.kptr_restrict=2" \
+			"kernel.dmesg_restrict=1" \
+			"kernel.randomize_va_space=2" \
+			"kernel.yama.ptrace_scope=1" \
+			"net.ipv4.tcp_syncookies=1" \
+			"fs.protected_symlinks=1" \
+			"fs.protected_hardlinks=1"; do \
+			key="$$(echo $$param | cut -d= -f1)" ;\
+			expected="$$(echo $$param | cut -d= -f2)" ;\
+			actual="$$(sysctl -n $$key 2>/dev/null)" ;\
+			[ "$$actual" = "$$expected" ] \
+				&& echo "  ✅ $$key = $$actual" \
+				|| echo "  ⚠️  $$key = $$actual (expected: $$expected)" ;\
+		done ;\
+		echo "" ;\
+		echo "=== 📁 Filesystem ===";\
+		grep -q "^tmpfs /tmp" /etc/fstab 2>/dev/null \
+			&& echo "  ✅ /tmp noexec entry in fstab" \
+			|| echo "  ⚠️  /tmp not secured in fstab" ;\
+		grep -q "/run/shm" /etc/fstab 2>/dev/null \
+			&& echo "  ✅ /run/shm noexec entry in fstab" \
+			|| echo "  ⚠️  /run/shm not secured in fstab" ;\
 		echo "" ;\
 		echo "=== ☸️  Kernel modules ===" ;\
 		lsmod | grep -q "^overlay" \
@@ -184,5 +233,5 @@ vm-full: vm-create vm-install vm-test ## Full cycle: create VM + install + verif
 	@echo "  → make vm-shell   to connect"
 	@echo "  → make vm-clean   to clean up"
 
-vm-reset: vm-clean vm-create vm-install vm-test
+vm-reset: vm-clean vm-create vm-install vm-test ## Full reset: delete, recreate, install, and verify
 

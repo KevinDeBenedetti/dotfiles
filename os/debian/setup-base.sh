@@ -7,11 +7,40 @@ no_color='\033[0m'
 SUDO="${SUDO:-}"
 
 install_lite_setup() {
+  # Install Docker CE from official upstream repository
+  printf "\n\n${red}[base] =>${no_color} Install Docker CE\n\n"
+  if ! command -v docker &>/dev/null; then
+    $SUDO apt-get install -y --no-install-recommends \
+      ca-certificates \
+      gnupg
+    $SUDO install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/debian/gpg \
+      | $SUDO gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    $SUDO chmod a+r /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/debian \
+$(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+      | $SUDO tee /etc/apt/sources.list.d/docker.list > /dev/null
+    $SUDO apt-get update -qq
+    $SUDO apt-get install -y --no-install-recommends \
+      docker-ce \
+      docker-ce-cli \
+      containerd.io \
+      docker-buildx-plugin \
+      docker-compose-plugin
+    # Add current user to docker group
+    if [[ -n "${SUDO_USER:-}" ]]; then
+      $SUDO usermod -aG docker "$SUDO_USER"
+    elif [[ "$(id -u)" -ne 0 ]]; then
+      $SUDO usermod -aG docker "$(whoami)"
+    fi
+  else
+    printf "${red}[base]${no_color} Docker already installed — skipping.\n"
+  fi
+
   # Install apt packages
   printf "\n\n${red}[base] =>${no_color} Install apt packages (cli)\n\n"
   $SUDO apt-get install -y --no-install-recommends \
-    docker.io \
-    docker-compose \
     fzf \
     ssh \
     tree \

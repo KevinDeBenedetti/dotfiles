@@ -6,17 +6,30 @@ no_color='\033[0m'
 
 SUDO="${SUDO:-}"
 
+# Configurable via env vars (set before sourcing or in init.sh)
+SSH_PORT="${SSH_PORT:-22}"
+SSH_ALLOWED_USERS="${SSH_ALLOWED_USERS:-}"
+
 # ──────────────────────────────────────────────
 # SSH Hardening
 # ──────────────────────────────────────────────
 configure_ssh() {
-  printf "\n\n${red}[security] =>${no_color} Harden SSH configuration\n\n"
+  printf "\n\n${red}[security] =>${no_color} Harden SSH configuration (port: $SSH_PORT)\n\n"
 
   local hardening_conf="/etc/ssh/sshd_config.d/99-hardening.conf"
 
+  # Build AllowUsers directive if env var is set
+  local allow_users_line=""
+  if [[ -n "$SSH_ALLOWED_USERS" ]]; then
+    allow_users_line="AllowUsers $SSH_ALLOWED_USERS"
+  fi
+
   # Create a drop-in config for hardening (overrides defaults)
-  $SUDO tee "$hardening_conf" > /dev/null <<'EOF'
+  $SUDO tee "$hardening_conf" > /dev/null <<EOF
 # SSH Hardening — managed by dotfiles setup-security.sh
+
+# Non-standard port (reduce automated scan noise)
+Port $SSH_PORT
 
 # Disable root login
 PermitRootLogin no
@@ -53,6 +66,7 @@ ClientAliveCountMax 2
 KbdInteractiveAuthentication no
 ChallengeResponseAuthentication no
 UsePAM yes
+${allow_users_line}
 EOF
 
   $SUDO chmod 600 "$hardening_conf"
@@ -83,8 +97,8 @@ install_configure_ufw() {
   $SUDO ufw default deny incoming
   $SUDO ufw default allow outgoing
 
-  # Allow SSH (port 22)
-  $SUDO ufw allow ssh
+  # Allow SSH on configured port
+  $SUDO ufw allow "$SSH_PORT/tcp" comment 'SSH'
 
   # Allow HTTP/HTTPS for web servers
   $SUDO ufw allow http
@@ -224,6 +238,9 @@ net.ipv6.conf.default.accept_source_route = 0
 # Enable SYN flood protection
 net.ipv4.tcp_syncookies = 1
 
+# TIME_WAIT assassination protection (RFC 1337)
+net.ipv4.tcp_rfc1337 = 1
+
 # Log Martian packets (spoofed addresses)
 net.ipv4.conf.all.log_martians = 1
 net.ipv4.conf.default.log_martians = 1
@@ -241,6 +258,32 @@ net.ipv4.conf.default.rp_filter = 1
 # Disable IPv6 router advertisements
 net.ipv6.conf.all.accept_ra = 0
 net.ipv6.conf.default.accept_ra = 0
+
+# Kernel hardening
+# Restrict kernel pointer exposure in /proc
+kernel.kptr_restrict = 2
+# Restrict access to kernel logs
+kernel.dmesg_restrict = 1
+# Full ASLR (Address Space Layout Randomization)
+kernel.randomize_va_space = 2
+# Restrict ptrace to parent processes only
+kernel.yama.ptrace_scope = 1
+# Harden BPF JIT compiler
+net.core.bpf_jit_harden = 2
+# Prevent null pointer dereference exploits
+vm.mmap_min_addr = 65536
+
+# Filesystem hardening
+# No core dumps for setuid binaries
+fs.suid_dumpable = 0
+# Protect symlinks in world-writable sticky directories
+fs.protected_symlinks = 1
+# Protect hardlinks — only owner can follow
+fs.protected_hardlinks = 1
+# Restrict FIFO creation in sticky directories
+fs.protected_fifos = 2
+# Restrict regular file creation in sticky directories
+fs.protected_regular = 2
 EOF
 
   $SUDO sysctl --system > /dev/null 2>&1
@@ -269,19 +312,54 @@ disable_unused_services() {
 }
 
 # ──────────────────────────────────────────────
-# Secure shared memory
+# Secure shared memory and /tmp
 # ──────────────────────────────────────────────
 secure_shared_memory() {
-  printf "\n\n${red}[security] =>${no_color} Secure shared memory\n\n"
+  printf "\n\n${red}[security] =>${no_color} Secure shared memory and /tmp\n\n"
 
-  local fstab_entry="tmpfs /run/shm tmpfs defaults,noexec,nosuid 0 0"
+  local shm_entry="tmpfs /run/shm tmpfs defaults,noexec,nosuid 0 0"
+  local tmp_entry="tmpfs /tmp tmpfs defaults,noexec,nosuid,nodev,size=1G 0 0"
 
   if ! grep -q "/run/shm" /etc/fstab; then
-    echo "$fstab_entry" | $SUDO tee -a /etc/fstab > /dev/null
+    echo "$shm_entry" | $SUDO tee -a /etc/fstab > /dev/null
     printf "${red}[security]${no_color} Shared memory secured in /etc/fstab.\n"
   else
     printf "${red}[security]${no_color} Shared memory entry already present — skipping.\n"
   fi
+
+  if ! grep -q "^tmpfs /tmp" /etc/fstab; then
+    echo "$tmp_entry" | $SUDO tee -a /etc/fstab > /dev/null
+    printf "${red}[security]${no_color} /tmp secured (noexec,nosuid,nodev) in /etc/fstab.\n"
+  else
+    printf "${red}[security]${no_color} /tmp entry already present — skipping.\n"
+  fi
+}
+
+# ──────────────────────────────────────────────
+# AppArmor
+# ──────────────────────────────────────────────
+configure_apparmor() {
+  printf "\n\n${red}[security] =>${no_color} Ensure AppArmor is enabled and enforcing\n\n"
+
+  $SUDO apt-get install -y --no-install-recommends apparmor apparmor-utils
+
+  # Enable AppArmor on boot
+  if ! grep -q "apparmor=1" /proc/cmdline 2>/dev/null; then
+    if [ -f /etc/default/grub ]; then
+      $SUDO sed -i 's|GRUB_CMDLINE_LINUX="\(.*\)"|GRUB_CMDLINE_LINUX="\1 apparmor=1 security=apparmor"|' /etc/default/grub
+      $SUDO update-grub 2>/dev/null || true
+      printf "${red}[security]${no_color} AppArmor boot parameters added to GRUB.\n"
+    fi
+  fi
+
+  $SUDO systemctl enable apparmor
+  $SUDO systemctl start apparmor
+
+  # Set all loaded profiles to enforce mode
+  $SUDO aa-enforce /etc/apparmor.d/* 2>/dev/null || true
+
+  printf "${red}[security]${no_color} AppArmor enabled and profiles set to enforce.\n"
+  $SUDO aa-status --verbose 2>/dev/null | head -20 || true
 }
 
 # ──────────────────────────────────────────────
@@ -308,6 +386,7 @@ install_lite_setup() {
   configure_sysctl_hardening
   disable_unused_services
   secure_shared_memory
+  configure_apparmor
 }
 
 install_additional_setup() {

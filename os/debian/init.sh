@@ -39,6 +39,10 @@ COPY_DOTFILES="false"
 REMOVE_TMP_CONTENT="false"
 FULL_MODE_SETUP="true"
 
+# Security options (used by setup-security.sh)
+SSH_PORT="${SSH_PORT:-22}"
+SSH_ALLOWED_USERS="${SSH_ALLOWED_USERS:-}"
+
 # Declare script helper
 TEXT_HELPER="\nThis script aims to install a full setup for a Debian VPS.
 Following flags are available:
@@ -59,7 +63,9 @@ Following flags are available:
         Default is no profile, this flag can be used with a CSV list (ex: -p \"base,kubernetes,security\").
 
   -r    Remove all tmp files after installation.
-
+  Environment variables (set before running):
+    SSH_PORT=2222          Custom SSH port (default: 22)
+    SSH_ALLOWED_USERS=bob  Space-separated list of users allowed to SSH in
   -h    Print script help.\n\n"
 
 print_help() {
@@ -125,10 +131,17 @@ printf "\nScript settings:
 
 export FULL_MODE_SETUP=$FULL_MODE_SETUP
 export SUDO=$SUDO
+export SSH_PORT=$SSH_PORT
+export SSH_ALLOWED_USERS=$SSH_ALLOWED_USERS
 
 # Update apt
 printf "\n${red}${i}.${no_color} Update apt\n\n"
 $SUDO apt-get update -qq || printf "\n${red}[warning]${no_color} apt update failed (non-fatal), continuing...\n\n"
+i=$(($i + 1))
+
+# Apply security upgrades
+printf "\n${red}${i}.${no_color} Apply security upgrades\n\n"
+$SUDO apt-get upgrade -y --no-install-recommends || printf "\n${red}[warning]${no_color} apt upgrade failed (non-fatal), continuing...\n\n"
 i=$(($i + 1))
 
 # Install common
