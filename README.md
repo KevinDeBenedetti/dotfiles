@@ -1,102 +1,31 @@
 # Dotfiles
 
-> A big thank you to [Tobi](https://github.com/this-is-tobi), the supreme guide of dotfiles, for the inspiration and advice. [https://github.com/this-is-tobi/dotfiles](https://github.com/this-is-tobi/dotfiles)
-
 Personal macOS & Debian dotfiles and setup scripts.
 
+> Inspired by [this-is-tobi/dotfiles](https://github.com/this-is-tobi/dotfiles).
+
 ## Quick Start
-
-### Fresh macOS install (remote)
-
-```sh
-# Full install — all profiles, dotfiles, completions
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/macos/init.sh) -a
-```
-
-### Fresh Debian install (remote)
-
-```sh
-# Full install — all profiles, dotfiles, completions
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/debian/init.sh) -a
-```
-
-> The script automatically clones the repository if not found locally, then re-executes from there.
-
-## Usage
 
 ### macOS
 
 ```sh
-# Full install (all profiles + dotfiles + completions + cleanup)
-./os/macos/init.sh -a
-
-# Full install in lite mode (skip optional/heavy packages)
-./os/macos/init.sh -a -l
-
-# Selective profiles
-./os/macos/init.sh -p "base,javascript" -d -c
-
-# Link dotfiles only
-./os/macos/init.sh -d
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/macos/init.sh) -a
 ```
 
 ### Debian
 
 ```sh
-# Full install
-./os/debian/init.sh -a
-
-# Full install in lite mode
-./os/debian/init.sh -a -l
-
-# Selective profiles
-./os/debian/init.sh -p "base,python" -d -c
-
-# Link dotfiles only
-./os/debian/init.sh -d
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/debian/init.sh) -a
 ```
 
-## Flags
+The script clones the repository to `~/.dotfiles` when not found locally, then re-executes from there.
 
-| Flag            | Description                                                       |
-| --------------- | ----------------------------------------------------------------- |
-| `-a`            | Full install: all profiles + dotfiles + completions + tmp cleanup |
-| `-p <profiles>` | Comma-separated list of profiles to install                       |
-| `-d`            | Link dotfiles into `$HOME` (symlinks, with automatic backup)      |
-| `-c`            | Install zsh CLI completions                                       |
-| `-l`            | Lite mode — skip optional/heavy packages                          |
-| `-r`            | Remove the bootstrap temp directory after install                 |
-| `-h`            | Print help                                                        |
+## Documentation
 
-> At least one flag is required. Running the script without any flag prints help and exits.
+Platform-specific guides covering prerequisites, profiles, flags, dotfile linking, and completions:
 
-## Profiles
-
-| Profile      | macOS (Homebrew)                                                                                                 | Debian (apt)                                                    |
-| ------------ | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `base`       | `fzf`, `proto`, `sshs`, `cheat`, `yq`, `tree`, `watch`, `rsync`, Docker, browsers, `gh`, `lazygit`, `lazydocker` | `fzf`, `docker.io`, `yq`, `tree`, `watch`, `rsync`, `ssh`, `gh` |
-| `javascript` | `node`, `npm` via proto + `bun`, `pnpm`, `yarn`, `@antfu/ni`                                                     | `node`, `npm` via proto + `bun`, `pnpm`, `yarn`, `@antfu/ni`    |
-| `python`     | `python` via proto + `uv`, `ruff`, `ipython`, `httpie`                                                           | `python` via proto + `uv`, `ruff`, `ipython`, `httpie`          |
-| `ai`         | Ollama, GitHub Copilot CLI                                                                                       | Ollama                                                          |
-| `extras`     | VLC, Spotify, Audacity, Discord, Transmission...                                                                 | VLC, Audacity, Transmission                                     |
-
-## Dotfiles linking
-
-Running `-d` symlinks config files from the repo into `$HOME`. Any existing file is backed up first (e.g. `~/.zshrc.bak.20260303`) before being replaced.
-
-| Source (repo)                  | Target (`$HOME`)                                        | macOS | Debian | Method  |
-| ------------------------------ | ------------------------------------------------------- | ----- | ------ | ------- |
-| `config/zsh/.zshrc`            | `~/.zshrc`                                              | yes   | yes    | copy¹   |
-| `config/git/.gitconfig`        | `~/.gitconfig`                                          | yes   | yes    | symlink |
-| `config/proto/.prototools`     | `~/.proto/.prototools`                                  | yes   | yes    | symlink |
-| `config/oh-my-zsh/*.zsh-theme` | `~/.oh-my-zsh/custom/themes/`                           | yes   | yes    | symlink |
-| `config/shell/*`               | `~/.config/dotfiles/`                                   | yes   | yes    | symlink |
-| `config/vscode/settings.json`  | `~/Library/Application Support/Code/User/settings.json` | yes   | —      | symlink |
-| `config/vscode/settings.json`  | `~/.config/Code/User/settings.json`                     | —     | yes    | symlink |
-| `config/vscode/mcp.json`       | `~/Library/Application Support/Code/User/mcp.json`      | yes   | —      | symlink |
-| `config/vscode/mcp.json`       | `~/.config/Code/User/mcp.json`                          | —     | yes    | symlink |
-
-> ¹ `.zshrc` is copied (not symlinked) because the install script applies machine-specific patches to it (`gsed` alias on macOS, arm64 Homebrew paths).
+- [docs/macos.md](docs/macos.md)
+- [docs/debian.md](docs/debian.md)
 
 ## Local overrides
 
