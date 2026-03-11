@@ -73,6 +73,133 @@ RUN test -f "$HOME/.zshrc" \
     && echo "All dotfile checks passed"
 
 # ---------------------------------------------------------------------------
+# Stage: test-base — run base profile install (-p base -l)
+# ---------------------------------------------------------------------------
+FROM base AS test-base
+
+RUN bash /home/tester/.dotfiles/os/debian/init.sh -p base -l
+
+# Verify base packages were installed
+RUN command -v docker \
+    && command -v ssh \
+    && command -v tree \
+    && command -v rsync \
+    && echo "All base lite checks passed"
+
+# ---------------------------------------------------------------------------
+# Stage: test-security — run security profile and verify configs
+# ---------------------------------------------------------------------------
+FROM base AS test-security
+
+# Install packages the security script would install (pre-seed for Docker)
+RUN sudo apt-get update \
+    && sudo apt-get install -y --no-install-recommends \
+      openssh-server \
+      ufw \
+      fail2ban \
+      unattended-upgrades \
+      apt-listchanges \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+# Source the script and call each config function individually
+# (systemctl/sshd-t/ufw calls will fail silently — that's expected in Docker)
+RUN export SUDO="sudo" FULL_MODE_SETUP="false" \
+    && sudo mkdir -p /etc/ssh/sshd_config.d /etc/sysctl.d \
+    && bash -c ' \
+      source /home/tester/.dotfiles/os/debian/setup-security.sh \
+    ' 2>&1 || true
+
+# Verify SSH hardening config was created with correct settings
+RUN sudo test -f /etc/ssh/sshd_config.d/99-hardening.conf \
+    && sudo grep -q "PermitRootLogin no" /etc/ssh/sshd_config.d/99-hardening.conf \
+    && sudo grep -q "PasswordAuthentication no" /etc/ssh/sshd_config.d/99-hardening.conf \
+    && sudo grep -q "MaxAuthTries 3" /etc/ssh/sshd_config.d/99-hardening.conf \
+    && sudo grep -q "X11Forwarding no" /etc/ssh/sshd_config.d/99-hardening.conf \
+    && sudo grep -q "AllowTcpForwarding no" /etc/ssh/sshd_config.d/99-hardening.conf \
+    && sudo grep -q "ClientAliveInterval 300" /etc/ssh/sshd_config.d/99-hardening.conf \
+    && echo "SSH hardening config verified"
+
+# Verify SSH hardening config has restrictive permissions
+RUN sudo stat -c '%a' /etc/ssh/sshd_config.d/99-hardening.conf | grep -q '600' \
+    && echo "SSH config permissions verified (600)"
+
+# Verify Fail2Ban jail.local was created with correct settings
+RUN sudo test -f /etc/fail2ban/jail.local \
+    && sudo grep -q "bantime  = 1h" /etc/fail2ban/jail.local \
+    && sudo grep -q "maxretry = 3" /etc/fail2ban/jail.local \
+    && sudo grep -q "backend  = systemd" /etc/fail2ban/jail.local \
+    && sudo grep -q "banaction = ufw" /etc/fail2ban/jail.local \
+    && sudo grep -q "\[sshd\]" /etc/fail2ban/jail.local \
+    && sudo grep -q "enabled  = true" /etc/fail2ban/jail.local \
+    && echo "Fail2Ban jail.local verified"
+
+# Verify unattended-upgrades config
+RUN test -f /etc/apt/apt.conf.d/20auto-upgrades \
+    && grep -q 'APT::Periodic::Update-Package-Lists "1"' /etc/apt/apt.conf.d/20auto-upgrades \
+    && grep -q 'APT::Periodic::Unattended-Upgrade "1"' /etc/apt/apt.conf.d/20auto-upgrades \
+    && echo "Auto-upgrades config verified"
+
+RUN test -f /etc/apt/apt.conf.d/50unattended-upgrades \
+    && grep -q 'Automatic-Reboot "false"' /etc/apt/apt.conf.d/50unattended-upgrades \
+    && grep -q 'Remove-Unused-Dependencies "true"' /etc/apt/apt.conf.d/50unattended-upgrades \
+    && echo "Unattended-upgrades config verified"
+
+# Verify sysctl hardening config
+RUN test -f /etc/sysctl.d/99-security.conf \
+    && grep -q "net.ipv4.ip_forward = 0" /etc/sysctl.d/99-security.conf \
+    && grep -q "net.ipv4.tcp_syncookies = 1" /etc/sysctl.d/99-security.conf \
+    && grep -q "net.ipv4.conf.all.rp_filter = 1" /etc/sysctl.d/99-security.conf \
+    && grep -q "net.ipv4.conf.all.accept_redirects = 0" /etc/sysctl.d/99-security.conf \
+    && grep -q "net.ipv4.conf.all.log_martians = 1" /etc/sysctl.d/99-security.conf \
+    && echo "Sysctl hardening config verified"
+
+# Verify shared memory entry in fstab
+RUN grep -q "/run/shm" /etc/fstab \
+    && grep -q "noexec,nosuid" /etc/fstab \
+    && echo "Shared memory fstab entry verified"
+
+# ---------------------------------------------------------------------------
+# Stage: test-full — full install with all profiles (-a -l for lite mode)
+# ---------------------------------------------------------------------------
+FROM base AS test-full
+
+RUN sudo apt-get update \
+    && sudo apt-get install -y --no-install-recommends \
+      zsh \
+      jq \
+      openssh-server \
+      ufw \
+      fail2ban \
+      unattended-upgrades \
+      apt-listchanges \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+# Install oh-my-zsh
+RUN RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+
+# Run full install in lite mode (all profiles enabled, skip heavy tools)
+RUN sudo mkdir -p /etc/ssh/sshd_config.d /etc/sysctl.d \
+    && bash /home/tester/.dotfiles/os/debian/init.sh -a -l 2>&1 || true
+
+# Verify base profile artifacts
+RUN command -v docker \
+    && command -v ssh \
+    && command -v tree \
+    && echo "Base profile verified"
+
+# Verify dotfiles were linked
+RUN test -f "$HOME/.zshrc" \
+    && test -L "$HOME/.gitconfig" \
+    && echo "Dotfiles verified"
+
+# Verify security configs exist
+RUN sudo test -f /etc/ssh/sshd_config.d/99-hardening.conf \
+    && sudo test -f /etc/fail2ban/jail.local \
+    && test -f /etc/sysctl.d/99-security.conf \
+    && test -f /etc/apt/apt.conf.d/20auto-upgrades \
+    && echo "Security configs verified"
+
+# ---------------------------------------------------------------------------
 # Default stage: run all test stages
 # ---------------------------------------------------------------------------
 FROM test-bats AS final

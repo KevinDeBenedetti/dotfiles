@@ -65,7 +65,7 @@ setup() {
 }
 
 @test "all Debian setup profiles exist" {
-  for profile in base kubernetes; do
+  for profile in base kubernetes security; do
     assert_file_exists "$REPO_ROOT/os/debian/setup-${profile}.sh"
   done
 }

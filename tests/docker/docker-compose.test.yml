@@ -19,3 +19,24 @@ services:
       context: ../..
       dockerfile: tests/docker/Dockerfile.test
       target: test-dotfiles
+
+  # Test base profile install (lite mode)
+  test-base:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+      target: test-base
+
+  # Test security profile configs and hardening
+  test-security:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+      target: test-security
+
+  # Full integration test (all profiles, lite mode)
+  test-full:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+      target: test-full

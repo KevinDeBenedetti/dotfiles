@@ -33,6 +33,7 @@ fi
 # Default
 INSTALL_BASE="false"
 INSTALL_KUBERNETES="false"
+INSTALL_SECURITY="false"
 INSTALL_COMPLETIONS="false"
 COPY_DOTFILES="false"
 REMOVE_TMP_CONTENT="false"
@@ -42,7 +43,7 @@ FULL_MODE_SETUP="true"
 TEXT_HELPER="\nThis script aims to install a full setup for a Debian VPS.
 Following flags are available:
 
-  -a    Full install: enables all profiles (base, kubernetes),
+  -a    Full install: enables all profiles (base, kubernetes, security),
         copies dotfiles, installs completions and removes tmp files.
 
   -c    Install cli completions.
@@ -54,7 +55,8 @@ Following flags are available:
   -p    Install additional packages according to the given profile, available profiles are :
           -> 'base'
           -> 'kubernetes'
-        Default is no profile, this flag can be used with a CSV list (ex: -p \"base,kubernetes\").
+          -> 'security'
+        Default is no profile, this flag can be used with a CSV list (ex: -p \"base,kubernetes,security\").
 
   -r    Remove all tmp files after installation.
 
@@ -70,6 +72,7 @@ while getopts hacdlp:r flag; do
     a)
       INSTALL_BASE="true"
       INSTALL_KUBERNETES="true"
+      INSTALL_SECURITY="true"
       INSTALL_COMPLETIONS="true"
       COPY_DOTFILES="true"
       REMOVE_TMP_CONTENT="true";;
@@ -81,7 +84,8 @@ while getopts hacdlp:r flag; do
       FULL_MODE_SETUP="false";;
     p)
       [[ ",$OPTARG," =~ ",base," ]] && INSTALL_BASE="true"
-      [[ ",$OPTARG," =~ ",kubernetes," ]] && INSTALL_KUBERNETES="true";;
+      [[ ",$OPTARG," =~ ",kubernetes," ]] && INSTALL_KUBERNETES="true"
+      [[ ",$OPTARG," =~ ",security," ]] && INSTALL_SECURITY="true";;
     r)
       REMOVE_TMP_CONTENT="true";;
     h | *)
@@ -92,6 +96,7 @@ done
 
 # Warn if no profile or action flag was provided
 if [[ "$INSTALL_BASE" = "false" && "$INSTALL_KUBERNETES" = "false" \
+   && "$INSTALL_SECURITY" = "false" \
    && "$COPY_DOTFILES" = "false" && "$INSTALL_COMPLETIONS" = "false" \
    && "$REMOVE_TMP_CONTENT" = "false" ]]; then
   printf "\n${red}[warning]${no_color} No profile or action flag provided. Nothing to do.\n"
@@ -115,7 +120,8 @@ fi
 printf "\nScript settings:
   -> install ${red}full setup${no_color}: ${red}$FULL_MODE_SETUP${no_color}
   -> install ${red}[base]${no_color} profile: ${red}$INSTALL_BASE${no_color}
-  -> install ${red}[kubernetes]${no_color} profile: ${red}$INSTALL_KUBERNETES${no_color}\n"
+  -> install ${red}[kubernetes]${no_color} profile: ${red}$INSTALL_KUBERNETES${no_color}
+  -> install ${red}[security]${no_color} profile: ${red}$INSTALL_SECURITY${no_color}\n"
 
 export FULL_MODE_SETUP=$FULL_MODE_SETUP
 export SUDO=$SUDO
@@ -168,6 +174,15 @@ if [[ "$INSTALL_KUBERNETES" = "true" ]]; then
   i=$(($i + 1))
 
   bash "$SCRIPT_PATH/setup-kubernetes.sh"
+fi
+
+
+# Install security profile
+if [[ "$INSTALL_SECURITY" = "true" ]]; then
+  printf "\n${red}${i}.${no_color} Install security profile\n\n"
+  i=$(($i + 1))
+
+  bash "$SCRIPT_PATH/setup-security.sh"
 fi
 
 

@@ -11,8 +11,11 @@ jobs:
   ci:
     uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@main
     with:
+      run-shellcheck: true
+      run-yamllint: true
+      run-bats: true
       run-docker: true
-      docker-targets: '["test-bats","test-init","test-dotfiles"]'
+      docker-targets: '["test-bats","test-init","test-dotfiles","test-base","test-security","test-full"]'
 
   security:
     uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@main

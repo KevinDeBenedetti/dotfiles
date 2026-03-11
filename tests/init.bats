@@ -79,4 +79,5 @@ setup() {
   assert_success
   assert_output --partial "base"
   assert_output --partial "kubernetes"
+  assert_output --partial "security"
 }
