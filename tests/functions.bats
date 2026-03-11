@@ -56,13 +56,13 @@ setup() {
   run randompass 16
   assert_success
   # Should produce exactly 16 characters
-  [ "${#output}" -eq 16 ]
+  assert_equal "${#output}" 16
 }
 
 @test "randompass default length is 24" {
   run randompass
   assert_success
-  [ "${#output}" -eq 24 ]
+  assert_equal "${#output}" 24
 }
 
 @test "randompass -h prints help" {

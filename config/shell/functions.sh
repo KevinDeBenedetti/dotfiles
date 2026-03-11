@@ -1,8 +1,8 @@
-COLOR_OFF='\033[0m'
-COLOR_BLUE='\033[0;34m'
-COLOR_RED='\033[0;31m'
-COLOR_GREEN='\033[0;32m'
-COLOR_YELLOW='\033[0;33m'
+export COLOR_OFF='\033[0m'
+export COLOR_BLUE='\033[0;34m'
+export COLOR_RED='\033[0;31m'
+export COLOR_GREEN='\033[0;32m'
+export COLOR_YELLOW='\033[0;33m'
 
 lsfn() {
   fns=(
@@ -147,7 +147,7 @@ randompass() {
 			[[ $password != *[A-Z]* ]] && continue
 			[[ $password != *[a-z]* ]] && continue
 			[[ $password != *[0-9]* ]] && continue
-			echo "$password"
+			printf '%s\n' "$password"
 			break
 		done
 		;;
