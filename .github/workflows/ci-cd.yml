@@ -7,6 +7,12 @@ on:
     branches: [main]
 
 jobs:
+  ci:
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@main
+    with:
+      run-docker: true
+      docker-targets: '["test-bats","test-init","test-dotfiles"]'
+
   security:
     uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@main
     permissions:

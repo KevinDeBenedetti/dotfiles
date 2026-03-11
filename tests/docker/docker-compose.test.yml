@@ -1,0 +1,21 @@
+services:
+  # Run Bats unit tests
+  test-bats:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+      target: test-bats
+
+  # Validate init.sh flag parsing
+  test-init:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+      target: test-init
+
+  # Test dotfile linking on a clean Debian system
+  test-dotfiles:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+      target: test-dotfiles

@@ -1,0 +1,78 @@
+# Test Dockerfile for dotfiles setup on Debian
+# Validates that the Debian init script runs correctly in a clean environment
+#
+# Usage:
+#   docker build -f tests/docker/Dockerfile.test -t dotfiles-test .
+#   docker run --rm dotfiles-test
+
+FROM debian:bookworm-slim AS base
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      bash \
+      ca-certificates \
+      curl \
+      git \
+      sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root test user
+RUN useradd -m -s /bin/bash tester \
+    && echo "tester ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+USER tester
+WORKDIR /home/tester
+
+# Copy the dotfiles repo
+COPY --chown=tester:tester . /home/tester/.dotfiles
+
+# ---------------------------------------------------------------------------
+# Stage: test-bats — run Bats unit tests inside the container
+# ---------------------------------------------------------------------------
+FROM base AS test-bats
+
+RUN sudo apt-get update \
+    && sudo apt-get install -y --no-install-recommends bats \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+RUN cd /home/tester/.dotfiles && bats tests/
+
+# ---------------------------------------------------------------------------
+# Stage: test-init — validate init.sh flag parsing (no actual installs)
+# ---------------------------------------------------------------------------
+FROM base AS test-init
+
+# Help flag should print usage and exit 0
+RUN bash /home/tester/.dotfiles/os/debian/init.sh -h
+
+# No flags should exit 1
+RUN bash /home/tester/.dotfiles/os/debian/init.sh 2>&1 && exit 1 || true
+
+# ---------------------------------------------------------------------------
+# Stage: test-dotfiles — run a dotfiles-only install (-d flag)
+# ---------------------------------------------------------------------------
+FROM base AS test-dotfiles
+
+RUN sudo apt-get update \
+    && sudo apt-get install -y --no-install-recommends zsh jq \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+# Install oh-my-zsh (required for dotfile linking)
+RUN RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+
+# Run dotfile linking only
+RUN bash /home/tester/.dotfiles/os/debian/init.sh -d
+
+# Verify dotfiles were linked
+RUN test -f "$HOME/.zshrc" \
+    && test -L "$HOME/.gitconfig" \
+    && test -L "$HOME/.config/dotfiles/env.sh" \
+    && test -L "$HOME/.config/dotfiles/functions.sh" \
+    && echo "All dotfile checks passed"
+
+# ---------------------------------------------------------------------------
+# Default stage: run all test stages
+# ---------------------------------------------------------------------------
+FROM test-bats AS final
