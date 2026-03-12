@@ -1,0 +1,27 @@
+title = "Gitleaks Config"
+
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# False-positive suppressions
+# ---------------------------------------------------------------------------
+
+# The curl-auth-user rule triggers on any `-u <value>` that appears in the
+# context of a curl command.  Several setup scripts pipe a downloaded helper
+# script through bash and pass `-u <github-url>` as an *argument to that
+# script* — not as curl basic-auth credentials.
+#
+# Example (intentional, not a secret):
+#   curl -fsSL https://.../clone-subdir.sh | bash -s -- \
+#     -u "https://github.com/kevindebenedetti/..." -s "..." -d
+#
+# We suppress the rule when the "extracted secret" is a plain GitHub URL,
+# which is never a credential.
+[[allowlists]]
+targetRules = ["curl-auth-user"]
+description  = "GitHub URLs used as script arguments are not curl credentials"
+regexTarget  = "secret"
+regexes      = [
+  '''https?://github\.com/[A-Za-z0-9_.\-/]+''',
+]
