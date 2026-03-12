@@ -7,6 +7,16 @@ no_color='\033[0m'
 SUDO="${SUDO:-}"
 
 install_lite_setup() {
+  # Configure locale (prevents LC_* warnings on SSH login)
+  printf "\n\n${red}[base] =>${no_color} Configure locale (en_US.UTF-8)\n\n"
+  $SUDO apt-get install -y --no-install-recommends locales
+  # Enable en_US.UTF-8 in locale.gen if not already present
+  if ! grep -q '^en_US.UTF-8 UTF-8' /etc/locale.gen 2>/dev/null; then
+    echo 'en_US.UTF-8 UTF-8' | $SUDO tee -a /etc/locale.gen
+  fi
+  $SUDO locale-gen en_US.UTF-8
+  $SUDO update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
   # Install Docker CE from official upstream repository
   printf "\n\n${red}[base] =>${no_color} Install Docker CE\n\n"
   if ! command -v docker &>/dev/null; then

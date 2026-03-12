@@ -40,4 +40,9 @@ for item in "$CONFIG_DIR/shell/"*; do
   link_file "$item" "$HOME/.config/dotfiles/$(basename "$item")"
 done
 
+# SSH client config
+mkdir -p "$HOME/.ssh"
+chmod 700 "$HOME/.ssh"
+link_file "$CONFIG_DIR/ssh/config" "$HOME/.ssh/config"
+
 echo "✅ Symlinks created"
