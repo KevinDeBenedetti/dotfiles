@@ -27,6 +27,8 @@ if [ ! -f "$SCRIPT_PATH/setup-base.sh" ]; then
     os/debian/setup-base.sh
     os/debian/setup-kubernetes.sh
     os/debian/setup-security.sh
+    os/debian/setup-user.sh
+    os/helpers/log.sh
     os/helpers/completions.sh
     os/helpers/proto.sh
     config/zsh/.zshrc
@@ -58,6 +60,11 @@ FULL_MODE_SETUP="true"
 
 # Security options (used by setup-security.sh)
 SSH_PORT="${SSH_PORT:-22}"
+
+# User creation options (used by setup-user.sh via -u flag)
+CREATE_USER="${CREATE_USER:-}"
+SSH_NOPASSWD="${SSH_NOPASSWD:-false}"
+COPY_ROOT_SSH_KEY="${COPY_ROOT_SSH_KEY:-true}"
 SSH_ALLOWED_USERS="${SSH_ALLOWED_USERS:-}"
 
 # Declare script helper
@@ -80,9 +87,16 @@ Following flags are available:
         Default is no profile, this flag can be used with a CSV list (ex: -p \"base,kubernetes,security\").
 
   -r    Remove all tmp files after installation.
+
+  -u USER  Create a non-root sudo user before security hardening.
+           Copies /root/.ssh/authorized_keys to the new user.
+           Set SSH_NOPASSWD=true to grant passwordless sudo (needed for remote provisioning).
+
   Environment variables (set before running):
     SSH_PORT=2222          Custom SSH port (default: 22)
     SSH_ALLOWED_USERS=bob  Space-separated list of users allowed to SSH in
+    SSH_NOPASSWD=true      Grant NOPASSWD sudo to the user created via -u (default: false)
+    COPY_ROOT_SSH_KEY=true Copy root authorized_keys to new user (default: true)
   -h    Print script help.\n\n"
 
 print_help() {
@@ -90,7 +104,7 @@ print_help() {
 }
 
 # Parse options
-while getopts hacdlp:r flag; do
+while getopts hacdlp:ru: flag; do
   case "${flag}" in
     a)
       INSTALL_BASE="true"
@@ -111,6 +125,8 @@ while getopts hacdlp:r flag; do
       [[ ",$OPTARG," =~ ",security," ]] && INSTALL_SECURITY="true";;
     r)
       REMOVE_TMP_CONTENT="true";;
+    u)
+      CREATE_USER="${OPTARG}";;
     h | *)
       print_help
       exit 0;;
@@ -121,7 +137,7 @@ done
 if [[ "$INSTALL_BASE" = "false" && "$INSTALL_KUBERNETES" = "false" \
    && "$INSTALL_SECURITY" = "false" \
    && "$COPY_DOTFILES" = "false" && "$INSTALL_COMPLETIONS" = "false" \
-   && "$REMOVE_TMP_CONTENT" = "false" ]]; then
+   && "$REMOVE_TMP_CONTENT" = "false" && -z "${CREATE_USER:-}" ]]; then
   printf "\n${red}[warning]${no_color} No profile or action flag provided. Nothing to do.\n"
   print_help
   exit 1
@@ -150,6 +166,9 @@ export FULL_MODE_SETUP=$FULL_MODE_SETUP
 export SUDO=$SUDO
 export SSH_PORT=$SSH_PORT
 export SSH_ALLOWED_USERS=$SSH_ALLOWED_USERS
+export CREATE_USER=${CREATE_USER:-}
+export SSH_NOPASSWD=${SSH_NOPASSWD:-false}
+export COPY_ROOT_SSH_KEY=${COPY_ROOT_SSH_KEY:-true}
 
 # Update apt
 printf "\n${red}${i}.${no_color} Update apt\n\n"
@@ -195,6 +214,15 @@ if [[ "$INSTALL_BASE" = "true" ]]; then
 
   # Configure proto proxies
   bash "$HELPERS_DIR/proto.sh"
+fi
+
+
+# Create non-root user if requested (must run BEFORE security disables root login)
+if [[ -n "${CREATE_USER:-}" ]]; then
+  printf "\n${red}${i}.${no_color} Create user '${CREATE_USER}'\n\n"
+  i=$(($i + 1))
+
+  bash "$SCRIPT_PATH/setup-user.sh"
 fi
 
 
