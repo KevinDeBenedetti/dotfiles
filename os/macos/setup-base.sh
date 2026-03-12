@@ -45,6 +45,7 @@ install_additional_setup() {
     lazydocker \
     colima \
     lazygit \
+    lima \
     nmap
 
   # Install homebrew graphic app packages

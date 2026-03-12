@@ -14,12 +14,15 @@ install_lite_setup() {
       ca-certificates \
       gnupg
     $SUDO install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/debian/gpg \
+    # Detect distro ID (debian or ubuntu) for the correct Docker repo URL
+    _DOCKER_DISTRO=$(. /etc/os-release && echo "${ID}")
+    _DOCKER_CODENAME=$(. /etc/os-release && echo "${VERSION_CODENAME}")
+    curl -fsSL "https://download.docker.com/linux/${_DOCKER_DISTRO}/gpg" \
       | $SUDO gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     $SUDO chmod a+r /etc/apt/keyrings/docker.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-https://download.docker.com/linux/debian \
-$(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+https://download.docker.com/linux/${_DOCKER_DISTRO} \
+${_DOCKER_CODENAME} stable" \
       | $SUDO tee /etc/apt/sources.list.d/docker.list > /dev/null
     $SUDO apt-get update -qq
     $SUDO apt-get install -y --no-install-recommends \

@@ -81,6 +81,7 @@ Core CLI tools installed via Homebrew. Split into lite (always) and additional (
 | [`lazygit`](https://github.com/jesseduffield/lazygit)       | Terminal UI for Git                                                  |
 | [`lazydocker`](https://github.com/jesseduffield/lazydocker) | Terminal UI for Docker                                               |
 | [`colima`](https://github.com/abiosoft/colima)              | Lightweight container runtime for macOS (Docker Desktop alternative) |
+| [`lima`](https://github.com/lima-vm/lima)                   | Linux VMs on macOS — used for local Debian setup testing             |
 | [`nmap`](https://nmap.org)                                  | Network exploration and port scanning                                |
 | Browsers                                                    | Brave, Firefox, Arc                                                  |
 | Apps                                                        | Insomnia, Mattermost, OpenVPN Connect                                |
@@ -167,6 +168,47 @@ Running `-c` installs zsh completions for the following tools (placed in `$(brew
 | `gh`    | `gh completion -s zsh`                               |
 | `proto` | `proto completions --shell zsh`                      |
 | `uv`    | `uv generate-shell-completion zsh`                   |
+
+## VM Testing (Debian 13 / trixie)
+
+Use [Lima](https://github.com/lima-vm/lima) to spin up a local Debian 13 (trixie) VM and test the Debian setup scripts without a remote server.
+
+### Prerequisites
+
+```sh
+brew install lima
+```
+
+### Makefile targets
+
+| Target              | Description                                         |
+| ------------------- | --------------------------------------------------- |
+| `make vm-create`    | Create and start the Debian 13 VM                   |
+| `make vm-install`   | Run the full dotfiles install inside the VM         |
+| `make vm-test`      | Verify packages, SSH hardening, UFW, AppArmor, etc. |
+| `make vm-shell`     | Open an interactive shell in the VM                 |
+| `make vm-status`    | Show Lima instance status                           |
+| `make vm-stop`      | Stop the VM (preserve disk)                         |
+| `make vm-start`     | Start a stopped VM                                  |
+| `make vm-clean`     | Delete the VM and free disk space                   |
+| `make vm-full`      | Full cycle: create + install + verify               |
+| `make vm-reset`     | Full reset: delete, recreate, install, verify       |
+| `make vm-lima-list` | List all Lima instances                             |
+
+### Quick start
+
+```sh
+# One-shot: create VM, install dotfiles, run verification
+make vm-full
+
+# Connect to VM shell
+make vm-shell
+
+# Teardown
+make vm-clean
+```
+
+The Lima config is at `tests/lima/debian-trixie.yaml`. It uses Debian 13 (trixie) daily cloud images and Apple Virtualization framework (`vz`) with Rosetta for best performance on Apple Silicon.
 
 ## Homebrew Tips
 

@@ -1,0 +1,36 @@
+# Lima VM configuration — Debian 13 (trixie)
+# Used by 'make vm-create' to test the Debian setup scripts locally on macOS.
+#
+# Usage:
+#   limactl start --name=dotfiles-vm --tty=false tests/lima/debian-trixie.yaml
+#   limactl shell dotfiles-vm
+#   limactl delete --force dotfiles-vm
+
+# Debian 13 (trixie) daily cloud images — aarch64 (Apple Silicon) + x86_64 (Intel)
+images:
+  - location: "https://cloud.debian.org/images/cloud/trixie/daily/latest/debian-13-generic-arm64-daily.qcow2"
+    arch: "aarch64"
+  - location: "https://cloud.debian.org/images/cloud/trixie/daily/latest/debian-13-generic-amd64-daily.qcow2"
+    arch: "x86_64"
+
+cpus: 2
+memory: "2GiB"
+disk: "10GiB"
+
+# Apple Virtualization framework — better performance on Apple Silicon
+vmType: "vz"
+rosetta:
+  enabled: true
+  binfmt: true
+
+# Mount home read-only for file access
+mounts:
+  - location: "~"
+    writable: false
+  - location: "/tmp/lima"
+    writable: true
+
+# No container runtime needed — pure VM for Debian setup testing
+containerd:
+  system: false
+  user: false
