@@ -5,8 +5,9 @@ DOCKER_FILE    := tests/docker/Dockerfile.test
 DOCKER_COMPOSE := tests/docker/docker-compose.test.yml
 TESTS_DIR      := tests
 
-VM_NAME 			:= dotfiles-vm
-SSH_PORT      := $(or $(SSH_PORT),22)
+VM_NAME    := dotfiles-vm
+VM_CONFIG  := tests/lima/debian-trixie.yaml
+SSH_PORT   := $(or $(SSH_PORT),22)
 
 # Terminal colors
 RED    := \033[0;31m
@@ -102,33 +103,34 @@ ci: lint validate test ## Run full CI pipeline locally (shellcheck + yamllint + 
 # VM
 # ──────────────────────────────────────────────────────────────────────────────
 
-.PHONY: vm-create vm-install vm-shell vm-test vm-status vm-stop vm-start vm-clean vm-full vm-reset
+.PHONY: vm-create vm-install vm-shell vm-test vm-status vm-stop vm-start vm-clean vm-full vm-reset vm-lima-list
 
-vm-create: ## Create an Ubuntu 24.04 VM with Multipass (Debian-compatible)
+vm-create: ## Create a Debian 13 (trixie) VM with Lima
 	@echo "$(YELLOW)→ Creating VM '$(VM_NAME)'...$(RESET)"
-	@multipass info $(VM_NAME) > /dev/null 2>&1 \
+	@limactl list $(VM_NAME) > /dev/null 2>&1 \
 		&& echo "  ⚠️  VM already exists — run 'make vm-clean' first" \
-		|| multipass launch 24.04 \
+		|| limactl start \
 			--name $(VM_NAME) \
 			--cpus 2 \
-			--memory 2G \
-			--disk 10G
+			--memory 2 \
+			--disk 10 \
+			--tty=false \
+			$(VM_CONFIG)
 	@echo "$(GREEN)✅ VM '$(VM_NAME)' ready$(RESET)"
-	@multipass info $(VM_NAME)
+	@limactl list $(VM_NAME)
 
-vm-install: ## Run remote dotfiles install script inside the VM
-	@echo "$(YELLOW)→ Running remote dotfiles install script...$(RESET)"
-	@multipass exec $(VM_NAME) -- bash -c \
-		"bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/debian/init.sh) -a"
+vm-install: ## Run local dotfiles install script inside the VM (via Lima mount)
+	@echo "$(YELLOW)→ Running local dotfiles install script...$(RESET)"
+	@limactl shell $(VM_NAME) bash -c "cd \"\$$HOME\" && bash $(CURDIR)/os/debian/init.sh -a"
 	@echo "$(GREEN)✅ Install complete$(RESET)"
 
 vm-shell: ## Open an interactive shell in the VM
 	@echo "$(CYAN)→ Connecting to VM '$(VM_NAME)'...$(RESET)"
-	@multipass shell $(VM_NAME)
+	@limactl shell $(VM_NAME)
 
 vm-test: ## Verify the setup inside the VM
 	@echo "$(YELLOW)→ Running verification checks...$(RESET)"
-	@multipass exec $(VM_NAME) -- bash -c '\
+	@limactl shell $(VM_NAME) bash -c '\
 		echo "" ;\
 		echo "=== 📦 Packages ===" ;\
 		for cmd in zsh git vim curl wget docker; do \
@@ -209,23 +211,26 @@ vm-test: ## Verify the setup inside the VM
 	@echo "$(GREEN)✅ Verification done$(RESET)"
 
 vm-status: ## Show VM status and info
-	@multipass info $(VM_NAME) 2>/dev/null \
+	@limactl list $(VM_NAME) 2>/dev/null \
 		|| echo "$(RED)❌ VM '$(VM_NAME)' not found — run 'make vm-create'$(RESET)"
 
 vm-stop: ## Stop the VM (without deleting it)
 	@echo "$(YELLOW)→ Stopping VM...$(RESET)"
-	@multipass stop $(VM_NAME)
+	@limactl stop $(VM_NAME)
 	@echo "$(GREEN)✅ VM stopped$(RESET)"
 
 vm-start: ## Start a stopped VM
 	@echo "$(YELLOW)→ Starting VM...$(RESET)"
-	@multipass start $(VM_NAME)
+	@limactl start $(VM_NAME)
 	@echo "$(GREEN)✅ VM started$(RESET)"
 
 vm-clean: ## Delete the VM and free disk space
 	@echo "$(RED)→ Deleting VM '$(VM_NAME)'...$(RESET)"
-	@multipass delete $(VM_NAME) --purge 2>/dev/null || true
+	@limactl delete --force $(VM_NAME) 2>/dev/null || true
 	@echo "$(GREEN)✅ VM deleted$(RESET)"
+
+vm-lima-list: ## List all Lima instances
+	@limactl list
 
 vm-full: vm-create vm-install vm-test ## Full cycle: create VM + install + verify
 	@echo ""

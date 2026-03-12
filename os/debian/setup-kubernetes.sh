@@ -6,7 +6,34 @@ no_color='\033[0m'
 
 SUDO="${SUDO:-}"
 
+load_kernel_modules() {
+  printf "\n\n${red}[kubernetes] =>${no_color} Load required kernel modules (overlay, br_netfilter)\n\n"
+
+  # Persist modules across reboots
+  $SUDO tee /etc/modules-load.d/k8s.conf > /dev/null <<'EOF'
+overlay
+br_netfilter
+EOF
+
+  $SUDO modprobe overlay
+  $SUDO modprobe br_netfilter
+
+  # CRI sysctl requirements — use priority 100 to override 99-security.conf for ip_forward
+  $SUDO tee /etc/sysctl.d/100-kubernetes-cri.conf > /dev/null <<'EOF'
+net.bridge.bridge-nf-call-iptables  = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward                 = 1
+EOF
+
+  $SUDO sysctl --system > /dev/null 2>&1
+
+  printf "${red}[kubernetes]${no_color} Kernel modules loaded and sysctl applied.\n"
+}
+
 install_lite_setup() {
+  # Load kernel modules required for Kubernetes
+  load_kernel_modules
+
   # Install kubectl via official Kubernetes apt repository
   printf "\n\n${red}[kubernetes] =>${no_color} Install kubectl\n\n"
   if ! command -v kubectl &>/dev/null; then

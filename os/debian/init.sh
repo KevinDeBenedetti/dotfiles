@@ -325,7 +325,7 @@ if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
   i=$(($i + 1))
 
   bash "$HELPERS_DIR/completions.sh"
-  ZSH_COMP_PLUGIN="${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions"
+  ZSH_COMP_PLUGIN="${ZSH_CUSTOM:-${ZSH:-$HOME/.oh-my-zsh}/custom}/plugins/zsh-completions"
   if [ ! -d "$ZSH_COMP_PLUGIN" ]; then
     git clone https://github.com/zsh-users/zsh-completions.git "$ZSH_COMP_PLUGIN"
   else
