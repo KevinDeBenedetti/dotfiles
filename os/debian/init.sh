@@ -16,17 +16,34 @@ CONFIG_DIR="$REPO_ROOT/config"
 HELPERS_DIR="$REPO_ROOT/os/helpers"
 
 # Remote execution support: if sub-scripts are missing (e.g. running via "bash <(curl ...)"),
-# clone the repo to a permanent directory and re-exec from there with the same arguments.
-REPO_URL="https://github.com/KevinDeBenedetti/dotfiles.git"
+# download each file directly from GitHub raw URLs — no git required.
+DOTFILES_RAW_URL="https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main"
 DOTFILES_INSTALL_DIR="${DOTFILES_INSTALL_DIR:-$HOME/.dotfiles}"
 if [ ! -f "$SCRIPT_PATH/setup-base.sh" ]; then
-  if [ -d "$DOTFILES_INSTALL_DIR/.git" ]; then
-    printf "\n${red}[bootstrap]${no_color} Dotfiles repo found at $DOTFILES_INSTALL_DIR — pulling latest...\n\n"
-    git -C "$DOTFILES_INSTALL_DIR" pull --ff-only || printf "${red}[bootstrap]${no_color} Pull failed (non-fatal), using existing checkout.\n"
-  else
-    printf "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository to $DOTFILES_INSTALL_DIR...\n\n"
-    git clone --depth=1 "$REPO_URL" "$DOTFILES_INSTALL_DIR"
-  fi
+  printf "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — downloading dotfiles to $DOTFILES_INSTALL_DIR...\n\n"
+
+  _DOTFILES_FILES=(
+    os/debian/init.sh
+    os/debian/setup-base.sh
+    os/debian/setup-kubernetes.sh
+    os/debian/setup-security.sh
+    os/helpers/completions.sh
+    os/helpers/proto.sh
+    config/zsh/.zshrc
+    config/oh-my-zsh/kevin-de-benedetti.zsh-theme
+    config/proto/.prototools
+    config/git/.gitconfig
+    config/shell/env.sh
+    config/shell/functions.sh
+  )
+
+  for _file in "${_DOTFILES_FILES[@]}"; do
+    _dest="$DOTFILES_INSTALL_DIR/$_file"
+    mkdir -p "$(dirname "$_dest")"
+    curl -fsSL "$DOTFILES_RAW_URL/$_file" -o "$_dest"
+  done
+  chmod +x "$DOTFILES_INSTALL_DIR"/os/debian/*.sh "$DOTFILES_INSTALL_DIR"/os/helpers/*.sh
+
   exec bash "$DOTFILES_INSTALL_DIR/os/debian/init.sh" "$@"
 fi
 
