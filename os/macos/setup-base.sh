@@ -24,6 +24,9 @@ install_lite_setup() {
     docker \
     docker-compose \
     fzf \
+    gettext \
+    helm \
+    kubectl \
     proto \
     sshs \
     tree \
@@ -42,6 +45,7 @@ install_additional_setup() {
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (cli)\n\n"
   brew install --formula \
     gh \
+    k9s \
     lazydocker \
     colima \
     lazygit \

@@ -43,11 +43,11 @@ if type brew &>/dev/null; then
   # aliases
   alias bcu="brew outdated --cask --greedy | awk '{print $1}' | xargs brew reinstall --cask"
 
-  # use homebrew packages instead of default system packages
-  export PATH="/usr/local/bin:$PATH"
+  # use homebrew packages instead of default system packages (supports both Intel /usr/local and ARM /opt/homebrew)
+  export PATH="$(brew --prefix)/bin:$(brew --prefix)/sbin:$PATH"
 
   # lesspipe.sh
-  export LESSOPEN="|/usr/local/bin/lesspipe.sh %s"
+  [[ -x "$(brew --prefix)/bin/lesspipe.sh" ]] && export LESSOPEN="|$(brew --prefix)/bin/lesspipe.sh %s"
 fi
 
 # add common completion
