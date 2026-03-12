@@ -182,7 +182,7 @@ if [ ! -d "$HOME/.oh-my-zsh" ]; then
   i=$(($i + 1))
 
   $SUDO apt-get install -y --no-install-recommends zsh
-  RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 fi
 
 

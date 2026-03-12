@@ -19,9 +19,13 @@ disk: "10GiB"
 
 # Apple Virtualization framework — better performance on Apple Silicon
 vmType: "vz"
-rosetta:
-  enabled: true
-  binfmt: true
+vmOpts:
+  vz:
+    rosetta:
+      # Enable Rosetta — run Intel binaries on Apple Silicon via binfmt_misc
+      # Hint: run `softwareupdate --install-rosetta` if this gets stuck
+      enabled: true
+      binfmt: true
 
 # Mount home read-only for file access
 mounts:
