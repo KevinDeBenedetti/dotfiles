@@ -1,0 +1,18 @@
+# ~/.ssh/config — managed by dotfiles
+# ─────────────────────────────────────────────────────────────────────────────
+
+Host *
+  # Do NOT forward local LC_* / LANG variables to remote hosts.
+  # macOS sends these by default; remote Debian servers may not have the
+  # same locale installed, causing "setlocale: LC_ALL: cannot change locale"
+  # warnings on every SSH login.
+  SendEnv -LC_* -LANG
+
+  # Reuse existing connections (faster repeat logins)
+  ControlMaster auto
+  ControlPath ~/.ssh/cm-%r@%h:%p
+  ControlPersist 60s
+
+  # Keep connection alive
+  ServerAliveInterval 60
+  ServerAliveCountMax 3
