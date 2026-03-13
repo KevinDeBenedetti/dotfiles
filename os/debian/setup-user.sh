@@ -10,7 +10,7 @@
 #   SUDO                sudo prefix, e.g. "sudo" (default: empty = running as root)
 # =============================================================================
 
-_SETUP_USER_DIR="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+_SETUP_USER_DIR="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit 1 ; pwd -P )"
 
 # Source shared logging helper if available, otherwise define minimal fallback
 if [[ -f "${_SETUP_USER_DIR}/../helpers/log.sh" ]]; then
