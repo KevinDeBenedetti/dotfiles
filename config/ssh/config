@@ -1,3 +1,5 @@
+Include /Users/kevin/.colima/ssh_config
+
 # ~/.ssh/config — managed by dotfiles
 # ─────────────────────────────────────────────────────────────────────────────
 
