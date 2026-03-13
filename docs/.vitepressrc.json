@@ -1,0 +1,7 @@
+{
+  "title": "Dotfiles",
+  "description": "macOS setup scripts for fast developer environment provisioning.",
+  "icon": "🍎",
+  "order": 2,
+  "repo": "KevinDeBenedetti/dotfiles"
+}
