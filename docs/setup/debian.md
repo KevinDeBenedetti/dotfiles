@@ -267,6 +267,160 @@ Running `-c` installs zsh completions for:
 
 Completions are written to `/usr/local/share/zsh/site-functions` (with `sudo` when not root).
 
+## Zsh Configuration
+
+The `.zshrc` at `config/zsh/.zshrc` is **copied** to `~/.zshrc` so machine-specific patches can be applied without affecting the tracked file.
+
+### History
+
+| Setting       | Value            | Effect                                           |
+| ------------- | ---------------- | ------------------------------------------------ |
+| `HISTSIZE`    | `10000`          | Number of commands kept in memory per session    |
+| `SAVEHIST`    | `10000`          | Number of commands persisted to `~/.zsh_history` |
+| `HIST_STAMPS` | `yyyy-mm-dd`     | Date prefix on every history entry               |
+| `HISTFILE`    | `~/.zsh_history` | Persistent history file location                 |
+
+### Theme
+
+A custom Oh My Zsh theme `kevin-de-benedetti` is linked from `config/oh-my-zsh/` into `~/.oh-my-zsh/custom/themes/` and set via `ZSH_THEME`.
+
+### Plugins
+
+The following [Oh My Zsh](https://ohmyz.sh) plugins are enabled in `.zshrc`:
+
+| Plugin              | What it provides                                                                 |
+| ------------------- | -------------------------------------------------------------------------------- |
+| `aliases`           | `als` command — lists all active aliases with descriptions                       |
+| `colored-man-pages` | ANSI colour for `man` pages — much easier to read                                |
+| `docker`            | Docker CLI completion and aliases (`dbl`, `dcin`, `dps`, etc.)                   |
+| `docker-compose`    | `docker compose` completion and shorthand aliases (`dcup`, `dcdown`, etc.)       |
+| `gh`                | GitHub CLI (`gh`) shell completion                                               |
+| `git`               | Extensive Git aliases (`gst`, `gco`, `glog`, `gcmsg`, etc.) and branch in prompt |
+| `gitignore`         | `gi <lang>` — fetches a `.gitignore` template from gitignore.io                  |
+| `rsync`             | Aliases for common rsync patterns (`rsync-copy`, `rsync-move`, etc.)             |
+| `sudo`              | Double-press `ESC` to prepend `sudo` to the current or previous command          |
+
+### fzf Integration
+
+When installed (via the `base` profile), `fzf` provides the following shell key bindings:
+
+| Binding  | Action                                              |
+| -------- | --------------------------------------------------- |
+| `CTRL-T` | Fuzzy-search files/directories and paste the path   |
+| `CTRL-R` | Fuzzy-search command history and run selected entry |
+| `ALT-C`  | Fuzzy `cd` into a subdirectory                      |
+
+### Local Overrides
+
+The following files are sourced at the end of `.zshrc` if they exist. They are **never tracked by git**:
+
+| File                              | Purpose                                               |
+| --------------------------------- | ----------------------------------------------------- |
+| `~/.config/dotfiles/env.local.sh` | Machine-specific secrets and environment variables    |
+| `~/.zshrc.local`                  | Machine-specific aliases, path additions, and exports |
+
+## Shell Functions
+
+Custom functions live in `config/shell/functions.sh` and are sourced automatically by `.zshrc`. Run `lsfn` to list all functions with their help text.
+
+| Function     | Usage                              | Description                                                                     |
+| ------------ | ---------------------------------- | ------------------------------------------------------------------------------- |
+| `b64d`       | `b64d <string>`                    | Decode a base64 string                                                          |
+| `b64e`       | `b64e <string>`                    | Encode a string to base64                                                       |
+| `browser`    | `browser [-- <url>]`               | Start a [Browsh](https://www.brow.sh) terminal browser via Docker               |
+| `cheat_glow` | `cheat_glow <sheet>`               | Render a `cheat` cheatsheet through `glow` at 150 columns for readability       |
+| `check_cert` | `check_cert <url>`                 | Print TLS certificate details for a domain using `curl`                         |
+| `dks`        | `dks <secret> [namespace]`         | Decode a Kubernetes secret — outputs all `.data` values base64-decoded via `yq` |
+| `kbp`        | `kbp <port>`                       | Kill the process currently listening on the given TCP port                      |
+| `randompass` | `randompass [length]`              | Generate a secure random password (default 24 chars) with mixed complexity      |
+| `timestampd` | `timestampd <unix_ts>`             | Convert a Unix timestamp to a human-readable date (cross-platform)              |
+| `timestampe` | `timestampe <YYYY-mm-ddTHH:MM:ss>` | Convert a date string to its Unix timestamp (cross-platform)                    |
+
+> Run any function with `-h` or `--help` to see its usage message, e.g. `dks -h`.
+
+## Git Configuration
+
+`config/git/.gitconfig` is **symlinked** to `~/.gitconfig`. Key settings:
+
+| Section      | Setting              | Value                    | Effect                                               |
+| ------------ | -------------------- | ------------------------ | ---------------------------------------------------- |
+| `push`       | `default`            | `simple`                 | Push to the tracking branch only (safe default)      |
+| `pull`       | `rebase`             | `true`                   | Always rebase on pull instead of merge               |
+| `branch`     | `autosetuprebase`    | `always`                 | New branches track their remote with rebase          |
+| `rerere`     | `enabled`            | `true`                   | Record and replay conflict resolutions automatically |
+| `commit`     | `gpgsign`            | `true`                   | Sign every commit with your SSH key                  |
+| `tag`        | `gpgSign`            | `true`                   | Sign every tag with your SSH key                     |
+| `gpg`        | `format`             | `ssh`                    | Use SSH key (not GPG keyring) for signing            |
+| `gpg.ssh`    | `allowedSignersFile` | `~/.ssh/allowed_signers` | File that maps emails to trusted public keys         |
+| `init`       | `defaultBranch`      | `main`                   | New repositories default to `main`                   |
+| `credential` | `helper`             | `cache --timeout=3600`   | Cache credentials for 1 hour                         |
+
+### Machine-specific overrides
+
+Create `~/.gitconfig.local` — it is `[include]`d at the bottom of `.gitconfig` and is never tracked by git:
+
+```ini
+# ~/.gitconfig.local
+[user]
+  email = server@yourdomain.com
+  signingkey = ~/.ssh/id_ed25519_server.pub
+```
+
+### SSH commit signing
+
+When `~/.ssh/id_rsa.pub` exists the dotfiles install creates `~/.ssh/allowed_signers` automatically. This allows Git to verify signed commits locally with `git log --show-signature`.
+
+## SSH Client Configuration
+
+`config/ssh/config` is **symlinked** to `~/.ssh/config`. The global `Host *` block applies to every connection:
+
+| Directive             | Value         | Effect                                                                   |
+| --------------------- | ------------- | ------------------------------------------------------------------------ |
+| `SendEnv -LC_* -LANG` | (off)         | Do not forward locale variables — avoids `setlocale` warnings on servers |
+| `ControlMaster`       | `auto`        | Reuse an existing connection if one is already open                      |
+| `ControlPath`         | `~/.ssh/cm-…` | Socket path for multiplexed connections                                  |
+| `ControlPersist`      | `60s`         | Keep the master connection open for 60 s after the last session closes   |
+| `ServerAliveInterval` | `60`          | Send a keepalive packet every 60 s                                       |
+| `ServerAliveCountMax` | `3`           | Drop the connection after 3 missed keepalives (~3 min)                   |
+
+## proto Toolchain
+
+`config/proto/.prototools` is **symlinked** to `~/.proto/.prototools`. It pins global tool versions and configures proto's behaviour:
+
+```toml
+bun   = "latest"
+node  = "latest"
+npm   = "bundled"   # ships with the Node.js version
+pnpm  = "latest"
+
+[tools.node]
+bundled-npm = true  # keep npm in sync with node
+
+[tools.npm]
+shared-globals-dir = true  # global npm packages in a single shared dir
+
+[settings]
+auto-install  = true     # install missing tool versions automatically
+auto-clean    = true     # remove unused tool versions after upgrades
+pin-latest    = "global" # record the resolved "latest" version globally
+```
+
+### Managing tool versions
+
+```sh
+# Install / pin a specific version
+proto install node 22
+
+# Use a version in the current directory only
+proto use python 3.12 --local
+
+# List all tools managed by proto
+proto list
+
+# Upgrade proto itself
+proto upgrade
+```
+
 ## Useful `apt` Commands
 
 ```sh
