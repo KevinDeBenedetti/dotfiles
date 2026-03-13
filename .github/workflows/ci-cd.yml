@@ -28,3 +28,11 @@ jobs:
       run-node-audit: false # no Node.js project
       run-codeql: false     # shell scripts are not supported by CodeQL
     secrets: inherit
+
+  # ── Dispatch docs rebuild ──────────────────────────────────────────────────
+  dispatch:
+    name: Dispatch docs rebuild
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/dispatch-docs.yml@main
+    secrets:
+      dispatch-token: ${{ secrets.PAGES_DISPATCH_TOKEN }}
