@@ -125,3 +125,12 @@ setup() {
   run grep -q '"servers"' "$CONFIG_DIR/vscode/mcp.json"
   assert_success
 }
+
+@test "config/copilot/mcp-config.json exists" {
+  assert_file_exists "$CONFIG_DIR/copilot/mcp-config.json"
+}
+
+@test "config/copilot/mcp-config.json contains context7 server" {
+  run grep -q '"context7"' "$CONFIG_DIR/copilot/mcp-config.json"
+  assert_success
+}

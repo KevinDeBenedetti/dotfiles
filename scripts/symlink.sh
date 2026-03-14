@@ -45,4 +45,8 @@ mkdir -p "$HOME/.ssh"
 chmod 700 "$HOME/.ssh"
 link_file "$CONFIG_DIR/ssh/config" "$HOME/.ssh/config"
 
+# GitHub Copilot CLI MCP config
+mkdir -p "$HOME/.copilot"
+link_file "$CONFIG_DIR/copilot/mcp-config.json" "$HOME/.copilot/mcp-config.json"
+
 echo "✅ Symlinks created"

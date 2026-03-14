@@ -36,6 +36,9 @@ plugins=(
   sudo
 )
 
+# proto (https://moonrepo.dev/proto) — version manager shims
+export PATH="$HOME/.proto/shims:$PATH"
+
 # brew settings
 if type brew &>/dev/null; then
   # configure brew fpath
