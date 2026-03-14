@@ -36,6 +36,8 @@
   "editor.unicodeHighlight.invisibleCharacters": false,
   "security.workspace.trust.untrustedFiles": "open",
   "workbench.startupEditor": "none",
+  // python — disable VS Code auto-activating venvs in terminals (direnv handles this)
+  "python.terminal.activateEnvironment": false,
   // git
   "git.autofetch": true,
   "git.untrackedChanges": "separate",
