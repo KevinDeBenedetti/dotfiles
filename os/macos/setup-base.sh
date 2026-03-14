@@ -21,6 +21,7 @@ install_lite_setup() {
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (cli)\n\n"
   brew install --formula \
     cheat \
+    direnv \
     docker \
     docker-compose \
     fzf \

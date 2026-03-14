@@ -26,6 +26,7 @@ plugins=(
   aliases
   brew
   colored-man-pages
+  direnv
   docker
   docker-compose
   gh
