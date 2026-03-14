@@ -338,7 +338,8 @@ EOF
 # Overrides / supplements env.sh values for this machine.
 # Sourced automatically at the end of .zshrc.
 
-# Example:
+# Set your Context7 API key — used by the Copilot CLI MCP config (~/.copilot/mcp-config.json)
+# Get your key at: https://context7.com
 # export CONTEXT7_API_KEY="your-real-key-here"
 EOF
     printf "${red}[local]${no_color} Created stub: ~/.config/dotfiles/env.local.sh\n"
