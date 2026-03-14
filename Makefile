@@ -239,4 +239,3 @@ vm-full: vm-create vm-install vm-test ## Full cycle: create VM + install + verif
 	@echo "  → make vm-clean   to clean up"
 
 vm-reset: vm-clean vm-create vm-install vm-test ## Full reset: delete, recreate, install, and verify
-
