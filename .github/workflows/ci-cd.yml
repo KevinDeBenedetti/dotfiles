@@ -17,6 +17,7 @@ jobs:
       docker-targets: '["test-bats","test-init","test-dotfiles","test-base","test-security","test-full"]'
       run-link-check: true
       link-check-paths: 'docs/**/*.md'
+      run-docs-link-check: true
 
   security:
     uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@main
