@@ -265,29 +265,6 @@
   "chat.tools.global.autoApprove": false,
   "chat.useAgentsMdFile": true,
   "chat.mcp.autostart": "newAndOutdated",
-  // todo-tree — highlight TODO.yml types + standard keywords in code comments
-  "todo-tree.general.tags": [
-    "TODO",
-    "FIXME",
-    "HACK",
-    "BUG",
-    "MARK",
-    "NOTE",
-    "feat",
-    "fix",
-    "refactor",
-    "chore",
-    "doc",
-    "security"
-  ],
-  "todo-tree.highlights.customHighlight": {
-    "feat":     { "icon": "star",           "foreground": "#0075ca" },
-    "fix":      { "icon": "bug",            "foreground": "#d73a4a" },
-    "refactor": { "icon": "sync",           "foreground": "#e4e669" },
-    "chore":    { "icon": "tools",          "foreground": "#8b949e" },
-    "doc":      { "icon": "book",           "foreground": "#0052cc" },
-    "security": { "icon": "shield",         "foreground": "#b60205" }
-  },
   // extensions
   "database-client.autoSync": true,
   "docker.extension.enableComposeLanguageServer": false,
