@@ -38,6 +38,8 @@
   "workbench.startupEditor": "none",
   // python — disable VS Code auto-activating venvs in terminals (direnv handles this)
   "python.terminal.activateEnvironment": false,
+  "python-envs.terminal.autoActivationType": "off",
+  "python.defaultInterpreterPath": "~/.proto/shims/python",
   // git
   "git.autofetch": true,
   "git.untrackedChanges": "separate",
@@ -268,4 +270,5 @@
   // extensions
   "database-client.autoSync": true,
   "docker.extension.enableComposeLanguageServer": false,
+  "chat.viewSessions.orientation": "stacked",
 }
