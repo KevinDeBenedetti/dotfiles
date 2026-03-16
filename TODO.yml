@@ -1,10 +1,11 @@
 issues:
-  - github_id: ~
+  - github_id: 8
     type: feat
-    title: "Add macOS cleanup commands for caches and logs"
+    title: Add macOS cleanup commands for caches and logs
     status: backlog
     priority: medium
-    assignees: [KevinDeBenedetti]
+    assignees:
+      - KevinDeBenedetti
     body: |
       ## Goal
       Provide a `cleanup.sh` script (or `make clean` target) that frees disk space
