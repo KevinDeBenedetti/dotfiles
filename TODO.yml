@@ -1,0 +1,18 @@
+issues:
+  - github_id: ~
+    type: feat
+    title: "Add macOS cleanup commands for caches and logs"
+    status: backlog
+    priority: medium
+    assignees: [KevinDeBenedetti]
+    body: |
+      ## Goal
+      Provide a `cleanup.sh` script (or `make clean` target) that frees disk space
+      on macOS by clearing system and user-level caches, logs, and temp files.
+
+      ## Acceptance criteria
+      - [ ] Script lists categories with estimated size before deleting
+      - [ ] Each category is opt-in (flags or interactive prompts)
+      - [ ] Homebrew cache cleanup included
+      - [ ] Script added to `os/macos/` and referenced in `Makefile`
+      - [ ] Documentation updated in `docs/setup/`
