@@ -271,4 +271,6 @@
   "database-client.autoSync": true,
   "docker.extension.enableComposeLanguageServer": false,
   "chat.viewSessions.orientation": "stacked",
+  "explorer.confirmDragAndDrop": false,
+  "explorer.confirmDelete": false,
 }

@@ -2,6 +2,7 @@ bun = "latest"
 node = "latest"
 npm = "bundled"
 pnpm = "latest"
+python = "3.12.13"
 
 [tools.node]
 bundled-npm = true
