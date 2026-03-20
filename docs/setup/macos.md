@@ -59,12 +59,13 @@ cd ~/.dotfiles
 
 Core CLI tools installed via Homebrew. Split into lite (always) and additional (full mode only).
 
+> **proto** is installed via its [official installer](https://moonrepo.dev/proto) (not Homebrew) by `os/helpers/proto.sh`, which runs automatically with the `base` profile. All tool versions are declared in `config/proto/.prototools` (symlinked to `~/.proto/.prototools`).
+
 **Lite:**
 
 | Tool                                           | Description                                           |
 | ---------------------------------------------- | ----------------------------------------------------- |
 | [`fzf`](https://github.com/junegunn/fzf)       | Fuzzy finder for shell history, files, and more       |
-| [`proto`](https://moonrepo.dev/proto)          | Multi-language toolchain version manager              |
 | [`sshs`](https://github.com/quantumsheep/sshs) | Interactive SSH host selector (reads `~/.ssh/config`) |
 | [`cheat`](https://github.com/cheat/cheat)      | Community-driven command cheatsheets                  |
 | [`yq`](https://mikefarah.gitbook.io/yq)        | Portable YAML/JSON/TOML processor                     |
@@ -88,14 +89,14 @@ Core CLI tools installed via Homebrew. Split into lite (always) and additional (
 
 ### `javascript`
 
-Installs Node.js and package managers via proto.
+Installs Node.js and package managers via proto. Pinned versions are read from `config/proto/.prototools` — no versions are hardcoded in the script.
 
 **Lite:**
 
-| Tool   | Version manager |
-| ------ | --------------- |
-| `node` | proto           |
-| `npm`  | proto           |
+| Tool   | Version declared in    |
+| ------ | ---------------------- |
+| `node` | `.prototools`          |
+| `npm`  | `.prototools` (bundled with node) |
 
 **Additional (full mode):**
 
@@ -108,14 +109,14 @@ Installs Node.js and package managers via proto.
 
 ### `python`
 
-Installs Python via proto and tooling via uv.
+Installs Python via proto and tooling via uv. The pinned version is read from `config/proto/.prototools` — no version is hardcoded in the script.
 
 **Lite:**
 
-| Tool                              | Version manager                                 |
+| Tool                              | Version declared in                             |
 | --------------------------------- | ----------------------------------------------- |
-| `python`                          | proto                                           |
-| [`uv`](https://docs.astral.sh/uv) | Blazing-fast Python package and project manager |
+| `python`                          | `.prototools`                                   |
+| [`uv`](https://docs.astral.sh/uv) | Homebrew (latest) — fast Python package manager |
 
 **Additional (full mode):**
 

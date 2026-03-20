@@ -36,8 +36,11 @@ plugins=(
   sudo
 )
 
-# proto (https://moonrepo.dev/proto) — version manager shims
-export PATH="$HOME/.proto/shims:$PATH"
+# proto (https://moonrepo.dev/proto) — toolchain version manager
+# PROTO_HOME/shims: intercepts tool invocations to dispatch the pinned version
+# PROTO_HOME/bin:   makes the proto CLI itself available
+export PROTO_HOME="$HOME/.proto"
+export PATH="$PROTO_HOME/shims:$PROTO_HOME/bin:$PATH"
 
 # brew settings
 if type brew &>/dev/null; then

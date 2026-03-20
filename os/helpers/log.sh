@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Shared logging helpers for dotfiles setup scripts.
 # Source this file at the top of any setup script:
 #   source "$(dirname "$0")/../helpers/log.sh"

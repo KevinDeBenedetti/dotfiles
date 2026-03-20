@@ -1,10 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
 # Colorize terminal
 red='\e[0;31m'
 no_color='\033[0m'
+
+# Print the failing line on any error — much more informative than a silent exit
+trap 'printf "\n${red}[error]${no_color} init.sh failed at line ${LINENO}: %s\n" "$BASH_COMMAND" >&2' ERR
 
 # Console step increment
 i=1
@@ -209,7 +212,7 @@ if [[ "$INSTALL_BASE" = "true" ]]; then
 
   bash "$SCRIPT_PATH/setup-base.sh"
 
-  # Configure proto proxies
+  # Install proto (official installer) and configure shell integration
   bash "$HELPERS_DIR/proto.sh"
 fi
 
@@ -345,10 +348,6 @@ EOF
     printf "${red}[local]${no_color} Created stub: ~/.config/dotfiles/env.local.sh\n"
   fi
 
-  # Configure proto proxies
-  bash "$HELPERS_DIR/proto.sh"
-
-
   # Install .vscode configs
   if [ -x "$(command -v code)" ]; then
     mkdir -p "$HOME/Library/Application Support/Code/User"
@@ -357,15 +356,16 @@ EOF
     backup_if_exists "$HOME/Library/Application Support/Code/User/mcp.json"
     ln -sf "$CONFIG_DIR/vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
     INSTALLED_EXTENSIONS=$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')
-    while IFS= read -r extension; do
-      if echo "$INSTALLED_EXTENSIONS" | grep -qi "^${extension}$"; then
-        printf "${red}[vscode]${no_color} $extension already installed — skipping.\n"
-      else
-        code --install-extension "$extension"
-      fi
-    done < <(grep -v '//' "$CONFIG_DIR/vscode/extensions.json" \
+    grep -v '//' "$CONFIG_DIR/vscode/extensions.json" \
       | grep -E '\S' \
-      | jq -r '.recommendations[]')
+      | jq -r '.recommendations[]' \
+      | while IFS= read -r extension; do
+          if echo "$INSTALLED_EXTENSIONS" | grep -qi "^${extension}$"; then
+            printf "${red}[vscode]${no_color} $extension already installed — skipping.\n"
+          else
+            code --install-extension "$extension"
+          fi
+        done
   fi
 
 

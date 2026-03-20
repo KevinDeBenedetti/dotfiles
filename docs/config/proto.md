@@ -2,20 +2,41 @@
 
 Global [proto](https://moonrepo.dev/proto) toolchain configuration.
 
+## Installation
+
+proto is installed via its official installer (run automatically with the `base` profile):
+
+```sh
+curl -fsSL https://moonrepo.dev/install/proto.sh | bash -s -- --no-profile
+```
+
+> `--no-profile` skips patching shell files. Shell integration is managed by `os/helpers/proto.sh`, which adds the following block to `~/.zshrc` if not already present:
+>
+> ```sh
+> export PROTO_HOME="$HOME/.proto"
+> export PATH="$PROTO_HOME/shims:$PROTO_HOME/bin:$PATH"
+> ```
+
+## Version pinning
+
+All tool versions are declared in `config/proto/.prototools`, which is symlinked to `~/.proto/.prototools` when dotfiles are installed. Setup scripts read this file automatically — no versions are hardcoded in any script.
+
 ## Location
 
-| File                       | Symlinked to    |
-| -------------------------- | --------------- |
-| `config/proto/.prototools` | `~/.prototools` |
+| File                       | Symlinked to              |
+| -------------------------- | ------------------------- |
+| `config/proto/.prototools` | `~/.proto/.prototools`    |
 
 ## Managed tools
 
-| Tool   | Version               |
-| ------ | --------------------- |
-| `bun`  | `latest`              |
-| `node` | `latest`              |
-| `npm`  | `bundled` (with Node) |
-| `pnpm` | `latest`              |
+| Tool     | Version               |
+| -------- | --------------------- |
+| `node`   | `latest`              |
+| `npm`    | `bundled` (with Node) |
+| `bun`    | `latest`              |
+| `pnpm`   | `latest`              |
+| `yarn`   | `latest`              |
+| `python` | `3.12.13`             |
 
 ## Settings
 

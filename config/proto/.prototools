@@ -3,6 +3,7 @@ node = "latest"
 npm = "bundled"
 pnpm = "latest"
 python = "3.12.13"
+yarn = "latest"
 
 [tools.node]
 bundled-npm = true

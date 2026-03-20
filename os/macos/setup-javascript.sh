@@ -1,40 +1,29 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Colorize terminal
 red='\e[0;31m'
 no_color='\033[0m'
 
-
-export PROTO_AUTO_INSTALL=true
-export PROTO_AUTO_CLEAN=true
-export PATH="$HOME/.proto/shims:$HOME/.proto/bin:$PATH"
+# Ensure proto shims and binary are on PATH for this session.
+# VERSION PINNING: all tool versions are declared in config/proto/.prototools,
+# symlinked to ~/.proto/.prototools — do not hardcode versions here.
+export PROTO_HOME="${PROTO_HOME:-$HOME/.proto}"
+export PATH="$PROTO_HOME/shims:$PROTO_HOME/bin:$PATH"
 
 install_lite_setup() {
-  # Install proto packages
-  printf "\n\n${red}[js] =>${no_color} Install proto packages\n\n"
-  PACKAGES=(
-    node
-    npm
-  )
-  for pkg in "${PACKAGES[@]}"; do
-    proto install "$pkg"
-  done
+  printf "\n\n${red}[js] =>${no_color} Install Node.js via proto\n\n"
+  # proto reads the pinned version from ~/.proto/.prototools automatically
+  proto install node
+  proto install npm
 }
 
 install_additional_setup() {
-  # Install proto packages
-  printf "\n\n${red}[js] =>${no_color} Install proto packages\n\n"
-  PACKAGES=(
-    bun
-    pnpm
-    yarn
-  )
-  for pkg in "${PACKAGES[@]}"; do
-    proto install "$pkg"
-  done
+  printf "\n\n${red}[js] =>${no_color} Install additional JS package managers via proto\n\n"
+  proto install bun
+  proto install pnpm
+  proto install yarn
 
-  # Install npm packages
-  printf "\n\n${red}[js] =>${no_color} Install npm packages\n\n"
+  printf "\n\n${red}[js] =>${no_color} Install npm global packages\n\n"
   npm install --global \
     @antfu/ni
 }
