@@ -10,6 +10,10 @@ link_file () {
   SRC=$1
   DEST=$2
 
+  if [ -L "$DEST" ] && [ "$(readlink "$DEST")" = "$SRC" ]; then
+    return 0
+  fi
+
   if [ -e "$DEST" ]; then
     echo "Backing up existing $DEST"
     mv "$DEST" "$DEST.backup"

@@ -66,7 +66,9 @@ source $ZSH/oh-my-zsh.sh
 # aliases
 # alias sed="gsed"
 alias cs="cheat_glow"
+alias dcrm="docker rm -f $(docker ps -aq)"
 alias dsp="docker system prune -a -f"
+alias dvp="docker volume prune -a -f"
 alias hs="history | grep"
 alias hsi="history | grep -i"
 alias k="kubectl"
