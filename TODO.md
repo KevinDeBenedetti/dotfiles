@@ -1,9 +1,6 @@
-## Backlogs
+# TODO
 
----
-
-### TODO FEAT: Clean MacOS
-- [ ] Add commands to clean a macos machine (clear caches, logs, etc.)
-- [ ] Suggest for tools available on homebrew
-
-## In Progress
+- FEAT: replace all master branches with main
+- FEAT: Add commands to clean a macos machine (clear caches, logs, etc.)
+- FEAT: Suggest tools available on homebrew
+- FEAT: Add an alias for docker compose
