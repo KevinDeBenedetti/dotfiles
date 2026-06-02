@@ -35,3 +35,8 @@
 # Create ~/.gitconfig.local with your local [user] or any other section to override.
 [include]
 	path = ~/.gitconfig.local
+
+# Identité pro : appliquée automatiquement à tout repo sous ~/dev/pro/
+# (placé en dernier pour avoir la priorité sur l'identité par défaut ci-dessus)
+[includeIf "gitdir:~/dev/pro/"]
+	path = ~/.gitconfig-pro

@@ -16,6 +16,7 @@ lsfn() {
 		randompass
 		timestampd
 		timestampe
+		vpn
 	)
 	for fn in "${fns[@]}"; do
 		echo "${COLOR_BLUE}[$fn]${COLOR_OFF}\n"
@@ -190,6 +191,48 @@ timestampe() {
 		else
 			echo "Error: unsupported OS"
 		fi
+		;;
+	esac
+}
+
+vpn() {
+	case "$1" in
+	-h | --help | "")
+		printf "Description:\n"
+		printf "  Manage WireGuard VPN tunnels through wg-quick.\n\n"
+		printf "Usage:\n"
+		printf "  vpn up <tunnel>     bring the given tunnel up.\n"
+		printf "  vpn down <tunnel>   bring the given tunnel down.\n"
+		printf "  vpn status [tunnel] show active tunnels (or a single one).\n"
+		printf "  vpn list            list available tunnel configs.\n"
+		;;
+	up | down)
+		if [ -z "$2" ]; then
+			echo "Error: missing tunnel name (see 'vpn list')."
+			return 1
+		fi
+		sudo wg-quick "$1" "$2"
+		;;
+	status | st)
+		if [ -n "$2" ]; then
+			sudo wg show "$2"
+		else
+			sudo wg show
+		fi
+		;;
+	list | ls)
+		local wg_dir
+		wg_dir="$(brew --prefix 2>/dev/null)/etc/wireguard"
+		if [ ! -d "$wg_dir" ]; then
+			echo "No WireGuard config directory found at $wg_dir"
+			return 1
+		fi
+		find "$wg_dir" -maxdepth 1 -name '*.conf' -exec basename {} .conf \; 2>/dev/null \
+			|| echo "No tunnel configs in $wg_dir"
+		;;
+	*)
+		echo "Error: unknown subcommand '$1' (see 'vpn -h')."
+		return 1
 		;;
 	esac
 }

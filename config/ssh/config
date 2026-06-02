@@ -1,3 +1,5 @@
+Include /Users/kevin/.config/colima/ssh_config
+
 Include /Users/kevin/.colima/ssh_config
 
 # ~/.ssh/config — managed by dotfiles
@@ -22,3 +24,15 @@ Host *
   # Passphrase
   UseKeychain yes
   AddKeysToAgent yes
+
+Host github-pro
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/github_pro
+    IdentitiesOnly yes
+
+Host github-perso
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_rsa
+    IdentitiesOnly yes

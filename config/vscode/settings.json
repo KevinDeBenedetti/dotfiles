@@ -14,7 +14,6 @@
   "editor.wordWrap": "on",
   "editor.bracketPairColorization.enabled": true,
   "editor.tabSize": 2,
-  "editor.minimap.enabled": false,
   "search.exclude": {
     "**/.git": true,
     "**/.nuxt": true,
@@ -261,6 +260,10 @@
     "pnpm": true,
     "docker": true,
     "kubectl": true,
+    "make": true,
+    "diff": true,
+    "task": true,
+    "go": true
   },
   "chat.tools.global.autoApprove": false,
   "chat.useAgentsMdFile": true,
@@ -273,4 +276,20 @@
   "explorer.confirmDelete": false,
   "git.replaceTagsWhenPull": true,
   "js/ts.updateImportsOnFileMove.enabled": "always",
+  "git.confirmSync": false,
+  "editor.minimap.enabled": false,
+  "chat.tools.urls.autoApprove": {
+    "https://code.visualstudio.com": true,
+    "https://github.com/microsoft/vscode/wiki/*": true,
+    "https://docs.github.com": {
+      "approveRequest": false,
+      "approveResponse": true
+    },
+    "https://github.com": {
+      "approveRequest": false,
+      "approveResponse": true
+    }
+  },
+  "terminal.integrated.enableMultiLinePasteWarning": "never",
+  "github.copilot.nextEditSuggestions.eagerness": "low",
 }

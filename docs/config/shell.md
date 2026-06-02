@@ -124,3 +124,14 @@ Convert a human-readable date to a Unix timestamp.
 ```sh
 timestampe <date>     # format: YYYY-mm-ddTHH:MM:ss  or  YYYY-mm-dd
 ```
+
+#### `vpn`
+
+Manage WireGuard VPN tunnels through `wg-quick`. Shortcut aliases `vup`, `vdown` and `vpns` map to the `up`, `down` and `status` subcommands.
+
+```sh
+vpn up <tunnel>       # bring a tunnel up   (sudo wg-quick up)
+vpn down <tunnel>     # bring a tunnel down (sudo wg-quick down)
+vpn status [tunnel]   # show active tunnels (sudo wg show)
+vpn list              # list available tunnel configs
+```

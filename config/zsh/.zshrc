@@ -100,6 +100,9 @@ alias kvs="kubectl-view_secret"
 alias lad="lazydocker"
 alias lag="lazygit"
 alias pubip="dig +short txt ch whoami.cloudflare @1.0.0.1 | tr -d '\"'"
+alias vup="vpn up"
+alias vdown="vpn down"
+alias vpns="vpn status"
 
 if [ "$(uname)" = "Darwin" ]; then
   # intel/arm switch aliases for osx

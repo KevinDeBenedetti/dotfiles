@@ -323,18 +323,19 @@ The following files are sourced at the end of `.zshrc` if they exist. They are *
 
 Custom functions live in `config/shell/functions.sh` and are sourced automatically by `.zshrc`. Run `lsfn` to list all functions with their help text.
 
-| Function     | Usage                              | Description                                                                     |
-| ------------ | ---------------------------------- | ------------------------------------------------------------------------------- |
-| `b64d`       | `b64d <string>`                    | Decode a base64 string                                                          |
-| `b64e`       | `b64e <string>`                    | Encode a string to base64                                                       |
-| `browser`    | `browser [-- <url>]`               | Start a [Browsh](https://www.brow.sh) terminal browser via Docker               |
-| `cheat_glow` | `cheat_glow <sheet>`               | Render a `cheat` cheatsheet through `glow` at 150 columns for readability       |
-| `check_cert` | `check_cert <url>`                 | Print TLS certificate details for a domain using `curl`                         |
-| `dks`        | `dks <secret> [namespace]`         | Decode a Kubernetes secret — outputs all `.data` values base64-decoded via `yq` |
-| `kbp`        | `kbp <port>`                       | Kill the process currently listening on the given TCP port                      |
-| `randompass` | `randompass [length]`              | Generate a secure random password (default 24 chars) with mixed complexity      |
-| `timestampd` | `timestampd <unix_ts>`             | Convert a Unix timestamp to a human-readable date (cross-platform)              |
-| `timestampe` | `timestampe <YYYY-mm-ddTHH:MM:ss>` | Convert a date string to its Unix timestamp (cross-platform)                    |
+| Function     | Usage                                   | Description                                                                     |
+| ------------ | --------------------------------------- | ------------------------------------------------------------------------------- |
+| `b64d`       | `b64d <string>`                         | Decode a base64 string                                                          |
+| `b64e`       | `b64e <string>`                         | Encode a string to base64                                                       |
+| `browser`    | `browser [-- <url>]`                    | Start a [Browsh](https://www.brow.sh) terminal browser via Docker               |
+| `cheat_glow` | `cheat_glow <sheet>`                    | Render a `cheat` cheatsheet through `glow` at 150 columns for readability       |
+| `check_cert` | `check_cert <url>`                      | Print TLS certificate details for a domain using `curl`                         |
+| `dks`        | `dks <secret> [namespace]`              | Decode a Kubernetes secret — outputs all `.data` values base64-decoded via `yq` |
+| `kbp`        | `kbp <port>`                            | Kill the process currently listening on the given TCP port                      |
+| `randompass` | `randompass [length]`                   | Generate a secure random password (default 24 chars) with mixed complexity      |
+| `timestampd` | `timestampd <unix_ts>`                  | Convert a Unix timestamp to a human-readable date (cross-platform)              |
+| `timestampe` | `timestampe <YYYY-mm-ddTHH:MM:ss>`      | Convert a date string to its Unix timestamp (cross-platform)                    |
+| `vpn`        | `vpn <up\|down\|status\|list> [tunnel]` | Manage WireGuard tunnels via `wg-quick` (aliases: `vup`, `vdown`, `vpns`)       |
 
 > Run any function with `-h` or `--help` to see its usage message, e.g. `dks -h`.
 
