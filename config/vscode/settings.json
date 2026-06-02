@@ -288,6 +288,10 @@
     "https://github.com": {
       "approveRequest": false,
       "approveResponse": true
+    },
+    "https://www.google.com/search": {
+      "approveRequest": true,
+      "approveResponse": false
     }
   },
   "terminal.integrated.enableMultiLinePasteWarning": "never",
