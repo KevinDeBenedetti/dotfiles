@@ -47,14 +47,12 @@ install_additional_setup() {
     gh \
     k9s \
     lazydocker \
-    colima \
     lazygit \
-    lima \
     nmap
 
   # Install homebrew graphic app packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (graphic)\n\n"
-  for cask in brave-browser firefox insomnia mattermost openvpn-connect arc; do
+  for cask in brave-browser firefox insomnia mattermost openvpn-connect arc orbstack; do
     install_cask "$cask"
   done
 }

@@ -263,7 +263,9 @@
     "make": true,
     "diff": true,
     "task": true,
-    "go": true
+    "go": true,
+    "command": true,
+    "actionlint": true
   },
   "chat.tools.global.autoApprove": false,
   "chat.useAgentsMdFile": true,
@@ -292,8 +294,14 @@
     "https://www.google.com/search": {
       "approveRequest": true,
       "approveResponse": false
+    },
+    "https://docs.rxresu.me": true,
+    "https://raw.githubusercontent.com": {
+      "approveRequest": false,
+      "approveResponse": true
     }
   },
   "terminal.integrated.enableMultiLinePasteWarning": "never",
   "github.copilot.nextEditSuggestions.eagerness": "low",
+  "claudeCode.preferredLocation": "panel",
 }
