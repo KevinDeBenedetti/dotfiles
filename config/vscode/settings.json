@@ -304,4 +304,6 @@
   "terminal.integrated.enableMultiLinePasteWarning": "never",
   "github.copilot.nextEditSuggestions.eagerness": "low",
   "claudeCode.preferredLocation": "panel",
+  "claudeCode.useTerminal": true,
+  "extensions.ignoreRecommendations": true
 }

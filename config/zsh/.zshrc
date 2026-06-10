@@ -42,13 +42,16 @@ plugins=(
 export PROTO_HOME="$HOME/.proto"
 export PATH="$PROTO_HOME/shims:$PROTO_HOME/bin:$PATH"
 
+# user-local binaries (pipx, uv, etc.)
+export PATH="$HOME/.local/bin:$PATH"
+
 # brew settings
 if type brew &>/dev/null; then
   # configure brew fpath
   FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
 
   # aliases
-  alias bcu="brew outdated --cask --greedy | awk '{print $1}' | xargs brew reinstall --cask"
+  alias bcu="brew outdated --cask --greedy | awk '{print \$1}' | xargs brew reinstall --cask"
 
   # use homebrew packages instead of default system packages (supports both Intel /usr/local and ARM /opt/homebrew)
   export PATH="$(brew --prefix)/bin:$(brew --prefix)/sbin:$PATH"

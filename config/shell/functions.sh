@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 export COLOR_OFF='\033[0m'
 export COLOR_BLUE='\033[0;34m'
 export COLOR_RED='\033[0;31m'
@@ -66,7 +67,8 @@ browser() {
 		if ! docker info > /dev/null 2>&1; then
 			echo "This function uses docker, and it isn't running - please start docker and try again!"
 		else
-			docker run --rm -it browsh/browsh "$1"
+			[ "$1" = "--" ] && shift
+			docker run --rm -it browsh/browsh "$@"
 		fi
 	esac
 }
@@ -126,8 +128,14 @@ kbp() {
 		printf "  kbp <port_number>   kill process using the given port.\n"
 		;;
 	*)
-		# shellcheck disable=SC2046
-		kill -9 $(lsof -i :"$1" | tail -n +2 | awk '{print $2}')
+		local pids
+		pids=$(lsof -ti :"$1" 2>/dev/null)
+		if [ -z "$pids" ]; then
+			echo "No process found listening on port $1."
+			return 1
+		fi
+		# shellcheck disable=SC2086
+		kill -9 $pids
 		;;
 	esac
 }
@@ -141,9 +149,20 @@ randompass() {
 		printf "  randompass <password_length>   generate a password with the given length.\n"
 		;;
 	*)
+		local length="${1:-24}"
+		case $length in
+		*[!0-9]* | '')
+			echo "Error: length must be a positive integer (got '$length')." >&2
+			return 1
+			;;
+		esac
+		if [ "$length" -lt 4 ]; then
+			echo "Error: length must be at least 4 (password needs an upper, a lower, a digit and a special char)." >&2
+			return 1
+		fi
 		while true; do
 			local password
-			password=$(LC_ALL=C tr -dc 'A-Za-z0-9=!?%~_-' < /dev/urandom 2>/dev/null | head -c "${1:-24}")
+			password=$(LC_ALL=C tr -dc 'A-Za-z0-9=!?%~_-' < /dev/urandom 2>/dev/null | head -c "$length")
 			[[ $password != *[=\!?\%~_-]* ]] && continue
 			[[ $password != *[A-Z]* ]] && continue
 			[[ $password != *[a-z]* ]] && continue

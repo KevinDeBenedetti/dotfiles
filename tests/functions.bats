@@ -71,6 +71,27 @@ setup() {
   assert_output --partial "Generate a password"
 }
 
+@test "randompass contains all required character classes" {
+  run randompass 32
+  assert_success
+  [[ "$output" == *[A-Z]* ]]
+  [[ "$output" == *[a-z]* ]]
+  [[ "$output" == *[0-9]* ]]
+  [[ "$output" == *[=\!?%~_-]* ]]
+}
+
+@test "randompass rejects length below 4 instead of looping forever" {
+  run randompass 3
+  assert_failure
+  assert_output --partial "at least 4"
+}
+
+@test "randompass rejects non-numeric length" {
+  run randompass abc
+  assert_failure
+  assert_output --partial "positive integer"
+}
+
 # --- timestampd ---
 
 @test "timestampd -h prints help" {
@@ -95,6 +116,15 @@ setup() {
   assert_output --partial "Kill the process"
 }
 
+@test "kbp fails gracefully when no process is on the port" {
+  # Stub lsof so the test doesn't depend on it being installed or on port state
+  lsof() { return 1; }
+  export -f lsof
+  run kbp 64999
+  assert_failure
+  assert_output --partial "No process found"
+}
+
 # --- check_cert ---
 
 @test "check_cert -h prints help" {
@@ -109,6 +139,23 @@ setup() {
   run browser -h
   assert_success
   assert_output --partial "browsh web browser"
+}
+
+@test "browser forwards url after -- separator to browsh" {
+  # Stub docker to capture the arguments it receives
+  docker() { [ "$1" = "info" ] && return 0; echo "docker $*"; }
+  export -f docker
+  run browser -- https://example.com
+  assert_success
+  assert_output --partial "browsh/browsh https://example.com"
+}
+
+@test "browser forwards bare url to browsh" {
+  docker() { [ "$1" = "info" ] && return 0; echo "docker $*"; }
+  export -f docker
+  run browser https://example.com
+  assert_success
+  assert_output --partial "browsh/browsh https://example.com"
 }
 
 # --- cheat_glow ---

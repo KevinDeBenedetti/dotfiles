@@ -124,7 +124,7 @@ install_clt() {
   touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
   PROD=$(softwareupdate -l | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //')
   softwareupdate -i "$PROD" --verbose;
-  printf "\Command Line Tools version installed :\n$PROD\n\n"
+  printf "\nCommand Line Tools version installed :\n%s\n\n" "$PROD"
 }
 
 install_homebrew() {
@@ -139,7 +139,8 @@ if [ -z "$(xcode-select -p 2>/dev/null)" ]; then
     read -p "\nYou need Command Line Tools to run this script. Do you wish to install Command Line Tools?\n" yn
     case $yn in
       [Yy]*)
-        install_clt;;
+        install_clt
+        break;;
       [Nn]*)
         exit;;
       *)
@@ -153,7 +154,8 @@ if ! command -v brew &>/dev/null; then
     read -p "You need homebrew to run this script. Do you wish to install homebrew?" yn
     case $yn in
       [Yy]*)
-        install_homebrew;;
+        install_homebrew
+        break;;
       [Nn]*)
         exit;;
       *)
@@ -341,7 +343,7 @@ EOF
 # Overrides / supplements env.sh values for this machine.
 # Sourced automatically at the end of .zshrc.
 
-# Set your Context7 API key — used by the Copilot CLI MCP config (~/.copilot/mcp-config.json)
+# Set your Context7 API key — used by the VS Code MCP config (config/vscode/mcp.json)
 # Get your key at: https://context7.com
 # export CONTEXT7_API_KEY="your-real-key-here"
 EOF
