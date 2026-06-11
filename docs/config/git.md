@@ -4,9 +4,19 @@ Global Git configuration symlinked to `~/.gitconfig`.
 
 ## Location
 
-| File                    | Symlinked to   |
-| ----------------------- | -------------- |
-| `config/git/.gitconfig` | `~/.gitconfig` |
+| File                    | Symlinked to         |
+| ----------------------- | -------------------- |
+| `config/git/.gitconfig` | `~/.gitconfig`       |
+| `config/git/ignore`     | `~/.config/git/ignore` |
+
+## Global ignore
+
+`~/.config/git/ignore` is git's default global excludes file (XDG location, no
+`core.excludesfile` entry needed). It ignores files across **all** repositories:
+
+| Pattern                          | Reason                                              |
+| -------------------------------- | --------------------------------------------------- |
+| `**/.claude/settings.local.json` | Claude Code per-project local overrides, never committed |
 
 ## Key settings
 

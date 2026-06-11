@@ -34,7 +34,7 @@ COPY --chown=tester:tester . /home/tester/.dotfiles
 FROM base AS test-bats
 
 RUN sudo apt-get update \
-    && sudo apt-get install -y --no-install-recommends bats \
+    && sudo apt-get install -y --no-install-recommends bats jq \
     && sudo rm -rf /var/lib/apt/lists/*
 
 RUN cd /home/tester/.dotfiles && bats tests/
@@ -70,6 +70,8 @@ RUN test -f "$HOME/.zshrc" \
     && test -L "$HOME/.gitconfig" \
     && test -L "$HOME/.config/dotfiles/env.sh" \
     && test -L "$HOME/.config/dotfiles/functions.sh" \
+    && test -L "$HOME/.claude/settings.json" \
+    && test -L "$HOME/.config/git/ignore" \
     && echo "All dotfile checks passed"
 
 # ---------------------------------------------------------------------------

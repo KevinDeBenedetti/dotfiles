@@ -1,0 +1,154 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl *)",
+      "Bash(dig *)",
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(kubectl *)",
+      "Bash(docker *)",
+      "Bash(terraform *)",
+      "Bash(gitleaks *)",
+      "Bash(python3 *)",
+      "Bash(node *)",
+      "Bash(bun *)",
+      "Bash(bunx *)",
+      "Bash(mkdir *)",
+      "Bash(sed *)",
+      "Bash(find *)",
+      "Bash(tar *)",
+      "Bash(xargs *)",
+      "Bash(cat)",
+      "Bash(echo *)",
+      "Read(//tmp/**)",
+      "Read(//Users/kevin/dev/portfolio/**)"
+    ],
+    "deny": [
+      "Bash(git commit)",
+      "Bash(git commit *)",
+      "Bash(git push)",
+      "Bash(git push *)",
+      "Bash(gh repo delete*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Write(**/.env)",
+      "Write(**/.env.*)",
+      "Read(**/*.env)",
+      "Edit(**/*.env)",
+      "Write(**/*.env)",
+      "Read(~/.ssh/id_*)",
+      "Edit(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Edit(~/.aws/**)",
+      "Read(~/.gnupg/**)",
+      "Edit(~/.gnupg/**)",
+      "Read(~/.netrc)",
+      "Read(~/.npmrc)",
+      "Read(~/.claude/.credentials.json)",
+      "Edit(~/.claude/.credentials.json)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)"
+    ],
+    "ask": [
+      "Bash(terraform apply*)",
+      "Bash(terraform destroy*)",
+      "Bash(kubectl delete*)",
+      "Bash(gh pr merge*)"
+    ],
+    "additionalDirectories": [
+      "/Users/kevin/dev/github-workflows/.github/workflows",
+      "/Users/kevin/dev/portfolio/apps/api/internal/handlers"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "kevindb.dev",
+        "*.kevindb.dev",
+        "github.com",
+        "*.github.com",
+        "*.githubusercontent.com",
+        "registry.npmjs.org",
+        "releases.hashicorp.com",
+        "registry.terraform.io",
+        "api.hetzner.cloud",
+        "localhost",
+        "127.0.0.1",
+        "10.8.0.1"
+      ],
+      "allowLocalBinding": true
+    },
+    "filesystem": {
+      "denyRead": [
+        "**/.env",
+        "**/.env.*",
+        "**/*.env",
+        "~/.ssh/id_*",
+        "~/.aws/**",
+        "~/.gnupg/**",
+        "~/.netrc",
+        "~/.npmrc",
+        "~/.claude/.credentials.json",
+        "**/*.pem",
+        "**/*.key"
+      ],
+      "allowRead": [
+        "~/.ssh/*.pub"
+      ],
+      "denyWrite": [
+        "**/.env",
+        "**/.env.*",
+        "**/*.env",
+        "~/.ssh/**",
+        "~/.aws/**",
+        "~/.gnupg/**",
+        "~/.claude/.credentials.json"
+      ]
+    }
+  },
+  "model": "claude-fable-5[1m]",
+  "theme": "dark",
+  "attribution": {
+    "commit": ""
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+|[[:space:]]+-C[[:space:]]+[^[:space:]]+)*[[:space:]]+(commit|push)([[:space:]]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git commit/push sont bloqués par la configuration (settings.json)\"}}'; fi"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Question en attente\" with title \"Claude Code — '\"$(basename \"$(git rev-parse --show-toplevel 2>/dev/null || echo \"$PWD\")\")\"'\"'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Tâche terminée\" with title \"Claude Code — '\"$(basename \"$(git rev-parse --show-toplevel 2>/dev/null || echo \"$PWD\")\")\"'\"'"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -48,6 +48,38 @@ setup() {
   assert_file_exists "$CONFIG_DIR/vscode/extensions.json"
 }
 
+@test "config/git/ignore exists" {
+  assert_file_exists "$CONFIG_DIR/git/ignore"
+}
+
+@test "git global ignore covers claude settings.local.json" {
+  run grep -q 'settings.local.json' "$CONFIG_DIR/git/ignore"
+  assert_success
+}
+
+@test "config/claude/settings.json exists" {
+  assert_file_exists "$CONFIG_DIR/claude/settings.json"
+}
+
+@test "claude settings.json is valid JSON" {
+  run jq empty "$CONFIG_DIR/claude/settings.json"
+  assert_success
+}
+
+@test "config/claude/managed-settings.json exists" {
+  assert_file_exists "$CONFIG_DIR/claude/managed-settings.json"
+}
+
+@test "claude managed-settings.json is valid JSON" {
+  run jq empty "$CONFIG_DIR/claude/managed-settings.json"
+  assert_success
+}
+
+@test "claude managed settings keep git commit/push denied" {
+  run jq -e '.permissions.deny | index("Bash(git push)")' "$CONFIG_DIR/claude/managed-settings.json"
+  assert_success
+}
+
 # --- OS scripts ---
 
 @test "os/macos/init.sh exists and is executable" {

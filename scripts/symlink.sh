@@ -25,6 +25,10 @@ link_file () {
 # Git
 link_file "$CONFIG_DIR/git/.gitconfig" "$HOME/.gitconfig"
 
+# Git global ignore (default XDG location, no .gitconfig entry needed)
+mkdir -p "$HOME/.config/git"
+link_file "$CONFIG_DIR/git/ignore" "$HOME/.config/git/ignore"
+
 # Zsh
 link_file "$CONFIG_DIR/zsh/.zshrc" "$HOME/.zshrc"
 
@@ -43,6 +47,10 @@ mkdir -p "$HOME/.config/dotfiles"
 for item in "$CONFIG_DIR/shell/"*; do
   link_file "$item" "$HOME/.config/dotfiles/$(basename "$item")"
 done
+
+# Claude Code (user settings)
+mkdir -p "$HOME/.claude"
+link_file "$CONFIG_DIR/claude/settings.json" "$HOME/.claude/settings.json"
 
 # SSH client config
 mkdir -p "$HOME/.ssh"
