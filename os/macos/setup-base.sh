@@ -22,8 +22,6 @@ install_lite_setup() {
   brew install --formula \
     cheat \
     direnv \
-    docker \
-    docker-compose \
     fzf \
     gettext \
     helm \
