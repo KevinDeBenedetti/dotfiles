@@ -255,14 +255,9 @@ if [[ "$INSTALL_AI" = "true" ]]; then
 fi
 
 
-# Helper: backup a file if it exists and is not already a symlink to our dotfiles
-backup_if_exists() {
-  local target="$1"
-  if [ -f "$target" ] && [ ! -L "$target" ]; then
-    cp "$target" "${target}.bak.$(date +%Y%m%d)"
-    printf "${red}[backup]${no_color} Backed up $target\n"
-  fi
-}
+# Shared symlink helpers (backup_if_exists, link_with_backup, link_shared_configs)
+# shellcheck source=../helpers/links.sh
+source "$HELPERS_DIR/links.sh"
 
 # Link dotfiles
 if [[ "$COPY_DOTFILES" = "true" ]]; then
@@ -273,26 +268,7 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   backup_if_exists "$HOME/.zshrc"
   # .zshrc needs machine-specific edits (sed alias, brew paths) so we copy instead of symlink
   cp "$CONFIG_DIR/zsh/.zshrc" "$HOME/.zshrc" && gsed -i 's/^# alias sed=.*/alias sed="gsed"/g' "$HOME/.zshrc"
-  THEME_SRC="$CONFIG_DIR/oh-my-zsh/kevin-de-benedetti.zsh-theme"
-  if [ -f "$THEME_SRC" ]; then
-    mkdir -p "$HOME/.oh-my-zsh/custom/themes"
-    backup_if_exists "$HOME/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme"
-    ln -sf "$THEME_SRC" "$HOME/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme"
-  else
-    printf "${red}[warning]${no_color} Theme file not found, skipping: $THEME_SRC\n"
-  fi
-  mkdir -p "$HOME/.proto"
-  backup_if_exists "$HOME/.proto/.prototools"
-  ln -sf "$CONFIG_DIR/proto/.prototools" "$HOME/.proto/.prototools"
-  backup_if_exists "$HOME/.gitconfig"
-  ln -sf "$CONFIG_DIR/git/.gitconfig" "$HOME/.gitconfig"
-  # Symlink shell config files into ~/.config/dotfiles/
-  mkdir -p "$HOME/.config/dotfiles"
-  for item in "$CONFIG_DIR/shell/"*; do
-    local_name=$(basename "$item")
-    backup_if_exists "$HOME/.config/dotfiles/$local_name"
-    ln -sf "$item" "$HOME/.config/dotfiles/$local_name"
-  done
+  link_shared_configs "$CONFIG_DIR"
 
   # Create SSH allowed signers file for local commit signature verification
   SSH_SIGNING_KEY="$HOME/.ssh/id_rsa.pub"
