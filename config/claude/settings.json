@@ -1,4 +1,7 @@
 {
+  "attribution": {
+    "commit": ""
+  },
   "permissions": {
     "allow": [
       "Bash(curl *)",
@@ -62,6 +65,42 @@
       "/Users/kevin/dev/portfolio/apps/api/internal/handlers"
     ]
   },
+  "model": "opus[1m]",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+|[[:space:]]+-C[[:space:]]+[^[:space:]]+)*[[:space:]]+(commit|push)([[:space:]]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git commit/push sont bloqués par la configuration (settings.json)\"}}'; fi"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "terminal-notifier -title \"Claude Code — $(basename \"$(git rev-parse --show-toplevel 2>/dev/null || echo \"$PWD\")\")\" -message \"Question en attente\" -sound Glass -activate com.microsoft.VSCode"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "terminal-notifier -title \"Claude Code — $(basename \"$(git rev-parse --show-toplevel 2>/dev/null || echo \"$PWD\")\")\" -message \"Tâche terminée\" -sound Hero -activate com.microsoft.VSCode"
+          }
+        ]
+      }
+    ]
+  },
   "sandbox": {
     "enabled": true,
     "failIfUnavailable": true,
@@ -84,6 +123,15 @@
       "allowLocalBinding": true
     },
     "filesystem": {
+      "denyWrite": [
+        "**/.env",
+        "**/.env.*",
+        "**/*.env",
+        "~/.ssh/**",
+        "~/.aws/**",
+        "~/.gnupg/**",
+        "~/.claude/.credentials.json"
+      ],
       "denyRead": [
         "**/.env",
         "**/.env.*",
@@ -99,56 +147,8 @@
       ],
       "allowRead": [
         "~/.ssh/*.pub"
-      ],
-      "denyWrite": [
-        "**/.env",
-        "**/.env.*",
-        "**/*.env",
-        "~/.ssh/**",
-        "~/.aws/**",
-        "~/.gnupg/**",
-        "~/.claude/.credentials.json"
       ]
     }
   },
-  "model": "claude-fable-5[1m]",
-  "theme": "dark",
-  "attribution": {
-    "commit": ""
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+|[[:space:]]+-C[[:space:]]+[^[:space:]]+)*[[:space:]]+(commit|push)([[:space:]]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git commit/push sont bloqués par la configuration (settings.json)\"}}'; fi"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "osascript -e 'display notification \"Question en attente\" with title \"Claude Code — '\"$(basename \"$(git rev-parse --show-toplevel 2>/dev/null || echo \"$PWD\")\")\"'\"'"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "osascript -e 'display notification \"Tâche terminée\" with title \"Claude Code — '\"$(basename \"$(git rev-parse --show-toplevel 2>/dev/null || echo \"$PWD\")\")\"'\"'"
-          }
-        ]
-      }
-    ]
-  }
+  "theme": "dark"
 }
