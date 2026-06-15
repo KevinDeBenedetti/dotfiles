@@ -50,7 +50,7 @@ install_additional_setup() {
 
   # Install homebrew graphic app packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (graphic)\n\n"
-  for cask in brave-browser firefox insomnia mattermost openvpn-connect arc orbstack; do
+  for cask in brave-browser firefox insomnia mattermost openvpn-connect arc docker-desktop; do
     install_cask "$cask"
   done
 }

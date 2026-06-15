@@ -4,6 +4,9 @@
   },
   "permissions": {
     "allow": [
+      "Read(**/.env.example)",
+      "Edit(**/.env.example)",
+      "Write(**/.env.example)",
       "Bash(curl *)",
       "Bash(dig *)",
       "Bash(git *)",
@@ -33,11 +36,11 @@
       "Bash(git push *)",
       "Bash(gh repo delete*)",
       "Read(**/.env)",
-      "Read(**/.env.*)",
+      "Read(**/.env.!(example))",
       "Edit(**/.env)",
-      "Edit(**/.env.*)",
+      "Edit(**/.env.!(example))",
       "Write(**/.env)",
-      "Write(**/.env.*)",
+      "Write(**/.env.!(example))",
       "Read(**/*.env)",
       "Edit(**/*.env)",
       "Write(**/*.env)",
@@ -146,7 +149,8 @@
         "**/*.key"
       ],
       "allowRead": [
-        "~/.ssh/*.pub"
+        "~/.ssh/*.pub",
+        "**/.env.example"
       ]
     }
   },
