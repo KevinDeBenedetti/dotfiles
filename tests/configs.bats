@@ -148,6 +148,11 @@ setup() {
   assert_success
 }
 
+@test ".zshrc defines dc alias for docker compose" {
+  run grep -qE '^alias dc="docker compose"' "$CONFIG_DIR/zsh/.zshrc"
+  assert_success
+}
+
 @test "extensions.json contains recommendations array" {
   run grep -q '"recommendations"' "$CONFIG_DIR/vscode/extensions.json"
   assert_success

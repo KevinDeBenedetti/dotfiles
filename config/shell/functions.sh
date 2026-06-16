@@ -9,9 +9,11 @@ lsfn() {
   fns=(
 		b64d
 		b64e
+		brewsuggest
 		browser
 		cheat_glow
 		check_cert
+		cleanmac
 		dks
 		kbp
 		randompass
@@ -52,6 +54,67 @@ b64e() {
 		echo -n "$1" | base64
 		;;
 	esac
+}
+
+brewsuggest() {
+	case "$1" in
+	-h | --help)
+		printf "Description:\n"
+		printf "  Suggest useful Homebrew CLI tools and show which are already installed.\n\n"
+		printf "Usage:\n"
+		printf "  brewsuggest   list suggested tools (✓ installed, ○ missing) and an install command.\n"
+		return 0
+		;;
+	esac
+
+	if ! command -v brew > /dev/null 2>&1; then
+		echo "Error: Homebrew not installed (see https://brew.sh)." >&2
+		return 1
+	fi
+
+	# Curated "name|description" pairs — modern, broadly useful CLI tools.
+	local tools=(
+		"bat|cat clone with syntax highlighting"
+		"eza|modern ls replacement"
+		"fd|simple, fast find alternative"
+		"ripgrep|fast recursive grep (rg)"
+		"fzf|fuzzy finder"
+		"jq|JSON processor"
+		"yq|YAML processor"
+		"gh|GitHub CLI"
+		"lazygit|terminal UI for git"
+		"lazydocker|terminal UI for docker"
+		"k9s|Kubernetes TUI"
+		"btop|resource monitor"
+		"tldr|simplified, example-driven man pages"
+		"dust|intuitive disk usage (du)"
+		"duf|friendlier disk free (df)"
+		"httpie|human-friendly HTTP client"
+		"direnv|per-directory environment loader"
+		"zoxide|smarter cd that learns your habits"
+	)
+
+	local installed
+	installed=$(brew list --formula -1 2>/dev/null)
+
+	local missing=()
+	local entry name desc
+	for entry in "${tools[@]}"; do
+		name="${entry%%|*}"
+		desc="${entry#*|}"
+		if printf '%s\n' "$installed" | grep -qx "$name"; then
+			printf "  ${COLOR_GREEN}✓${COLOR_OFF} %-11s %s\n" "$name" "$desc"
+		else
+			printf "  ${COLOR_YELLOW}○${COLOR_OFF} %-11s %s\n" "$name" "$desc"
+			missing+=("$name")
+		fi
+	done
+
+	if [ "${#missing[@]}" -gt 0 ]; then
+		printf "\nInstall the missing ones:\n  ${COLOR_BLUE}brew install %s${COLOR_OFF}\n" "${missing[*]}"
+	else
+		printf "\nAll suggested tools are already installed.\n"
+	fi
 }
 
 browser() {
@@ -99,6 +162,95 @@ check_cert() {
 		curl -w '%{certs}' -k "$1"
 		;;
 	esac
+}
+
+_cleanmac_path() {
+	local apply="$1" dir="$2" size
+	if [ ! -d "$dir" ]; then
+		echo "[skip] $dir (not found)"
+		return 0
+	fi
+	size=$(du -sh "$dir" 2>/dev/null | awk '{print $1}')
+	[ -z "$size" ] && size="0B"
+	if [ "$apply" = true ]; then
+		echo "[clean] $dir ($size)"
+		# Remove the contents, keep the directory itself
+		find "$dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null
+	else
+		echo "[dry] $dir ($size)"
+	fi
+}
+
+cleanmac() {
+	case "$1" in
+	-h | --help | "")
+		printf "Description:\n"
+		printf "  Reclaim disk space on macOS: caches, logs, trash, Homebrew, DNS cache.\n"
+		printf "  Safe by default — shows what would be freed; deletes nothing without --yes.\n\n"
+		printf "Usage:\n"
+		printf "  cleanmac                 dry run: show reclaimable space per target.\n"
+		printf "  cleanmac --yes           clean every target.\n"
+		printf "  cleanmac --yes <target>  clean only the given target(s).\n\n"
+		printf "Targets:\n"
+		printf "  caches   user cache files (~/Library/Caches)\n"
+		printf "  logs     user log files (~/Library/Logs)\n"
+		printf "  trash    empty the Trash (~/.Trash)\n"
+		printf "  brew     Homebrew cache and outdated versions\n"
+		printf "  dns      flush the DNS resolver cache\n"
+		return 0
+		;;
+	esac
+
+	if [ "$(uname)" != "Darwin" ]; then
+		echo "Error: cleanmac only runs on macOS." >&2
+		return 1
+	fi
+
+	local apply=false
+	if [ "$1" = "--yes" ] || [ "$1" = "-y" ]; then
+		apply=true
+		shift
+	fi
+
+	local targets=("$@")
+	if [ "${#targets[@]}" -eq 0 ]; then
+		targets=(caches logs trash brew dns)
+	fi
+
+	local target
+	for target in "${targets[@]}"; do
+		case "$target" in
+		caches) _cleanmac_path "$apply" "$HOME/Library/Caches" ;;
+		logs) _cleanmac_path "$apply" "$HOME/Library/Logs" ;;
+		trash) _cleanmac_path "$apply" "$HOME/.Trash" ;;
+		brew)
+			if ! command -v brew >/dev/null 2>&1; then
+				echo "[skip] Homebrew not installed"
+			elif [ "$apply" = true ]; then
+				echo "[clean] Homebrew cache"
+				brew cleanup -s
+			else
+				echo "[dry] brew cleanup -s ($(du -sh "$(brew --cache)" 2>/dev/null | awk '{print $1}') cached)"
+			fi
+			;;
+		dns)
+			if [ "$apply" = true ]; then
+				echo "[clean] DNS resolver cache"
+				sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder
+			else
+				echo "[dry] flush DNS resolver cache"
+			fi
+			;;
+		*)
+			echo "Error: unknown target '$target' (see 'cleanmac -h')." >&2
+			return 1
+			;;
+		esac
+	done
+
+	if [ "$apply" = false ]; then
+		printf "\nDry run — nothing deleted. Re-run with 'cleanmac --yes' to apply.\n"
+	fi
 }
 
 dks() {

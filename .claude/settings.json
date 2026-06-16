@@ -5,7 +5,8 @@
       "Bash(bash -n os/debian/setup-base.sh)",
       "Bash(command -v shellcheck)",
       "Bash(shellcheck -S warning os/debian/setup-base.sh os/macos/setup-base.sh)",
-      "Bash(command -v bats)"
+      "Bash(command -v bats)",
+      "Bash(bash -n config/shell/functions.sh)"
     ]
   }
 }

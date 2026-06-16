@@ -14,7 +14,7 @@ setup() {
   eval "$(sed '/^local /d' "$REPO_ROOT/config/shell/functions.sh")"
 
   # Export all functions so `run` (subshell) can find them
-  export -f b64d b64e browser cheat_glow check_cert dks kbp randompass timestampd timestampe lsfn
+  export -f b64d b64e brewsuggest browser cheat_glow check_cert cleanmac _cleanmac_path dks kbp randompass timestampd timestampe vpn lsfn
 }
 
 # --- b64e / b64d ---
@@ -166,10 +166,84 @@ setup() {
   assert_output --partial "cheat sheet"
 }
 
+# --- brewsuggest ---
+
+@test "brewsuggest -h prints help" {
+  run brewsuggest -h
+  assert_success
+  assert_output --partial "Suggest useful Homebrew"
+}
+
+@test "brewsuggest marks installed tools and suggests missing ones" {
+  # Stub brew: report only jq + fzf as installed
+  brew() {
+    if [ "$1" = "list" ]; then printf 'jq\nfzf\n'; else return 0; fi
+  }
+  export -f brew
+  run brewsuggest
+  assert_success
+  # An installed tool and a missing one both appear, plus an install command
+  assert_output --partial "jq"
+  assert_output --partial "bat"
+  assert_output --partial "brew install"
+}
+
+@test "brewsuggest fails gracefully without homebrew" {
+  # Stub command so 'command -v brew' reports brew as absent
+  command() {
+    if [ "$1" = "-v" ] && [ "$2" = "brew" ]; then return 1; fi
+    builtin command "$@"
+  }
+  export -f command
+  run brewsuggest
+  assert_failure
+  assert_output --partial "Homebrew not installed"
+}
+
+# --- cleanmac ---
+
+@test "cleanmac -h prints help" {
+  run cleanmac -h
+  assert_success
+  assert_output --partial "Reclaim disk space"
+}
+
+@test "cleanmac with no args prints help (no destructive action)" {
+  run cleanmac
+  assert_success
+  assert_output --partial "dry run"
+}
+
 # --- dks ---
 
 @test "dks -h prints help" {
   run dks -h
   assert_success
   assert_output --partial "kubernetes secret"
+}
+
+# --- vpn ---
+
+@test "vpn -h prints help" {
+  run vpn -h
+  assert_success
+  assert_output --partial "WireGuard"
+}
+
+@test "vpn with no args prints help" {
+  run vpn
+  assert_success
+  assert_output --partial "WireGuard"
+}
+
+@test "vpn up without a tunnel name fails gracefully" {
+  run vpn up
+  assert_failure
+  assert_output --partial "missing tunnel name"
+}
+
+@test "vpn rejects an unknown subcommand" {
+  run vpn bogus
+  assert_failure
+  assert_output --partial "unknown subcommand"
 }

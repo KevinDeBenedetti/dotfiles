@@ -141,7 +141,7 @@ Personal applications.
 
 **Lite:** VLC
 
-**Additional (full mode):** Audacity, Discord, Spotify, Transmission, Raspberry Pi Imager, Soulseek, Macs Fan Control, Radio Silence, kDrive
+**Additional (full mode):** Audacity, Discord, Spotify, Raspberry Pi Imager, Macs Fan Control, Radio Silence, kDrive
 
 ## Dotfiles Linking
 

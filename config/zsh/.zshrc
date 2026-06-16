@@ -69,6 +69,10 @@ source $ZSH/oh-my-zsh.sh
 # aliases
 # alias sed="gsed"
 alias cs="cheat_glow"
+alias dc="docker compose"
+alias dcu="docker compose up -d"
+alias dcd="docker compose down"
+alias dcl="docker compose logs -f"
 alias docker-nuke='docker stop $(docker ps -aq) 2>/dev/null; \
   docker rm -f $(docker ps -aq) 2>/dev/null; \
   docker rmi -f $(docker images -aq) 2>/dev/null; \

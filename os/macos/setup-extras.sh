@@ -19,8 +19,6 @@ install_additional_setup() {
     audacity \
     discord \
     raspberry-pi-imager \
-    soulseek \
-    transmission \
     spotify \
     macs-fan-control \
     radio-silence \
