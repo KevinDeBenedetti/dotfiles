@@ -80,6 +80,64 @@ setup() {
   assert_success
 }
 
+@test "claude settings allow common non-critical commands" {
+  for cmd in "Bash(ls *)" "Bash(grep *)" "Bash(cat *)" "Bash(basename *)" "Bash(jq *)"; do
+    run jq -e --arg c "$cmd" '.permissions.allow | index($c)' "$CONFIG_DIR/claude/settings.json"
+    assert_success
+  done
+}
+
+@test "claude settings keep critical commands out of allow" {
+  for cmd in "Bash(git push *)" "Bash(git commit *)" "Bash(rm *)" "Bash(terraform apply*)"; do
+    run jq -e --arg c "$cmd" '.permissions.allow | index($c)' "$CONFIG_DIR/claude/settings.json"
+    assert_failure
+  done
+}
+
+@test "claude settings keep git commit/push denied" {
+  run jq -e '.permissions.deny | index("Bash(git push)")' "$CONFIG_DIR/claude/settings.json"
+  assert_success
+}
+
+@test "claude global settings do not hardcode the portfolio repo" {
+  run grep -q 'portfolio' "$CONFIG_DIR/claude/settings.json"
+  assert_failure
+}
+
+@test "claude global settings additionalDirectories is empty (machine-specific paths live in settings.local.json)" {
+  run jq -e '.permissions.additionalDirectories | length == 0' "$CONFIG_DIR/claude/settings.json"
+  assert_success
+}
+
+@test "claude global settings hardcode no /Users/ absolute paths" {
+  run grep -q '/Users/' "$CONFIG_DIR/claude/settings.json"
+  assert_failure
+}
+
+@test "claude env deny patterns are unified across settings and managed" {
+  s=$(jq -c '[.permissions.deny[] | select(test("\\.env"))] | sort' "$CONFIG_DIR/claude/settings.json")
+  m=$(jq -c '[.permissions.deny[] | select(test("\\.env"))] | sort' "$CONFIG_DIR/claude/managed-settings.json")
+  [ "$s" = "$m" ]
+}
+
+@test "claude env deny uses working globs, not unsupported extglob" {
+  # Claude Code permission globs follow gitignore syntax; extglob !(...) is a
+  # silent no-op (matches nothing), so it must never be used to deny secrets.
+  for f in settings managed-settings; do
+    run jq -e '.permissions.deny | index("Read(**/.env.*)")' "$CONFIG_DIR/claude/$f.json"
+    assert_success
+    run jq -e '.permissions.deny | index("Read(**/.env.!(example))")' "$CONFIG_DIR/claude/$f.json"
+    assert_failure
+  done
+}
+
+@test "claude settings do not allow env/printenv (would dump secrets unprompted)" {
+  for cmd in "Bash(env)" "Bash(printenv *)"; do
+    run jq -e --arg c "$cmd" '.permissions.allow | index($c)' "$CONFIG_DIR/claude/settings.json"
+    assert_failure
+  done
+}
+
 # --- OS scripts ---
 
 @test "os/macos/init.sh exists and is executable" {

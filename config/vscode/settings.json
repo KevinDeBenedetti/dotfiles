@@ -306,5 +306,6 @@
   "claudeCode.preferredLocation": "panel",
   "claudeCode.useTerminal": true,
   "extensions.ignoreRecommendations": true,
-  "sonarlint.automaticAnalysis": false
+  "sonarlint.automaticAnalysis": false,
+  "chat.disableAIFeatures": true
 }

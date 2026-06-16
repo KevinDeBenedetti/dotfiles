@@ -12,6 +12,9 @@
       "Edit(**/.env.*)",
       "Write(**/.env)",
       "Write(**/.env.*)",
+      "Read(**/*.env)",
+      "Edit(**/*.env)",
+      "Write(**/*.env)",
       "Read(~/.ssh/id_*)",
       "Edit(~/.ssh/**)",
       "Read(~/.aws/**)",
@@ -58,6 +61,7 @@
       "denyRead": [
         "**/.env",
         "**/.env.*",
+        "**/*.env",
         "~/.ssh/id_*",
         "~/.aws/**",
         "~/.gnupg/**",
@@ -68,11 +72,13 @@
         "**/*.key"
       ],
       "allowRead": [
-        "~/.ssh/*.pub"
+        "~/.ssh/*.pub",
+        "**/.env.example"
       ],
       "denyWrite": [
         "**/.env",
         "**/.env.*",
+        "**/*.env",
         "~/.ssh/**",
         "~/.aws/**",
         "~/.gnupg/**",
