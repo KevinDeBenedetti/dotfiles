@@ -305,5 +305,6 @@
   "github.copilot.nextEditSuggestions.eagerness": "low",
   "claudeCode.preferredLocation": "panel",
   "claudeCode.useTerminal": true,
-  "extensions.ignoreRecommendations": true
+  "extensions.ignoreRecommendations": true,
+  "sonarlint.automaticAnalysis": false
 }

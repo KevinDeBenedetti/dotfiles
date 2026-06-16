@@ -20,6 +20,7 @@ install_lite_setup() {
   # Install homebrew cli packages
   printf "\n\n${red}[base] =>${no_color} Install homebrew packages (cli)\n\n"
   brew install --formula \
+    ansible \
     cheat \
     direnv \
     fzf \
@@ -27,6 +28,7 @@ install_lite_setup() {
     helm \
     kubectl \
     sshs \
+    terraform \
     tree \
     watch \
     yq \

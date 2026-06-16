@@ -86,6 +86,8 @@ RUN command -v docker \
     && command -v ssh \
     && command -v tree \
     && command -v rsync \
+    && command -v ansible \
+    && command -v terraform \
     && echo "All base lite checks passed"
 
 # ---------------------------------------------------------------------------

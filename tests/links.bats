@@ -30,6 +30,15 @@ run_link_shared_configs() {
   assert_symlink_to "$CONFIG_DIR/shell/functions.sh" "$FAKE_HOME/.config/dotfiles/functions.sh"
 }
 
+@test "link_shared_configs links every claude global command into HOME" {
+  run run_link_shared_configs
+  assert_success
+  local cmd
+  for cmd in "$CONFIG_DIR"/claude/commands/*; do
+    assert_symlink_to "$cmd" "$FAKE_HOME/.claude/commands/$(basename "$cmd")"
+  done
+}
+
 @test "link_shared_configs is idempotent" {
   run run_link_shared_configs
   assert_success

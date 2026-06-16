@@ -55,4 +55,12 @@ link_shared_configs() {
   # Claude Code user settings
   mkdir -p "$HOME/.claude"
   link_with_backup "$config_dir/claude/settings.json" "$HOME/.claude/settings.json"
+
+  # Claude Code global commands → ~/.claude/commands/
+  if [ -d "$config_dir/claude/commands" ]; then
+    mkdir -p "$HOME/.claude/commands"
+    for item in "$config_dir/claude/commands/"*; do
+      link_with_backup "$item" "$HOME/.claude/commands/$(basename "$item")"
+    done
+  fi
 }
