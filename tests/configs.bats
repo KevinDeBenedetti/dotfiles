@@ -251,3 +251,16 @@ setup() {
   run grep -q "initial-version: '0.1.0'" "$REPO_ROOT/.github/workflows/ci-cd.yml"
   assert_success
 }
+
+# --- commit-message hook consumed from github-workflows ---
+
+@test "prek consumes the ai-commit-msg hook from github-workflows" {
+  run grep -q 'id = "ai-commit-msg"' "$REPO_ROOT/prek.toml"
+  assert_success
+}
+
+@test "no local commit-message scripts remain (consolidated to github-workflows)" {
+  assert_file_not_exists "$REPO_ROOT/scripts/todo-commit.sh"
+  assert_file_not_exists "$REPO_ROOT/scripts/ai-commit-msg.sh"
+  assert_file_not_exists "$REPO_ROOT/.pre-commit-hooks.yaml"
+}

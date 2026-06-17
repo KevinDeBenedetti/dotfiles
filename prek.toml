@@ -61,31 +61,23 @@ hooks = [
   { id = "actionlint" },
 ]
 
-# ─── Docs link safety ────────────────────────────────────────────────────────
+# ─── Reusable hooks (KevinDeBenedetti/github-workflows) ──────────────────────
+# - check-docs-links: relative links in docs/ must not escape docs/
+# - ai-commit-msg (prepare-commit-msg): pre-fills the commit editor with a
+#   Conventional Commits message generated from the staged diff via `claude -p`
+#   (fail-open; no-op if a message is present, nothing staged, or claude absent).
 [[repos]]
 repo = "https://github.com/KevinDeBenedetti/github-workflows"
-rev = "c91bedb2d28c23f8e4e42f49393ad5d2857b76c0"
+# Pinned: this SHA includes ai-commit-msg (newer than tag v0.9.2).
+rev = "6253c93363c63df0a92ff6cd04eac9966b32ca16"
 hooks = [
   { id = "check-docs-links" },
+  { id = "ai-commit-msg" },
 ]
 
 # ─── Local hooks ────────────────────────────────────────────────────────────
 [[repos]]
 repo = "local"
-
-# Pre-fill the commit editor with a conventional-commit message built from the
-# "✅ Fait" section of TODO.md, then strip those entries and re-stage TODO.md.
-# Only fires on a plain `git commit` (skipped for -m / merge / amend).
-[[repos.hooks]]
-id = "todo-commit-msg"
-name = "Commit message from TODO ✅ Fait"
-language = "system"
-entry = "scripts/todo-commit.sh hook"
-stages = ["prepare-commit-msg"]
-always_run = true
-# NB: keep pass_filenames at its default (true). For prepare-commit-msg hooks the
-# commit-message file is passed AS the filename, so pass_filenames=false would
-# suppress it and the hook would get no $1 (msgfile).
 
 [[repos.hooks]]
 id = "bats"
