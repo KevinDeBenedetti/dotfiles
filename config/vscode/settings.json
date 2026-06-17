@@ -40,6 +40,9 @@
   // git
   "git.autofetch": true,
   "git.untrackedChanges": "separate",
+  // commit via the editor so the prepare-commit-msg hook (todo-commit.sh)
+  // can pre-fill COMMIT_EDITMSG; commit with an empty SCM box to trigger it
+  "git.useEditorAsCommitInput": true,
   // github
   "githubPullRequests.pullBranch": "never",
   // eslint
