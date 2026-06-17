@@ -252,20 +252,16 @@ setup() {
   assert_success
 }
 
-# --- commit-message hook consumed from github-workflows ---
+# --- commit/TODO automation moved to the /commit skill ---
 
-@test "prek consumes the ai-commit-msg hook from github-workflows" {
-  run grep -q 'id = "ai-commit-msg"' "$REPO_ROOT/prek.toml"
-  assert_success
-}
-
-@test "prek consumes the purge-todo-done hook from github-workflows" {
-  run grep -q 'id = "purge-todo-done"' "$REPO_ROOT/prek.toml"
-  assert_success
-}
-
-@test "no local commit-message scripts remain (consolidated to github-workflows)" {
+@test "no commit-message / TODO hook scripts remain (handled by the /commit skill)" {
   assert_file_not_exists "$REPO_ROOT/scripts/todo-commit.sh"
   assert_file_not_exists "$REPO_ROOT/scripts/ai-commit-msg.sh"
+  assert_file_not_exists "$REPO_ROOT/scripts/check-todo-purged.sh"
   assert_file_not_exists "$REPO_ROOT/.pre-commit-hooks.yaml"
+}
+
+@test "prek no longer wires the commit-message / TODO hooks" {
+  run grep -qE 'ai-commit-msg|purge-todo-done|check-todo-purged' "$REPO_ROOT/prek.toml"
+  assert_failure
 }

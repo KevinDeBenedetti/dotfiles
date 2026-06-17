@@ -11,7 +11,7 @@
 
 minimum_prek_version = "0.3.0"
 fail_fast = false
-default_install_hook_types = ["pre-commit", "prepare-commit-msg", "pre-push"]
+default_install_hook_types = ["pre-commit", "pre-push"]
 
 # ─── General file hygiene ───────────────────────────────────────────────────
 [[repos]]
@@ -63,21 +63,14 @@ hooks = [
 
 # ─── Reusable hooks (KevinDeBenedetti/github-workflows) ──────────────────────
 # - check-docs-links: relative links in docs/ must not escape docs/
-# - ai-commit-msg (prepare-commit-msg): pre-fills the commit editor with a
-#   Conventional Commits message generated from the staged diff via `claude -p`.
-# - purge-todo-done (prepare-commit-msg): when TODO.md is staged, strips the
-#   `- [x]` lines under "✅ Fait" and re-stages it, so done tasks are flushed at
-#   commit time. Both are fail-open (never block a commit).
-# ai-commit-msg is listed first so the message is built from the user's changes
-# before purge-todo-done rewrites TODO.md.
+# Commit-message generation and TODO purge are handled by the /commit skill now,
+# not by git hooks.
 [[repos]]
 repo = "https://github.com/KevinDeBenedetti/github-workflows"
 # renovate: datasource=github-tags depName=KevinDeBenedetti/github-workflows
 rev = "v0.17.0"
 hooks = [
   { id = "check-docs-links" },
-  { id = "ai-commit-msg" },
-  { id = "purge-todo-done" },
 ]
 
 # ─── Local hooks ────────────────────────────────────────────────────────────
