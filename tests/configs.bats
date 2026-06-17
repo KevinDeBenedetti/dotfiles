@@ -229,9 +229,12 @@ setup() {
   assert_success
 }
 
-@test "release-please manifest is seeded at 0.0.0 (first release cuts 0.1.0)" {
+@test "release-please manifest tracks a semver version for the root package" {
+  # Don't pin a specific value: release-please bumps this on every release
+  # (0.0.0 → 0.1.0 → …), so assert structure (a semver string under ".") instead.
   assert_file_exists "$REPO_ROOT/.github/release/.release-please-manifest.json"
-  run grep -q '"\.": "0.0.0"' "$REPO_ROOT/.github/release/.release-please-manifest.json"
+  run jq -e '.["."] | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")' \
+    "$REPO_ROOT/.github/release/.release-please-manifest.json"
   assert_success
 }
 

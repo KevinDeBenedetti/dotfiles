@@ -37,6 +37,10 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    with:
+      # release-please opens its release PRs as this bot; allow it so the
+      # auto-generated "chore(main): release x.y.z" PR passes the bot guard.
+      allowed-bots: '["release-please-global[bot]"]'
 
   # ── Dispatch docs rebuild ──────────────────────────────────────────────────
   dispatch:
