@@ -259,6 +259,11 @@ setup() {
   assert_success
 }
 
+@test "prek consumes the purge-todo-done hook from github-workflows" {
+  run grep -q 'id = "purge-todo-done"' "$REPO_ROOT/prek.toml"
+  assert_success
+}
+
 @test "no local commit-message scripts remain (consolidated to github-workflows)" {
   assert_file_not_exists "$REPO_ROOT/scripts/todo-commit.sh"
   assert_file_not_exists "$REPO_ROOT/scripts/ai-commit-msg.sh"

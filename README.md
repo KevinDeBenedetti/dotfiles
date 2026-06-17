@@ -58,6 +58,13 @@ repo (pinned by SHA in [`prek.toml`](prek.toml)), not maintained here:
 - Tunable via env: `AI_COMMIT_NO_AI=1`, `AI_COMMIT_MODEL` (default `sonnet`),
   `AI_COMMIT_TIMEOUT` (needs `timeout(1)`), `AI_COMMIT_MAX_CHARS`.
 
+A companion **`purge-todo-done`** hook (same repo, same stage) flushes finished
+tasks at commit time: when `TODO.md` is part of the commit, it strips the
+`- [x] …` lines under `## ✅ Fait` and re-stages the file, so done tasks don't
+pile up (the record lives in git history + the commit message). Also fail-open —
+no-op when `TODO.md` isn't staged, on merges/squashes, or when the Done section
+is empty. Tunable via `TODO_PURGE_NO=1`, `TODO_PURGE_FILE`, `TODO_PURGE_HEADING`.
+
 To use the same hook in any other repo, add it to that repo's `prek.toml`:
 
 ```toml
