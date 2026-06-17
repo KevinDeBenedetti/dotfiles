@@ -108,7 +108,8 @@
       "Bash(cksum *)",
       "Bash(pbcopy)",
       "Bash(pbpaste)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(command -v gh)"
     ],
     "deny": [
       "Bash(git commit)",
