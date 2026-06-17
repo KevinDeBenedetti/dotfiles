@@ -11,7 +11,7 @@
 
 minimum_prek_version = "0.3.0"
 fail_fast = false
-default_install_hook_types = ["pre-commit", "pre-push"]
+default_install_hook_types = ["pre-commit", "prepare-commit-msg", "pre-push"]
 
 # ─── General file hygiene ───────────────────────────────────────────────────
 [[repos]]
@@ -72,6 +72,20 @@ hooks = [
 # ─── Local hooks ────────────────────────────────────────────────────────────
 [[repos]]
 repo = "local"
+
+# Pre-fill the commit editor with a conventional-commit message built from the
+# "✅ Fait" section of TODO.md, then strip those entries and re-stage TODO.md.
+# Only fires on a plain `git commit` (skipped for -m / merge / amend).
+[[repos.hooks]]
+id = "todo-commit-msg"
+name = "Commit message from TODO ✅ Fait"
+language = "system"
+entry = "scripts/todo-commit.sh hook"
+stages = ["prepare-commit-msg"]
+always_run = true
+# NB: keep pass_filenames at its default (true). For prepare-commit-msg hooks the
+# commit-message file is passed AS the filename, so pass_filenames=false would
+# suppress it and the hook would get no $1 (msgfile).
 
 [[repos.hooks]]
 id = "bats"

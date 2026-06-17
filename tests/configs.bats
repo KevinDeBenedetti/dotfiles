@@ -220,3 +220,34 @@ setup() {
   run grep -q '"servers"' "$CONFIG_DIR/vscode/mcp.json"
   assert_success
 }
+
+# --- release-please ---
+
+@test "release-please config exists with simple release-type" {
+  assert_file_exists "$REPO_ROOT/.github/release/release-please-config.json"
+  run grep -q '"release-type": "simple"' "$REPO_ROOT/.github/release/release-please-config.json"
+  assert_success
+}
+
+@test "release-please manifest is seeded at 0.0.0 (first release cuts 0.1.0)" {
+  assert_file_exists "$REPO_ROOT/.github/release/.release-please-manifest.json"
+  run grep -q '"\.": "0.0.0"' "$REPO_ROOT/.github/release/.release-please-manifest.json"
+  assert_success
+}
+
+@test "release config files are valid JSON" {
+  run python3 -c "import json,sys; [json.load(open(f)) for f in sys.argv[1:]]" \
+    "$REPO_ROOT/.github/release/release-please-config.json" \
+    "$REPO_ROOT/.github/release/.release-please-manifest.json"
+  assert_success
+}
+
+@test "ci-cd workflow calls the reusable release-please workflow" {
+  run grep -q 'github-workflows/.github/workflows/release.yml@main' "$REPO_ROOT/.github/workflows/ci-cd.yml"
+  assert_success
+}
+
+@test "release job is gated on push to main" {
+  run grep -q "initial-version: '0.1.0'" "$REPO_ROOT/.github/workflows/ci-cd.yml"
+  assert_success
+}
