@@ -130,17 +130,17 @@
   "github.copilot.editor.enableCodeActions": false,
   "github.copilot.chat.commitMessageGeneration.instructions": [
     {
-      "file": "/Users/kevin/.config/dotfiles/copilot/instructions/commit-message.md"
+      "file": "${userHome}/.config/dotfiles/copilot/instructions/commit-message.md"
     },
   ],
   "github.copilot.chat.pullRequestDescriptionGeneration.instructions":[
     {
-      "file": "/Users/kevin/.config/dotfiles/copilot/instructions/pull-request.md"
+      "file": "${userHome}/.config/dotfiles/copilot/instructions/pull-request.md"
     },
   ],
   "github.copilot.chat.reviewSelection.instructions": [
     {
-      "file": "/Users/kevin/.config/dotfiles/copilot/instructions/code-review.md"
+      "file": "${userHome}/.config/dotfiles/copilot/instructions/code-review.md"
     },
   ],
   "github.copilot.enable": {

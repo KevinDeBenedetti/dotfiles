@@ -81,7 +81,6 @@ Core CLI tools installed via Homebrew. Split into lite (always) and additional (
 | [`gh`](https://cli.github.com)                              | GitHub CLI — PRs, issues, repos from the terminal                    |
 | [`lazygit`](https://github.com/jesseduffield/lazygit)       | Terminal UI for Git                                                  |
 | [`lazydocker`](https://github.com/jesseduffield/lazydocker) | Terminal UI for Docker                                               |
-| [`colima`](https://github.com/abiosoft/colima)              | Lightweight container runtime for macOS (Docker Desktop alternative) |
 | [`lima`](https://github.com/lima-vm/lima)                   | Linux VMs on macOS — used for local Debian setup testing             |
 | [`nmap`](https://nmap.org)                                  | Network exploration and port scanning                                |
 | Browsers                                                    | Brave, Firefox, Arc                                                  |
@@ -356,8 +355,6 @@ When `~/.ssh/id_rsa.pub` exists the dotfiles install creates `~/.ssh/allowed_sig
 | `ControlPersist`      | `60s`         | Keep the master connection open for 60 s after the last session closes   |
 | `ServerAliveInterval` | `60`          | Send a keepalive packet every 60 s                                       |
 | `ServerAliveCountMax` | `3`           | Drop the connection after 3 missed keepalives (~3 min)                   |
-
-> **Colima integration:** If `~/.colima/ssh_config` exists it is included at the top, which lets Colima VMs work seamlessly with `ssh colima-*` aliases.
 
 ## proto Toolchain
 

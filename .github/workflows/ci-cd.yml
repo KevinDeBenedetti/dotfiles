@@ -53,13 +53,9 @@ jobs:
       APP_PRIVATE_KEY: ${{ secrets.DOCS_APP_PRIVATE_KEY }}
 
   # ── Release (release-please) ───────────────────────────────────────────────
-  # Config & manifest live in .github/release/. The manifest is seeded at 0.0.0,
-  # which release-please treats as the "no release yet" sentinel: from 0.0.0 the
-  # FIRST release defaults to 1.0.0 (bump-minor-pre-major only applies once we're
-  # already on a 0.x version, not from 0.0.0). To start at 0.1.0 instead, the
-  # config pins `release-as: 0.1.0` on the "." package, forcing the first release
-  # PR to v0.1.0. ⚠️ Once v0.1.0 is released, remove that `release-as` so normal
-  # bump-minor-pre-major versioning resumes (0.2.0, 0.3.0, …).
+  # Config & manifest live in .github/release/. v0.1.0 has shipped, so the
+  # one-off `release-as: 0.1.0` bootstrap has been removed from the config and
+  # normal bump-minor-pre-major versioning is in effect (0.2.0, 0.3.0, …).
   # initial-version below is only a fallback used if the manifest is ever missing.
   release:
     name: Release Please
