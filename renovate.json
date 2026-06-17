@@ -1,4 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/configuration-options.json",
-  "extends": ["github>KevinDeBenedetti/github-workflows"]
+  "extends": ["config:recommended"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update `rev = \"...\"` pins in prek.toml annotated with a `# renovate:` comment (Renovate's built-in pre-commit manager only handles .pre-commit-config.yaml, not prek.toml).",
+      "fileMatch": ["(^|/)prek\\.toml$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+rev = \"(?<currentValue>[^\"]+)\""
+      ]
+    }
+  ]
 }

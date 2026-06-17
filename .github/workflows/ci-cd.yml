@@ -63,3 +63,9 @@ jobs:
       pull-requests: write
     with:
       initial-version: '0.1.0'
+      # Mint a GitHub App token so the release PR is attributed to the App, not
+      # github-actions[bot]: this triggers CI on the PR and avoids the manual
+      # workflow-approval gate that GITHUB_TOKEN-authored PRs hit.
+      app-client-id: ${{ vars.DOCS_APP_CLIENT_ID }}
+    secrets:
+      APP_PRIVATE_KEY: ${{ secrets.DOCS_APP_PRIVATE_KEY }}

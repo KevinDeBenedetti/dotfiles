@@ -236,7 +236,7 @@ setup() {
 }
 
 @test "release config files are valid JSON" {
-  run python3 -c "import json,sys; [json.load(open(f)) for f in sys.argv[1:]]" \
+  run jq empty \
     "$REPO_ROOT/.github/release/release-please-config.json" \
     "$REPO_ROOT/.github/release/.release-please-manifest.json"
   assert_success
@@ -252,6 +252,13 @@ setup() {
   assert_success
 }
 
+@test "release job passes the GitHub App credentials (CI-on-PR, no approval gate)" {
+  run grep -q 'app-client-id: ${{ vars.DOCS_APP_CLIENT_ID }}' "$REPO_ROOT/.github/workflows/ci-cd.yml"
+  assert_success
+  run grep -q 'APP_PRIVATE_KEY: ${{ secrets.DOCS_APP_PRIVATE_KEY }}' "$REPO_ROOT/.github/workflows/ci-cd.yml"
+  assert_success
+}
+
 # --- commit/TODO automation moved to the /commit skill ---
 
 @test "no commit-message / TODO hook scripts remain (handled by the /commit skill)" {
@@ -264,4 +271,28 @@ setup() {
 @test "prek no longer wires the commit-message / TODO hooks" {
   run grep -qE 'ai-commit-msg|purge-todo-done|check-todo-purged' "$REPO_ROOT/prek.toml"
   assert_failure
+}
+
+# --- Renovate keeps the prek.toml rev pins up to date ---
+
+@test "renovate.json is valid JSON" {
+  run jq empty "$REPO_ROOT/renovate.json"
+  assert_success
+}
+
+@test "renovate has a customManager for prek.toml (built-in pre-commit manager ignores it)" {
+  # The built-in pre-commit manager only matches .pre-commit-config.yaml, so the
+  # `# renovate:` annotations on prek.toml's rev pins need a customManager to fire.
+  run grep -q 'prek' "$REPO_ROOT/renovate.json"
+  assert_success
+  run grep -q '"customManagers"' "$REPO_ROOT/renovate.json"
+  assert_success
+}
+
+@test "every prek.toml rev pin carries a renovate annotation" {
+  # Count `rev = ` lines and `# renovate:` comments; they must match so no pin
+  # silently drops out of Renovate's coverage.
+  revs=$(grep -c '^rev = ' "$REPO_ROOT/prek.toml")
+  notes=$(grep -c '^# renovate:' "$REPO_ROOT/prek.toml")
+  [ "$revs" -eq "$notes" ]
 }
