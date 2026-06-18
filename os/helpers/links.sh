@@ -63,4 +63,13 @@ link_shared_configs() {
       link_with_backup "$item" "$HOME/.claude/commands/$(basename "$item")"
     done
   fi
+
+  # Claude Code global skills → ~/.claude/skills/ (one symlink per skill dir)
+  if [ -d "$config_dir/claude/skills" ]; then
+    mkdir -p "$HOME/.claude/skills"
+    for item in "$config_dir/claude/skills/"*; do
+      [ -d "$item" ] || continue
+      link_with_backup "$item" "$HOME/.claude/skills/$(basename "$item")"
+    done
+  fi
 }

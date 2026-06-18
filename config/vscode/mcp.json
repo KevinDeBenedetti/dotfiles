@@ -13,7 +13,7 @@
     },
     "shadcn": {
       "command": "npx",
-      "args": ["shadcn@latest", "mcp"]
+      "args": ["shadcn@4.11.0", "mcp"]
     }
 	},
 	"inputs": []

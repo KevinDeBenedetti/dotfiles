@@ -114,6 +114,14 @@ setup() {
   assert_failure
 }
 
+@test "no config/ file hardcodes a /Users/<name> absolute path" {
+  # Machine-specific macOS home paths must never be committed: they break on
+  # other machines and leak the username. Use $HOME / ${userHome} instead.
+  # Guards against re-introducing hard-coded values anywhere under config/.
+  run grep -rn '/Users/[A-Za-z0-9._-]' "$CONFIG_DIR"
+  assert_failure
+}
+
 @test "claude env deny patterns are unified across settings and managed" {
   s=$(jq -c '[.permissions.deny[] | select(test("\\.env"))] | sort' "$CONFIG_DIR/claude/settings.json")
   m=$(jq -c '[.permissions.deny[] | select(test("\\.env"))] | sort' "$CONFIG_DIR/claude/managed-settings.json")
@@ -246,8 +254,19 @@ setup() {
 }
 
 @test "ci-cd workflow calls the reusable release-please workflow" {
-  run grep -q 'github-workflows/.github/workflows/release.yml@main' "$REPO_ROOT/.github/workflows/ci-cd.yml"
+  run grep -q 'github-workflows/.github/workflows/release.yml@' "$REPO_ROOT/.github/workflows/ci-cd.yml"
   assert_success
+}
+
+@test "reusable workflows are pinned to an immutable SHA, not a mutable branch" {
+  # @main is a moving target injected into a pipeline with contents:write +
+  # secrets:inherit — pin every reusable workflow to a 40-char commit SHA.
+  run grep -nE 'github-workflows/\.github/workflows/[^@]+@(main|master|v?[0-9]+(\.[0-9]+)*)\b' \
+    "$REPO_ROOT/.github/workflows/ci-cd.yml"
+  assert_failure
+  run grep -cE 'github-workflows/\.github/workflows/[^@]+@[0-9a-f]{40}' \
+    "$REPO_ROOT/.github/workflows/ci-cd.yml"
+  assert_output '5'
 }
 
 @test "release job is gated on push to main" {

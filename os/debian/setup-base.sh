@@ -1,14 +1,18 @@
 #!/bin/bash
 
+set -euo pipefail
+
 # Colorize terminal
 red='\e[0;31m'
 no_color='\033[0m'
 
 SUDO="${SUDO:-}"
+# Default so `set -u` doesn't trip when run standalone (init.sh exports it)
+FULL_MODE_SETUP="${FULL_MODE_SETUP:-false}"
 
 install_lite_setup() {
   # Configure locale (prevents LC_* warnings on SSH login)
-  printf "\n\n${red}[base] =>${no_color} Configure locale (en_US.UTF-8)\n\n"
+  printf '%b' "\n\n${red}[base] =>${no_color} Configure locale (en_US.UTF-8)\n\n"
   $SUDO apt-get install -y --no-install-recommends locales
   # Enable en_US.UTF-8 in locale.gen if not already present
   if ! grep -q '^en_US.UTF-8 UTF-8' /etc/locale.gen 2>/dev/null; then
@@ -18,7 +22,7 @@ install_lite_setup() {
   $SUDO update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
   # Install Docker CE from official upstream repository
-  printf "\n\n${red}[base] =>${no_color} Install Docker CE\n\n"
+  printf '%b' "\n\n${red}[base] =>${no_color} Install Docker CE\n\n"
   if ! command -v docker &>/dev/null; then
     $SUDO apt-get install -y --no-install-recommends \
       ca-certificates \
@@ -48,11 +52,11 @@ ${_DOCKER_CODENAME} stable" \
       $SUDO usermod -aG docker "$(whoami)"
     fi
   else
-    printf "${red}[base]${no_color} Docker already installed — skipping.\n"
+    printf '%b' "${red}[base]${no_color} Docker already installed — skipping.\n"
   fi
 
   # Install apt packages
-  printf "\n\n${red}[base] =>${no_color} Install apt packages (cli)\n\n"
+  printf '%b' "\n\n${red}[base] =>${no_color} Install apt packages (cli)\n\n"
   $SUDO apt-get install -y --no-install-recommends \
     ansible \
     fzf \
@@ -63,7 +67,7 @@ ${_DOCKER_CODENAME} stable" \
     rsync
 
   # Install Terraform from HashiCorp's official apt repository
-  printf "\n\n${red}[base] =>${no_color} Install Terraform\n\n"
+  printf '%b' "\n\n${red}[base] =>${no_color} Install Terraform\n\n"
   if ! command -v terraform &>/dev/null; then
     $SUDO install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://apt.releases.hashicorp.com/gpg \
@@ -76,20 +80,20 @@ https://apt.releases.hashicorp.com ${_HASHICORP_CODENAME} main" \
     $SUDO apt-get update -qq
     $SUDO apt-get install -y --no-install-recommends terraform
   else
-    printf "${red}[base]${no_color} terraform already installed — skipping.\n"
+    printf '%b' "${red}[base]${no_color} terraform already installed — skipping.\n"
   fi
 }
 
 install_additional_setup() {
   # Install additional apt packages
-  printf "\n\n${red}[base] =>${no_color} Install apt packages (cli)\n\n"
+  printf '%b' "\n\n${red}[base] =>${no_color} Install apt packages (cli)\n\n"
   $SUDO apt-get install -y --no-install-recommends \
     gh \
     nmap
 
   # Install proto
   if ! command -v proto &>/dev/null; then
-    printf "\n\n${red}[base] =>${no_color} Install proto\n\n"
+    printf '%b' "\n\n${red}[base] =>${no_color} Install proto\n\n"
     curl -fsSL https://moonrepo.dev/install/proto.sh | bash -s -- --yes
   fi
 }

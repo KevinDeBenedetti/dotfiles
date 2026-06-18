@@ -20,7 +20,7 @@ HELPERS_DIR="$REPO_ROOT/os/helpers"
 DOTFILES_RAW_URL="https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main"
 DOTFILES_INSTALL_DIR="${DOTFILES_INSTALL_DIR:-$HOME/.dotfiles}"
 if [ ! -f "$SCRIPT_PATH/setup-base.sh" ]; then
-  printf "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — downloading dotfiles to $DOTFILES_INSTALL_DIR...\n\n"
+  printf '%b' "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — downloading dotfiles to $DOTFILES_INSTALL_DIR...\n\n"
 
   _DOTFILES_FILES=(
     os/debian/init.sh
@@ -100,7 +100,7 @@ Following flags are available:
   -h    Print script help.\n\n"
 
 print_help() {
-  printf "$TEXT_HELPER"
+  printf '%b' "$TEXT_HELPER"
 }
 
 # Parse options
@@ -138,14 +138,14 @@ if [[ "$INSTALL_BASE" = "false" && "$INSTALL_KUBERNETES" = "false" \
    && "$INSTALL_SECURITY" = "false" \
    && "$COPY_DOTFILES" = "false" && "$INSTALL_COMPLETIONS" = "false" \
    && "$REMOVE_TMP_CONTENT" = "false" && -z "${CREATE_USER:-}" ]]; then
-  printf "\n${red}[warning]${no_color} No profile or action flag provided. Nothing to do.\n"
+  printf '%b' "\n${red}[warning]${no_color} No profile or action flag provided. Nothing to do.\n"
   print_help
   exit 1
 fi
 
 # Ensure running as root or with sudo
 if [ "$(id -u)" -ne 0 ] && ! command -v sudo &>/dev/null; then
-  printf "\n${red}[error]${no_color} This script requires root privileges or sudo.\n"
+  printf '%b' "\n${red}[error]${no_color} This script requires root privileges or sudo.\n"
   exit 1
 fi
 
@@ -156,7 +156,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Settings
-printf "\nScript settings:
+printf '%b' "\nScript settings:
   -> install ${red}full setup${no_color}: ${red}$FULL_MODE_SETUP${no_color}
   -> install ${red}[base]${no_color} profile: ${red}$INSTALL_BASE${no_color}
   -> install ${red}[kubernetes]${no_color} profile: ${red}$INSTALL_KUBERNETES${no_color}
@@ -171,17 +171,17 @@ export SSH_NOPASSWD=${SSH_NOPASSWD:-false}
 export COPY_ROOT_SSH_KEY=${COPY_ROOT_SSH_KEY:-true}
 
 # Update apt
-printf "\n${red}${i}.${no_color} Update apt\n\n"
-$SUDO apt-get update -qq || printf "\n${red}[warning]${no_color} apt update failed (non-fatal), continuing...\n\n"
+printf '%b' "\n${red}${i}.${no_color} Update apt\n\n"
+$SUDO apt-get update -qq || printf '%b' "\n${red}[warning]${no_color} apt update failed (non-fatal), continuing...\n\n"
 i=$(($i + 1))
 
 # Apply security upgrades
-printf "\n${red}${i}.${no_color} Apply security upgrades\n\n"
-$SUDO apt-get upgrade -y --no-install-recommends || printf "\n${red}[warning]${no_color} apt upgrade failed (non-fatal), continuing...\n\n"
+printf '%b' "\n${red}${i}.${no_color} Apply security upgrades\n\n"
+$SUDO apt-get upgrade -y --no-install-recommends || printf '%b' "\n${red}[warning]${no_color} apt upgrade failed (non-fatal), continuing...\n\n"
 i=$(($i + 1))
 
 # Install common
-printf "\n${red}${i}.${no_color} Install commons\n\n"
+printf '%b' "\n${red}${i}.${no_color} Install commons\n\n"
 $SUDO apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
@@ -197,7 +197,7 @@ i=$(($i + 1))
 
 # Install oh-my-zsh
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
-  printf "\n${red}${i}.${no_color} Install oh-my-zsh\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install oh-my-zsh\n\n"
   i=$(($i + 1))
 
   $SUDO apt-get install -y --no-install-recommends zsh
@@ -207,7 +207,7 @@ fi
 
 # Install base profile
 if [[ "$INSTALL_BASE" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Install base profile\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install base profile\n\n"
   i=$(($i + 1))
 
   bash "$SCRIPT_PATH/setup-base.sh"
@@ -219,7 +219,7 @@ fi
 
 # Create non-root user if requested (must run BEFORE security disables root login)
 if [[ -n "${CREATE_USER:-}" ]]; then
-  printf "\n${red}${i}.${no_color} Create user '${CREATE_USER}'\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Create user '${CREATE_USER}'\n\n"
   i=$(($i + 1))
 
   bash "$SCRIPT_PATH/setup-user.sh"
@@ -228,7 +228,7 @@ fi
 
 # Install kubernetes profile
 if [[ "$INSTALL_KUBERNETES" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Install kubernetes profile\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install kubernetes profile\n\n"
   i=$(($i + 1))
 
   bash "$SCRIPT_PATH/setup-kubernetes.sh"
@@ -237,7 +237,7 @@ fi
 
 # Install security profile
 if [[ "$INSTALL_SECURITY" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Install security profile\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install security profile\n\n"
   i=$(($i + 1))
 
   bash "$SCRIPT_PATH/setup-security.sh"
@@ -250,7 +250,7 @@ source "$HELPERS_DIR/links.sh"
 
 # Link dotfiles
 if [[ "$COPY_DOTFILES" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Link dotfiles\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Link dotfiles\n\n"
   i=$(($i + 1))
 
   mkdir -p "$HOME/.config"
@@ -266,9 +266,9 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
     mkdir -p "$HOME/.ssh"
     printf '%s %s\n' "$GIT_EMAIL" "$(tr -d '\r' < "$SSH_SIGNING_KEY" | tr -d '\n')" > "$ALLOWED_SIGNERS"
     chmod 600 "$ALLOWED_SIGNERS"
-    printf "${red}[git]${no_color} SSH allowed_signers file created at $ALLOWED_SIGNERS\n"
+    printf '%b' "${red}[git]${no_color} SSH allowed_signers file created at $ALLOWED_SIGNERS\n"
   else
-    printf "${red}[warning]${no_color} No SSH public key found — skipping allowed_signers setup.\n"
+    printf '%b' "${red}[warning]${no_color} No SSH public key found — skipping allowed_signers setup.\n"
   fi
 
   # Create local override stubs if they don't already exist
@@ -278,7 +278,7 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
 # Add aliases, exports, path additions, etc. specific to this machine.
 # This file is sourced at the end of .zshrc and always wins.
 EOF
-    printf "${red}[local]${no_color} Created stub: ~/.zshrc.local\n"
+    printf '%b' "${red}[local]${no_color} Created stub: ~/.zshrc.local\n"
   fi
 
   if [ ! -f "$HOME/.gitconfig.local" ]; then
@@ -286,7 +286,7 @@ EOF
 # Machine-specific git overrides — not tracked by git
 # Overrides values from .gitconfig (user.email, signingkey, etc.)
 EOF
-    printf "${red}[local]${no_color} Created stub: ~/.gitconfig.local\n"
+    printf '%b' "${red}[local]${no_color} Created stub: ~/.gitconfig.local\n"
   fi
 
   if [ ! -f "$HOME/.config/dotfiles/env.local.sh" ]; then
@@ -296,7 +296,7 @@ EOF
 # Overrides / supplements env.sh values for this machine.
 # Sourced automatically at the end of .zshrc.
 EOF
-    printf "${red}[local]${no_color} Created stub: ~/.config/dotfiles/env.local.sh\n"
+    printf '%b' "${red}[local]${no_color} Created stub: ~/.config/dotfiles/env.local.sh\n"
   fi
 
   # Configure proto proxies
@@ -312,7 +312,7 @@ EOF
     INSTALLED_EXTENSIONS=$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')
     while IFS= read -r extension; do
       if echo "$INSTALLED_EXTENSIONS" | grep -qi "^${extension}$"; then
-        printf "${red}[vscode]${no_color} $extension already installed — skipping.\n"
+        printf '%b' "${red}[vscode]${no_color} $extension already installed — skipping.\n"
       else
         code --install-extension "$extension"
       fi
@@ -325,7 +325,7 @@ fi
 
 # Install cli completions
 if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Install cli completions\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install cli completions\n\n"
   i=$(($i + 1))
 
   bash "$HELPERS_DIR/completions.sh"
@@ -333,7 +333,7 @@ if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
   if [ ! -d "$ZSH_COMP_PLUGIN" ]; then
     git clone https://github.com/zsh-users/zsh-completions.git "$ZSH_COMP_PLUGIN"
   else
-    printf "${red}[completions]${no_color} zsh-completions already present — skipping clone.\n"
+    printf '%b' "${red}[completions]${no_color} zsh-completions already present — skipping clone.\n"
   fi
   if ! grep -q 'fpath+=.*zsh-completions' "$HOME/.zshrc" 2>/dev/null; then
     sed -i 's|^# fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src|fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src|g' "$HOME/.zshrc"
@@ -342,9 +342,9 @@ fi
 
 
 if [[ "$REMOVE_TMP_CONTENT" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Remove tmp files\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Remove tmp files\n\n"
   i=$(($i + 1))
-  printf "${red}[cleanup]${no_color} No temporary files to remove.\n"
+  printf '%b' "${red}[cleanup]${no_color} No temporary files to remove.\n"
 fi
 
-printf "\n${red}Done!${no_color} Setup complete.\n\n"
+printf '%b' "\n${red}Done!${no_color} Setup complete.\n\n"

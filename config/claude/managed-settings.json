@@ -52,8 +52,7 @@
         "registry.terraform.io",
         "api.hetzner.cloud",
         "localhost",
-        "127.0.0.1",
-        "10.8.0.1"
+        "127.0.0.1"
       ],
       "allowLocalBinding": true
     },

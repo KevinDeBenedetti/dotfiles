@@ -161,7 +161,8 @@
       "Bash(prek install *)",
       "Bash(kubeconform -strict -summary platform/security/manifests/network-allow-policies.yaml)",
       "WebFetch(domain:pypi.org)",
-      "WebFetch(domain:files.pythonhosted.org)"
+      "WebFetch(domain:files.pythonhosted.org)",
+      "WebFetch(domain:gethomepage.dev)"
     ],
     "deny": [
       "Bash(git commit)",

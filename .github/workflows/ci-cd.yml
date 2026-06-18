@@ -7,9 +7,14 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege default for every job (notably `ci`, which declares none).
+# Jobs needing more (security, dispatch, release, …) widen this themselves.
+permissions:
+  contents: read
+
 jobs:
   ci:
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@main
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
     with:
       run-shellcheck: true
       run-bats: true
@@ -20,7 +25,7 @@ jobs:
       run-docs-link-check: true
 
   security:
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@main
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
     permissions:
       contents: read
       actions: read
@@ -29,11 +34,14 @@ jobs:
     with:
       run-node-audit: false # no Node.js project
       run-codeql: false     # shell scripts are not supported by CodeQL
-    secrets: inherit
+    # No `secrets:` block (least privilege): security.yml declares no
+    # workflow_call secrets and uses only the auto-provided GITHUB_TOKEN, so
+    # there is nothing to inherit. Re-add an explicit allow-list only if the
+    # reusable workflow starts requiring a passed secret.
 
   bot-check:
     if: github.event_name == 'pull_request'
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/check-bot-commits.yml@main
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/check-bot-commits.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
     permissions:
       contents: read
       pull-requests: read
@@ -46,7 +54,7 @@ jobs:
   dispatch:
     name: Dispatch docs rebuild
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/cd-docs.yml@main
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/cd-docs.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
     with:
       client-id: ${{ vars.DOCS_APP_CLIENT_ID }}
     secrets:
@@ -60,7 +68,7 @@ jobs:
   release:
     name: Release Please
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@main
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
     permissions:
       contents: write
       issues: write

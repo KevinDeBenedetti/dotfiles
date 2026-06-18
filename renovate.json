@@ -9,6 +9,14 @@
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+rev = \"(?<currentValue>[^\"]+)\""
       ]
+    },
+    {
+      "customType": "regex",
+      "description": "Bump the proto toolchain pins in config/proto/.prototools (Renovate has no native proto manager). Each `<tool> = \"<version>\"` line is annotated with a `# renovate:` comment carrying its datasource/depName.",
+      "fileMatch": ["(^|/)\\.prototools$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\S+ = \"(?<currentValue>[^\"]+)\""
+      ]
     }
   ]
 }

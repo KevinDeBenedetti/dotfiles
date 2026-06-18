@@ -28,24 +28,24 @@ write_completion() {
 
 # fzf - completion + key bindings (macOS only via Homebrew)
 if [ "$(uname)" = "Darwin" ] && command -v fzf &>/dev/null && command -v brew &>/dev/null; then
-  printf "\n\n${red}[completions] =>${no_color} Install fzf shell integration\n\n"
+  printf '%b' "\n\n${red}[completions] =>${no_color} Install fzf shell integration\n\n"
   "$(brew --prefix)/opt/fzf/install" --completion --key-bindings --no-update-rc
 fi
 
 # gh - GitHub CLI
 if command -v gh &>/dev/null; then
-  printf "\n\n${red}[completions] =>${no_color} Generate gh completions\n\n"
+  printf '%b' "\n\n${red}[completions] =>${no_color} Generate gh completions\n\n"
   write_completion "$(gh completion -s zsh)" "$ZSH_COMP_DIR/_gh"
 fi
 
 # proto - toolchain manager
 if command -v proto &>/dev/null; then
-  printf "\n\n${red}[completions] =>${no_color} Generate proto completions\n\n"
+  printf '%b' "\n\n${red}[completions] =>${no_color} Generate proto completions\n\n"
   write_completion "$(proto completions --shell zsh)" "$ZSH_COMP_DIR/_proto"
 fi
 
 # uv - python package manager
 if command -v uv &>/dev/null; then
-  printf "\n\n${red}[completions] =>${no_color} Generate uv completions\n\n"
+  printf '%b' "\n\n${red}[completions] =>${no_color} Generate uv completions\n\n"
   write_completion "$(uv generate-shell-completion zsh)" "$ZSH_COMP_DIR/_uv"
 fi

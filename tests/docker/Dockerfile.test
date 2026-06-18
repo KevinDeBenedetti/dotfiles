@@ -5,7 +5,9 @@
 #   docker build -f tests/docker/Dockerfile.test -t dotfiles-test .
 #   docker run --rm dotfiles-test
 
-FROM debian:bookworm-slim AS base
+# Pinned by digest for reproducible builds (bookworm-slim multi-arch index).
+# Renovate's docker manager keeps the digest current.
+FROM debian:bookworm-slim@sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716 AS base
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -60,7 +62,8 @@ RUN sudo apt-get update \
     && sudo rm -rf /var/lib/apt/lists/*
 
 # Install oh-my-zsh (required for dotfile linking)
-RUN RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+# Installer pinned to a commit SHA (oh-my-zsh ships no release tags) for reproducibility.
+RUN RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/df34d2b8d575777465aed8ae9b7cd90d63fdcd6e/tools/install.sh)"
 
 # Run dotfile linking only
 RUN bash /home/tester/.dotfiles/os/debian/init.sh -d
@@ -178,8 +181,8 @@ RUN sudo apt-get update \
       apt-listchanges \
     && sudo rm -rf /var/lib/apt/lists/*
 
-# Install oh-my-zsh
-RUN RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+# Install oh-my-zsh (installer pinned to a commit SHA for reproducibility)
+RUN RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/df34d2b8d575777465aed8ae9b7cd90d63fdcd6e/tools/install.sh)"
 
 # Run full install in lite mode (all profiles enabled, skip heavy tools)
 RUN sudo mkdir -p /etc/ssh/sshd_config.d /etc/sysctl.d \

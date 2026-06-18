@@ -7,7 +7,7 @@ red='\e[0;31m'
 no_color='\033[0m'
 
 # Print the failing line on any error — much more informative than a silent exit
-trap 'printf "\n${red}[error]${no_color} init.sh failed at line ${LINENO}: %s\n" "$BASH_COMMAND" >&2' ERR
+trap 'printf "\n%b[error]%b init.sh failed at line %s: %s\n" "$red" "$no_color" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 # Console step increment
 i=1
@@ -26,10 +26,10 @@ REPO_URL="https://github.com/KevinDeBenedetti/dotfiles.git"
 DOTFILES_INSTALL_DIR="${DOTFILES_INSTALL_DIR:-$HOME/.dotfiles}"
 if [ ! -f "$SCRIPT_PATH/setup-base.sh" ]; then
   if [ -d "$DOTFILES_INSTALL_DIR/.git" ]; then
-    printf "\n${red}[bootstrap]${no_color} Dotfiles repo found at $DOTFILES_INSTALL_DIR — pulling latest...\n\n"
-    git -C "$DOTFILES_INSTALL_DIR" pull --ff-only || printf "${red}[bootstrap]${no_color} Pull failed (non-fatal), using existing checkout.\n"
+    printf '%b' "\n${red}[bootstrap]${no_color} Dotfiles repo found at $DOTFILES_INSTALL_DIR — pulling latest...\n\n"
+    git -C "$DOTFILES_INSTALL_DIR" pull --ff-only || printf '%b' "${red}[bootstrap]${no_color} Pull failed (non-fatal), using existing checkout.\n"
   else
-    printf "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository to $DOTFILES_INSTALL_DIR...\n\n"
+    printf '%b' "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository to $DOTFILES_INSTALL_DIR...\n\n"
     git clone --depth=1 "$REPO_URL" "$DOTFILES_INSTALL_DIR"
   fi
   exec bash "$DOTFILES_INSTALL_DIR/os/macos/init.sh" "$@"
@@ -72,7 +72,7 @@ Following flags are available:
   -h    Print script help.\n\n"
 
 print_help() {
-  printf "$TEXT_HELPER"
+  printf '%b' "$TEXT_HELPER"
 }
 
 # Parse options
@@ -112,14 +112,14 @@ if [[ "$INSTALL_AI" = "false" && "$INSTALL_BASE" = "false" && "$INSTALL_EXTRAS" 
    && "$INSTALL_JAVASCRIPT" = "false" && "$INSTALL_PYTHON" = "false" \
    && "$COPY_DOTFILES" = "false" && "$INSTALL_COMPLETIONS" = "false" \
    && "$REMOVE_TMP_CONTENT" = "false" ]]; then
-  printf "\n${red}[warning]${no_color} No profile or action flag provided. Nothing to do.\n"
+  printf '%b' "\n${red}[warning]${no_color} No profile or action flag provided. Nothing to do.\n"
   print_help
   exit 1
 fi
 
 # utils
 install_clt() {
-  printf "\n\n${red}Optional.${no_color} Installs Command Line Tools for Xcode from softwareupdate...\n\n"
+  printf '%b' "\n\n${red}Optional.${no_color} Installs Command Line Tools for Xcode from softwareupdate...\n\n"
   # This temporary file prompts the 'softwareupdate' utility to list the Command Line Tools
   touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
   PROD=$(softwareupdate -l | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //')
@@ -128,15 +128,16 @@ install_clt() {
 }
 
 install_homebrew() {
-  printf "\n\n${red}Optional.${no_color} Installs homebrew...\n\n"
+  printf '%b' "\n\n${red}Optional.${no_color} Installs homebrew...\n\n"
   export NONINTERACTIVE=1
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  printf "\nhomebrew version installed :\n$(brew --version)\n\n"
+  printf '%b' "\nhomebrew version installed :\n$(brew --version)\n\n"
 }
 
 if [ -z "$(xcode-select -p 2>/dev/null)" ]; then
   while true; do
-    read -p "\nYou need Command Line Tools to run this script. Do you wish to install Command Line Tools?\n" yn
+    printf "\nYou need Command Line Tools to run this script. Do you wish to install Command Line Tools? "
+    read -r yn
     case $yn in
       [Yy]*)
         install_clt
@@ -144,14 +145,15 @@ if [ -z "$(xcode-select -p 2>/dev/null)" ]; then
       [Nn]*)
         exit;;
       *)
-        echo "\nPlease answer yes or no.\n";;
+        printf "\nPlease answer yes or no.\n";;
     esac
   done
 fi
 
 if ! command -v brew &>/dev/null; then
   while true; do
-    read -p "You need homebrew to run this script. Do you wish to install homebrew?" yn
+    printf "You need homebrew to run this script. Do you wish to install homebrew? "
+    read -r yn
     case $yn in
       [Yy]*)
         install_homebrew
@@ -166,7 +168,7 @@ fi
 
 
 # Settings
-printf "\nScript settings:
+printf '%b' "\nScript settings:
   -> install ${red}full setup${no_color}: ${red}$FULL_MODE_SETUP${no_color}
   -> install ${red}[ai]${no_color} profile: ${red}$INSTALL_AI${no_color}
   -> install ${red}[base]${no_color} profile: ${red}$INSTALL_BASE${no_color}
@@ -178,21 +180,21 @@ export FULL_MODE_SETUP=$FULL_MODE_SETUP
 export HOMEBREW_NO_AUTO_UPDATE=1
 
 # Update brew once
-printf "\n${red}${i}.${no_color} Update homebrew\n\n"
-brew update --verbose || printf "\n${red}[warning]${no_color} brew update failed (non-fatal), continuing with existing index...\n\n"
+printf '%b' "\n${red}${i}.${no_color} Update homebrew\n\n"
+brew update --verbose || printf '%b' "\n${red}[warning]${no_color} brew update failed (non-fatal), continuing with existing index...\n\n"
 i=$(($i + 1))
 
 # Install formula, skipping already-managed ones
 install_formula() {
   if brew list --formula "$1" &>/dev/null; then
-    printf "${red}[brew]${no_color} $1 already installed — skipping.\n"
+    printf '%b' "${red}[brew]${no_color} $1 already installed — skipping.\n"
   else
     brew install --formula "$1"
   fi
 }
 
 # Install common
-printf "\n${red}${i}.${no_color} Install commons\n\n"
+printf '%b' "\n${red}${i}.${no_color} Install commons\n\n"
 for pkg in ca-certificates curl gnupg gsed gzip jq unzip wget xz; do
   install_formula "$pkg"
 done
@@ -200,7 +202,7 @@ i=$(($i + 1))
 
 # Install oh-my-zsh
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
-  printf "\n${red}${i}.${no_color} Install oh-my-zsh\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install oh-my-zsh\n\n"
   i=$(($i + 1))
 
   RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
@@ -209,7 +211,7 @@ fi
 
 # Install base profile
 if [[ "$INSTALL_BASE" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Install base profile\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install base profile\n\n"
   i=$(($i + 1))
 
   bash "$SCRIPT_PATH/setup-base.sh"
@@ -221,7 +223,7 @@ fi
 
 # Install extras profile
 if [[ "$INSTALL_EXTRAS" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Install extras profile\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install extras profile\n\n"
   i=$(($i + 1))
 
   bash "$SCRIPT_PATH/setup-extras.sh"
@@ -230,7 +232,7 @@ fi
 
 # Install javascript profile
 if [[ "$INSTALL_JAVASCRIPT" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Install javascript profile\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install javascript profile\n\n"
   i=$(($i + 1))
 
   bash "$SCRIPT_PATH/setup-javascript.sh"
@@ -239,7 +241,7 @@ fi
 
 # Install python profile
 if [[ "$INSTALL_PYTHON" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Install python profile\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install python profile\n\n"
   i=$(($i + 1))
 
   bash "$SCRIPT_PATH/setup-python.sh"
@@ -248,7 +250,7 @@ fi
 
 # Install ai profile
 if [[ "$INSTALL_AI" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Install ai profile\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install ai profile\n\n"
   i=$(($i + 1))
 
   bash "$SCRIPT_PATH/setup-ai.sh"
@@ -261,7 +263,7 @@ source "$HELPERS_DIR/links.sh"
 
 # Link dotfiles
 if [[ "$COPY_DOTFILES" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Link dotfiles\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Link dotfiles\n\n"
   i=$(($i + 1))
 
   mkdir -p "$HOME/.config"
@@ -278,9 +280,9 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
     mkdir -p "$HOME/.ssh"
     printf '%s %s\n' "$GIT_EMAIL" "$(tr -d '\r' < "$SSH_SIGNING_KEY" | tr -d '\n')" > "$ALLOWED_SIGNERS"
     chmod 600 "$ALLOWED_SIGNERS"
-    printf "${red}[git]${no_color} SSH allowed_signers file created at $ALLOWED_SIGNERS\n"
+    printf '%b' "${red}[git]${no_color} SSH allowed_signers file created at $ALLOWED_SIGNERS\n"
   else
-    printf "${red}[warning]${no_color} No SSH public key found — skipping allowed_signers setup.\n"
+    printf '%b' "${red}[warning]${no_color} No SSH public key found — skipping allowed_signers setup.\n"
   fi
 
 
@@ -296,7 +298,7 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
 # export MY_WORK_TOKEN="secret"
 # alias myserver="ssh me@192.168.1.1"
 EOF
-    printf "${red}[local]${no_color} Created stub: ~/.zshrc.local\n"
+    printf '%b' "${red}[local]${no_color} Created stub: ~/.zshrc.local\n"
   fi
 
   if [ ! -f "$HOME/.gitconfig.local" ]; then
@@ -309,7 +311,7 @@ EOF
 # 	email = you@example.com
 # 	signingkey = ~/.ssh/id_ed25519.pub
 EOF
-    printf "${red}[local]${no_color} Created stub: ~/.gitconfig.local\n"
+    printf '%b' "${red}[local]${no_color} Created stub: ~/.gitconfig.local\n"
   fi
 
   if [ ! -f "$HOME/.config/dotfiles/env.local.sh" ]; then
@@ -323,7 +325,7 @@ EOF
 # Get your key at: https://context7.com
 # export CONTEXT7_API_KEY="your-real-key-here"
 EOF
-    printf "${red}[local]${no_color} Created stub: ~/.config/dotfiles/env.local.sh\n"
+    printf '%b' "${red}[local]${no_color} Created stub: ~/.config/dotfiles/env.local.sh\n"
   fi
 
   # Install .vscode configs
@@ -339,7 +341,7 @@ EOF
       | jq -r '.recommendations[]' \
       | while IFS= read -r extension; do
           if echo "$INSTALLED_EXTENSIONS" | grep -qi "^${extension}$"; then
-            printf "${red}[vscode]${no_color} $extension already installed — skipping.\n"
+            printf '%b' "${red}[vscode]${no_color} $extension already installed — skipping.\n"
           else
             code --install-extension "$extension"
           fi
@@ -356,7 +358,7 @@ fi
 
 # Install cli completions
 if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Install cli completions\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Install cli completions\n\n"
   i=$(($i + 1))
 
   bash "$HELPERS_DIR/completions.sh"
@@ -364,7 +366,7 @@ if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
   if [ ! -d "$ZSH_COMP_PLUGIN" ]; then
     git clone https://github.com/zsh-users/zsh-completions.git "$ZSH_COMP_PLUGIN"
   else
-    printf "${red}[completions]${no_color} zsh-completions already present — skipping clone.\n"
+    printf '%b' "${red}[completions]${no_color} zsh-completions already present — skipping clone.\n"
   fi
   if ! grep -q 'fpath+=.*zsh-completions' "$HOME/.zshrc" 2>/dev/null; then
     gsed -i 's|^# fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src|fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src|g' "$HOME/.zshrc"
@@ -373,9 +375,9 @@ fi
 
 
 if [[ "$REMOVE_TMP_CONTENT" = "true" ]]; then
-  printf "\n${red}${i}.${no_color} Remove tmp files\n\n"
+  printf '%b' "\n${red}${i}.${no_color} Remove tmp files\n\n"
   i=$(($i + 1))
   # Nothing to clean up — the bootstrap now clones to ~/.dotfiles (permanent),
   # so there is no temporary directory to remove.
-  printf "${red}[cleanup]${no_color} No temporary files to remove.\n"
+  printf '%b' "${red}[cleanup]${no_color} No temporary files to remove.\n"
 fi
