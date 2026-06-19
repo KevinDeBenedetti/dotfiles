@@ -14,6 +14,7 @@ load_kernel_modules() {
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Load required kernel modules (overlay, br_netfilter)\n\n"
 
   # Persist modules across reboots
+  $SUDO mkdir -p /etc/modules-load.d
   $SUDO tee /etc/modules-load.d/k8s.conf > /dev/null <<'EOF'
 overlay
 br_netfilter

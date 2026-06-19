@@ -162,7 +162,11 @@
       "Bash(kubeconform -strict -summary platform/security/manifests/network-allow-policies.yaml)",
       "WebFetch(domain:pypi.org)",
       "WebFetch(domain:files.pythonhosted.org)",
-      "WebFetch(domain:gethomepage.dev)"
+      "WebFetch(domain:gethomepage.dev)",
+      "WebFetch(domain:golang.org)",
+      "WebFetch(domain:go.uber.org)",
+      "WebFetch(domain:gopkg.in)",
+      "WebFetch(domain:filippo.io)"
     ],
     "deny": [
       "Bash(git commit)",
