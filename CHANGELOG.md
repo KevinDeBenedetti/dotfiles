@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.1.0...v0.1.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* **debian:** create /etc/modules-load.d before writing k8s modules ([e24b812](https://github.com/KevinDeBenedetti/dotfiles/commit/e24b812b73ba4041bab8d8446371b273df2b6e33))
+
 ## 0.1.0 (2026-06-17)
 
 
