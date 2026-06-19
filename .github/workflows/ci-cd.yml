@@ -14,6 +14,13 @@ permissions:
 
 jobs:
   ci:
+    # Skip on the release-please PR (head_ref guard) and on the merged
+    # "chore(main): release x.y.z" commit — the `release` job gates on these
+    # results via always(), so a skipped run is not a failure and the tag is
+    # still minted without re-running the full suite on the release commit.
+    if: >-
+      ${{ !startsWith(github.event.head_commit.message, 'chore(main): release')
+      && !startsWith(github.head_ref, 'release-please') }}
     uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
     with:
       run-shellcheck: true
@@ -25,6 +32,10 @@ jobs:
       run-docs-link-check: true
 
   security:
+    # Same guard as `ci`: skip on the release-please PR and the release commit.
+    if: >-
+      ${{ !startsWith(github.event.head_commit.message, 'chore(main): release')
+      && !startsWith(github.head_ref, 'release-please') }}
     uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
     permissions:
       contents: read
@@ -67,7 +78,17 @@ jobs:
   # initial-version below is only a fallback used if the manifest is ever missing.
   release:
     name: Release Please
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Wait for CI: release-please only opens/updates the release PR (and later
+    # tags) once `ci` and `security` are green on the push to main. always()
+    # keeps this running even when those jobs are *skipped* on the release
+    # commit (skipped ≠ failure), so the tag is still created.
+    needs: [ci, security]
+    if: >-
+      ${{ always()
+      && github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && needs.ci.result != 'failure' && needs.ci.result != 'cancelled'
+      && needs.security.result != 'failure' && needs.security.result != 'cancelled' }}
     uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
     permissions:
       contents: write
