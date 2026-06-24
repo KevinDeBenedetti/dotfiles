@@ -196,7 +196,7 @@ cleanmac() {
 		printf "  logs     user log files (~/Library/Logs)\n"
 		printf "  trash    empty the Trash (~/.Trash)\n"
 		printf "  brew     Homebrew cache and outdated versions\n"
-		printf "  dns      flush the DNS resolver cache\n"
+		printf "  dns      flush the DNS resolver cache + purge stale VPN resolvers\n"
 		return 0
 		;;
 	esac
@@ -236,9 +236,12 @@ cleanmac() {
 		dns)
 			if [ "$apply" = true ]; then
 				echo "[clean] DNS resolver cache"
+				# Purge resolvers orphaned by a VPN tunnel that wasn't torn
+				# down cleanly (safe: skipped while a tunnel is up).
+				_vpn_purge_stale_resolvers
 				sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder
 			else
-				echo "[dry] flush DNS resolver cache"
+				echo "[dry] flush DNS resolver cache + purge stale VPN resolvers"
 			fi
 			;;
 		*)
@@ -366,6 +369,25 @@ timestampe() {
 	esac
 }
 
+# Remove scoped resolvers (/etc/resolver/*) that point into the VPN subnet
+# (10.8.0.0/24) but ONLY when no WireGuard tunnel is currently up. These are
+# left behind when a tunnel is not torn down cleanly (e.g. reboot without
+# 'vpn down'), and otherwise break DNS for the scoped domains until removed.
+_vpn_purge_stale_resolvers() {
+	[ -d /etc/resolver ] || return 0
+	if [ -n "$(sudo wg show interfaces 2>/dev/null)" ]; then
+		return 0 # a tunnel is up; its resolvers are legitimate
+	fi
+	local r
+	for r in /etc/resolver/*; do
+		[ -e "$r" ] || continue
+		if grep -q 'nameserver 10\.8\.0\.' "$r" 2>/dev/null; then
+			echo "  removing stale resolver $r"
+			sudo rm -f "$r"
+		fi
+	done
+}
+
 vpn() {
 	case "$1" in
 	-h | --help | "")
@@ -376,6 +398,7 @@ vpn() {
 		printf "  vpn down <tunnel>   bring the given tunnel down.\n"
 		printf "  vpn status [tunnel] show active tunnels (or a single one).\n"
 		printf "  vpn list            list available tunnel configs.\n"
+		printf "  vpn fix-dns         repair DNS after an unclean teardown.\n"
 		;;
 	up | down)
 		if [ -z "$2" ]; then
@@ -386,7 +409,10 @@ vpn() {
 		;;
 	status | st)
 		if [ -n "$2" ]; then
-			sudo wg show "$2"
+			# On macOS wg-quick maps a tunnel name to a utunN interface; resolve it.
+			local iface
+			iface="$(sudo cat "/var/run/wireguard/$2.name" 2>/dev/null)"
+			sudo wg show "${iface:-$2}"
 		else
 			sudo wg show
 		fi
@@ -400,6 +426,30 @@ vpn() {
 		fi
 		find "$wg_dir" -maxdepth 1 -name '*.conf' -exec basename {} .conf \; 2>/dev/null \
 			|| echo "No tunnel configs in $wg_dir"
+		;;
+	fix-dns | fix)
+		if [ "$(uname)" != "Darwin" ]; then
+			echo "Error: vpn fix-dns only runs on macOS." >&2
+			return 1
+		fi
+		echo "[vpn] Repairing DNS after an unclean tunnel teardown"
+		# 1. Drop scoped resolvers left behind by a dead tunnel.
+		_vpn_purge_stale_resolvers
+		# 2. Reset every network service back to DHCP-provided DNS. This undoes
+		#    a global 'DNS =' override that wg-quick applies via networksetup and
+		#    only restores on 'vpn down' (so a reboot mid-tunnel leaves it stuck).
+		local svc
+		while IFS= read -r svc; do
+			case "$svc" in
+			"" | An\ asterisk* | \** ) continue ;;
+			esac
+			if sudo networksetup -setdnsservers "$svc" "Empty" 2>/dev/null; then
+				echo "  reset DNS for $svc"
+			fi
+		done < <(networksetup -listallnetworkservices 2>/dev/null)
+		# 3. Flush the resolver cache.
+		sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder 2>/dev/null || true
+		echo "[vpn] DNS reset to automatic."
 		;;
 	*)
 		echo "Error: unknown subcommand '$1' (see 'vpn -h')."

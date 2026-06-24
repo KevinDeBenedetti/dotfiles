@@ -49,9 +49,6 @@ PasswordAuthentication no
 # Disable empty passwords
 PermitEmptyPasswords no
 
-# Use only SSH protocol 2
-Protocol 2
-
 # Limit authentication attempts
 MaxAuthTries 3
 
@@ -73,7 +70,6 @@ ClientAliveCountMax 2
 
 # Disable unused authentication methods
 KbdInteractiveAuthentication no
-ChallengeResponseAuthentication no
 UsePAM yes
 ${allow_users_line}
 EOF

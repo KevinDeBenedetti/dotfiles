@@ -29,6 +29,18 @@ hooks = [
   { id = "mixed-line-ending", args = ["--fix=lf"] },
 ]
 
+# ─── Secret scanning ────────────────────────────────────────────────────────
+# Gitleaks reads .gitleaks.toml at the repo root automatically. Unlike
+# detect-private-key (which only matches PEM key headers), it catches
+# passwords, tokens and high-entropy strings before they are committed.
+[[repos]]
+repo = "https://github.com/gitleaks/gitleaks"
+# renovate: datasource=github-tags depName=gitleaks/gitleaks
+rev = "v8.30.1"
+hooks = [
+  { id = "gitleaks", stages = ["pre-commit"] },
+]
+
 # ─── Shell script linting ───────────────────────────────────────────────────
 [[repos]]
 repo = "https://github.com/shellcheck-py/shellcheck-py"

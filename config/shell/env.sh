@@ -1,4 +1,7 @@
 # shellcheck shell=bash
-# Machine-specific secrets and env vars go in env.local.sh (not tracked by git)
-# Example: export CONTEXT7_API_KEY="your-real-key"
-[ -f "$HOME/.config/dotfiles/env.local.sh" ] && source "$HOME/.config/dotfiles/env.local.sh"
+# Shared, tracked environment variables for every machine go here.
+# Example: export EDITOR="nvim"
+#
+# Machine-specific secrets/overrides live in env.local.sh (untracked).
+# That file is sourced separately at the end of .zshrc, so it is NOT
+# sourced here — doing both would source it twice.

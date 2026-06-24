@@ -38,11 +38,6 @@ install_lite_setup() {
     watch \
     yq \
     rsync
-
-
-  # Install homebrew graphic app packages
-  printf '%b' "\n\n${red}[base] =>${no_color} Install homebrew packages (graphic)\n\n"
-
 }
 
 install_additional_setup() {
