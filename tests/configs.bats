@@ -295,6 +295,13 @@ setup() {
   assert_failure
 }
 
+@test "prek wires the gitleaks hook at the pre-commit stage" {
+  # Guards against a silent removal or stage change: gitleaks must scan for
+  # secrets before every commit, not on push or any later stage.
+  run grep -qE 'id = "gitleaks", stages = \["pre-commit"\]' "$REPO_ROOT/prek.toml"
+  assert_success
+}
+
 # --- Renovate keeps the prek.toml rev pins up to date ---
 
 @test "renovate.json is valid JSON" {
