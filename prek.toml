@@ -75,7 +75,7 @@ hooks = [
 
 # ─── Reusable hooks (KevinDeBenedetti/github-workflows) ──────────────────────
 # - check-docs-links: relative links in docs/ must not escape docs/
-# Commit-message generation and TODO purge are handled by the /commit skill now,
+# Commit-message generation is handled by scripts/ai/git-aicommit (`git aicommit`),
 # not by git hooks.
 [[repos]]
 repo = "https://github.com/KevinDeBenedetti/github-workflows"
@@ -95,7 +95,7 @@ name = "BATS — unit tests"
 # Runs the offline test suite before every push.
 # Install bats: brew install bats-core
 language = "system"
-entry = "bash -c 'which bats >/dev/null 2>&1 && bats tests/*.bats || echo \"⚠️  bats not installed — skipping (brew install bats-core)\"'"
+entry = "bash -c 'which bats >/dev/null 2>&1 && bats tests/ tests/ai/ || echo \"⚠️  bats not installed — skipping (brew install bats-core)\"'"
 pass_filenames = false
 always_run = true
 stages = ["pre-push"]

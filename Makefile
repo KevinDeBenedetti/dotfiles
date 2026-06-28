@@ -28,13 +28,16 @@ help: ## Show available commands
 # Tests
 # ──────────────────────────────────────────────────────────────────────────────
 
-.PHONY: test test-configs test-functions test-init test-security
+.PHONY: test test-configs test-functions test-init test-security test-ai
 
 test: ## Run all Bats tests
-	bats $(TESTS_DIR)/
+	bats $(TESTS_DIR)/ $(TESTS_DIR)/ai/
 
 test-configs: ## Run config/file existence tests
 	bats $(TESTS_DIR)/configs.bats
+
+test-ai: ## Run local AI tooling tests
+	bats $(TESTS_DIR)/ai/
 
 test-functions: ## Run shell function tests
 	bats $(TESTS_DIR)/functions.bats
@@ -52,7 +55,8 @@ test-security: ## Run security profile tests
 .PHONY: lint validate
 
 lint: ## Run ShellCheck on all shell scripts
-	find . -type f -name "*.sh" -not -path "*/test_helper/*" \
+	find . -type f \( -name "*.sh" -o -path "./scripts/ai/*" \) \
+		-not -path "*/test_helper/*" -not -name "*.md" \
 		-exec shellcheck --severity=warning --shell=bash --format=gcc {} +
 
 validate: ## Validate YAML files with yamllint

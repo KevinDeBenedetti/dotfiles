@@ -47,8 +47,10 @@ yamllint, actionlint), `check-docs-links` (consumed from
 [`KevinDeBenedetti/github-workflows`](https://github.com/KevinDeBenedetti/github-workflows)),
 and the `pre-push` Bats suite.
 
-Commit-message generation and `TODO.md` upkeep are handled by a Claude Code
-**`/commit` skill**, not by git hooks.
+Commit-message generation is handled by the local AI tooling in
+[`scripts/ai/`](scripts/ai/) (backed by Ollama over HTTP), not by git hooks.
+These are plain shell scripts usable straight from the terminal (`git aicommit`)
+— **no Claude Code required**. See [`scripts/ai/README.md`](scripts/ai/README.md).
 
 ## Documentation
 

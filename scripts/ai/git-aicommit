@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# git-aicommit — generate a Conventional Commits message from the staged diff
+# (via the local AI tooling / Ollama) and optionally create the commit.
+# Usable as `git aicommit` once on $PATH.
+
+# shellcheck source=../../config/ai-tools/config.sh
+source "${XDG_CONFIG_HOME:-$HOME/.config}/ai-tools/config.sh"
+
+ASSUME_YES=false
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -y | --yes) ASSUME_YES=true; shift ;;
+    -h | --help)
+      printf 'Usage: git-aicommit [-y|--yes]\n'
+      printf '  Generate a Conventional Commits message from the staged diff.\n'
+      printf '  -y, --yes   commit without the interactive confirmation.\n'
+      exit 0
+      ;;
+    *) printf 'error: unknown argument: %s\n' "$1" >&2; exit 1 ;;
+  esac
+done
+
+ai_require_deps || exit 1
+
+diff="$(git diff --staged)"
+if [ -z "$diff" ]; then
+  printf 'error: no staged changes. Stage something with `git add` first.\n' >&2
+  exit 1
+fi
+
+# Keep the prompt bounded: truncate the diff to AI_MAX_DIFF bytes.
+diff="$(printf '%s' "$diff" | head -c "$AI_MAX_DIFF")"
+
+prompt="$(cat <<EOF
+You are a tool that writes a single git commit message in Conventional Commits format.
+Rules:
+- First line: <type>(optional-scope): imperative summary, no more than 72 characters.
+- Allowed types: feat, fix, refactor, docs, chore, test, perf, build, ci.
+- Optional body after a blank line, as concise bullet points.
+- Output ONLY the commit message. No backticks, no code fences, no explanation.
+
+Staged diff:
+$diff
+EOF
+)"
+
+msg="$(ai_run "$AI_MODEL" "$prompt")" || exit 1
+# Drop any stray Markdown code-fence lines the model may have added.
+msg="$(printf '%s\n' "$msg" | grep -v '^[[:space:]]*```' || true)"
+
+printf '\n'
+printf '┌─ Proposed commit message ─────────────────────────────\n'
+printf '%s\n' "$msg" | sed 's/^/│ /'
+printf '└───────────────────────────────────────────────────────\n'
+
+if [ "$ASSUME_YES" = true ]; then
+  git commit -m "$msg"
+  exit $?
+fi
+
+printf 'Commit with this message? [y/N/e] '
+read -r reply || reply=""
+case "$reply" in
+  y | Y) git commit -m "$msg" ;;
+  e | E) git commit -e -m "$msg" ;;
+  *)     printf 'Annulé.\n' >&2; exit 1 ;;
+esac

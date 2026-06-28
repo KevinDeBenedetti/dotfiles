@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ai — single entry point for the local AI tooling (Ollama over HTTP).
+# Each subcommand is its own script, found via $PATH (symlinked into
+# ~/.local/bin by the provisioning scripts) — no hardcoded paths.
+
+# shellcheck source=../../config/ai-tools/config.sh
+source "${XDG_CONFIG_HOME:-$HOME/.config}/ai-tools/config.sh"
+
+usage() {
+  cat <<EOF
+ai — local AI tooling (Ollama over HTTP)
+
+Usage: ai <command> [args]
+
+Commands:
+  commit             Generate a Conventional Commits message from the staged diff
+  explain <file>     Explain what a file does
+  ask "<question>"   Ask the model a one-off question
+  help               Show this help
+
+Examples:
+  ai commit
+  ai explain os/helpers/links.sh
+  ai ask "what does set -euo pipefail do?"
+
+Configuration (override via environment):
+  AI_HOST=$AI_HOST
+  AI_MODEL=$AI_MODEL
+  AI_MODEL_FAST=$AI_MODEL_FAST
+EOF
+}
+
+cmd="${1:-help}"
+[ "$#" -gt 0 ] && shift || true
+
+case "$cmd" in
+  commit)    exec git-aicommit "$@" ;;
+  explain)   exec ai-explain "$@" ;;
+  ask)
+    if [ "$#" -eq 0 ]; then
+      printf 'error: ask requires a question\n' >&2
+      exit 1
+    fi
+    ai_run "$AI_MODEL" "$*"
+    ;;
+  help | -h | --help) usage ;;
+  *)
+    printf 'error: unknown command: %s\n\n' "$cmd" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

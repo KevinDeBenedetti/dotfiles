@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ai-explain — print a concise, structured explanation (in French) of what a
+# file does: its role, key points and notable dependencies. Output on stdout.
+
+# shellcheck source=../../config/ai-tools/config.sh
+source "${XDG_CONFIG_HOME:-$HOME/.config}/ai-tools/config.sh"
+
+FILE=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h | --help)
+      printf 'Usage: ai-explain <file>\n'
+      printf '  Print a structured explanation of the file (in French).\n'
+      exit 0
+      ;;
+    -*) printf 'error: unknown option: %s\n' "$1" >&2; exit 1 ;;
+    *)  FILE="$1"; shift ;;
+  esac
+done
+
+if [ -z "$FILE" ]; then
+  printf 'error: missing <file>. Usage: ai-explain <file>\n' >&2
+  exit 1
+fi
+if [ ! -f "$FILE" ]; then
+  printf 'error: no such file: %s\n' "$FILE" >&2
+  exit 1
+fi
+
+ai_require_deps || exit 1
+
+content="$(cat "$FILE")"
+prompt="$(cat <<EOF
+Explique le fichier suivant en français, de manière concise et structurée :
+- Rôle : à quoi sert ce fichier en une phrase.
+- Points clés : les éléments importants (fonctions, sections, logique notable).
+- Dépendances notables : outils, bibliothèques ou fichiers externes utilisés.
+Pas de bloc de code, réponse en Markdown.
+
+Fichier ($FILE):
+$content
+EOF
+)"
+
+ai_run "$AI_MODEL" "$prompt"

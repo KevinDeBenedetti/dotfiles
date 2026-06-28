@@ -72,4 +72,24 @@ link_shared_configs() {
       link_with_backup "$item" "$HOME/.claude/skills/$(basename "$item")"
     done
   fi
+
+  # Local AI tooling config → ~/.config/ai-tools/ (sourced by scripts/ai/*)
+  if [ -d "$config_dir/ai-tools" ]; then
+    link_with_backup "$config_dir/ai-tools" "$HOME/.config/ai-tools"
+  fi
+
+  # Local AI tooling commands → ~/.local/bin/ (already on PATH via .zshrc).
+  # $config_dir is <repo>/config, so the scripts live one level up.
+  local ai_dir="$config_dir/../scripts/ai"
+  if [ -d "$ai_dir" ]; then
+    mkdir -p "$HOME/.local/bin"
+    for item in "$ai_dir/"*; do
+      case "$item" in
+        *.md) continue ;;
+      esac
+      [ -f "$item" ] || continue
+      chmod +x "$item"
+      link_with_backup "$item" "$HOME/.local/bin/$(basename "$item")"
+    done
+  fi
 }
