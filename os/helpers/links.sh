@@ -16,11 +16,15 @@ backup_if_exists() {
   fi
 }
 
-# Backup the destination if needed, then (re)create the symlink
+# Backup the destination if needed, then (re)create the symlink.
+# -n (--no-dereference): if $dest is already a symlink to a directory, replace
+# the link itself instead of dereferencing it and creating a self-referential
+# loop *inside* the target dir (e.g. config/ai-tools/ai-tools). Harmless for
+# file and non-existent destinations.
 link_with_backup() {
   local src="$1" dest="$2"
   backup_if_exists "$dest"
-  ln -sf "$src" "$dest"
+  ln -sfn "$src" "$dest"
 }
 
 # Link every shared config file into $HOME. $1 = path to the repo's config/ dir.
