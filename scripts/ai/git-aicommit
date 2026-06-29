@@ -30,33 +30,76 @@ if [ -z "$diff" ]; then
   exit 1
 fi
 
+# Full file list (cheap, never truncated) so the model still sees every touched
+# file even when a large diff body gets clipped to AI_MAX_DIFF below — crucial
+# for sweeping changesets (dozens of files) where the diff alone would be partial.
+stat="$(git diff --staged --stat)"
+
 # Keep the prompt bounded: truncate the diff to AI_MAX_DIFF bytes.
 # Pure-bash slicing (no pipe) so a large diff can't SIGPIPE `printf` when
 # `head` closes the pipe early — which, under `set -euo pipefail`, aborted the
 # whole script silently on any diff larger than AI_MAX_DIFF.
-diff="${diff:0:$AI_MAX_DIFF}"
+truncated=false
+if [ "${#diff}" -gt "$AI_MAX_DIFF" ]; then
+  diff="${diff:0:$AI_MAX_DIFF}"
+  truncated=true
+fi
 
-prompt="$(cat <<EOF
-You are a tool that writes a single git commit message in Conventional Commits format.
-Rules:
-- First line: <type>(optional-scope): imperative summary, no more than 72 characters.
-- Allowed types: feat, fix, refactor, docs, chore, test, perf, build, ci.
-- Optional body after a blank line, as concise bullet points.
-- Output ONLY the commit message. No backticks, no code fences, no explanation.
+# generate — build the prompt and return the cleaned commit message on stdout.
+generate() {
+  local diff_note="" prompt msg
+  [ "$truncated" = true ] && diff_note=" (truncated — rely on the file list above for full scope)"
 
-Staged diff:
+  prompt="$(cat <<EOF
+You are a senior engineer writing ONE git commit message in Conventional Commits
+format that describes a set of staged changes.
+
+Format:
+- Header: <type>(<scope>): <summary>
+  - <type> is exactly one of: feat, fix, refactor, docs, chore, test, perf, build, ci, style.
+    Pick it from the dominant intent of the change.
+  - <scope> is optional: the most relevant module/area touched. Omit it when the
+    change spans many unrelated areas.
+  - <summary> is imperative, present tense, <= 72 characters, no trailing period.
+- Body (after one blank line) — REQUIRED whenever the change is non-trivial or
+  touches more than one file:
+  - Explain WHAT changed and especially WHY, not the literal how.
+  - Use concise '- ' bullet points; one concern per bullet; group related edits.
+  - Name the affected components/files/areas when it adds clarity.
+  - When several concerns are mixed, lead the header with the most significant one
+    and cover the rest as bullets.
+
+Output ONLY the raw commit message (header, then optional blank line + body).
+No backticks, no code fences, no preamble, no explanation.
+
+Changed files (complete list):
+$stat
+
+Staged diff${diff_note}:
 $diff
 EOF
 )"
 
-msg="$(ai_run "$AI_MODEL" "$prompt")" || exit 1
-# Drop any stray Markdown code-fence lines the model may have added.
-msg="$(printf '%s\n' "$msg" | grep -v '^[[:space:]]*```' || true)"
+  msg="$(ai_run "$AI_MODEL" "$prompt")" || return 1
+  # Drop any stray Markdown code-fence lines the model may have added.
+  printf '%s\n' "$msg" | grep -v '^[[:space:]]*```' || true
+}
 
-printf '\n'
-printf '┌─ Proposed commit message ─────────────────────────────\n'
-printf '%s\n' "$msg" | sed 's/^/│ /'
-printf '└───────────────────────────────────────────────────────\n'
+# show_msg — render the current $msg inside a framed box.
+show_msg() {
+  printf '\n'
+  printf '┌─ Proposed commit message ─────────────────────────────\n'
+  printf '%s\n' "$msg" | sed 's/^/│ /'
+  printf '└───────────────────────────────────────────────────────\n'
+}
+
+# commit_command — the exact `git commit` invocation that reuses $msg verbatim.
+commit_command() {
+  printf 'git commit -m %s' "$(printf '%q' "$msg")"
+}
+
+msg="$(generate)" || exit 1
+show_msg
 
 # Run `git commit` with the generated message; if it fails (e.g. a pre-commit
 # hook rejected it) print the exact command so the same message can be reused —
@@ -68,7 +111,7 @@ do_commit() {
   local status=$?
   printf '\n' >&2
   printf 'Commit failed (pre-commit hook?). To retry with the SAME message:\n\n' >&2
-  printf '  git commit -m %s\n\n' "$(printf '%q' "$msg")" >&2
+  printf '  %s\n\n' "$(commit_command)" >&2
   printf 'Append --no-verify to skip the hooks.\n' >&2
   exit "$status"
 }
@@ -78,10 +121,24 @@ if [ "$ASSUME_YES" = true ]; then
   exit $?
 fi
 
-printf 'Commit with this message? [y/N/e] '
-read -r reply || reply=""
-case "$reply" in
-  y | Y) do_commit ;;
-  e | E) do_commit -e ;;
-  *)     printf 'Annulé.\n' >&2; exit 1 ;;
-esac
+# Interactive menu. 'c' prints the ready-to-run command instead of committing,
+# so the commit can be executed by hand after a final review.
+while true; do
+  printf '[y]es commit · [e]dit · [r]egenerate · [c]ommand · [N]o? '
+  read -r reply || reply=""
+  case "$reply" in
+    y | Y) do_commit; exit $? ;;
+    e | E) do_commit -e; exit $? ;;
+    r | R)
+      printf 'Regenerating…\n' >&2
+      msg="$(generate)" || exit 1
+      show_msg
+      ;;
+    c | C)
+      printf '\nReview, then run this to commit:\n\n'
+      printf '  %s\n\n' "$(commit_command)"
+      exit 0
+      ;;
+    *) printf 'Annulé.\n' >&2; exit 1 ;;
+  esac
+done
