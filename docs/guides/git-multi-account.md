@@ -250,4 +250,4 @@ git commit --amend --reset-author --no-edit
 | Git identity     | `config/git/.gitconfig` (default) | `~/.gitconfig-pro` (via `includeIf`) |
 | Commit e-mail    | `contact@kevindb.dev`             | `work@company.com`                 |
 
-See also: [Config — SSH](../config/ssh) · [Config — Git](../config/git).
+See also: [Config — SSH](../config/ssh.md) · [Config — Git](../config/git.md).

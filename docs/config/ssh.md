@@ -72,5 +72,5 @@ Host github.com-pro
   IdentitiesOnly yes
 ```
 
-See [Guide — Git multi-comptes (perso / pro)](../guides/git-multi-account) for the
+See [Guide — Git multi-comptes (perso / pro)](../guides/git-multi-account.md) for the
 full clone workflow combining these aliases with per-directory Git identities.

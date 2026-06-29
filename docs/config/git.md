@@ -85,5 +85,5 @@ via a conditional include (placed last so it overrides the default `[user]`):
 ```
 
 Create `~/.gitconfig-pro` (untracked) with the pro `[user]` block. See
-[Guide — Git multi-comptes (perso / pro)](../guides/git-multi-account) for the full
+[Guide — Git multi-comptes (perso / pro)](../guides/git-multi-account.md) for the full
 SSH + clone workflow.
