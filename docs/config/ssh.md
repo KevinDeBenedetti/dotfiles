@@ -39,13 +39,38 @@ Prevents idle connections from being dropped by firewalls or routers.
 | `ServerAliveInterval` | `60`  | Send keepalive packet every 60 s    |
 | `ServerAliveCountMax` | `3`   | Disconnect after 3 missed responses |
 
-## Machine-specific hosts
+### Key handling (passphrase)
 
-Add project- or machine-specific host blocks to `~/.ssh/config.local` (not tracked by git)
-and include it with:
+| Setting          | Value | Description                                         |
+| ---------------- | ----- | --------------------------------------------------- |
+| `UseKeychain`    | `yes` | Read/store the key passphrase in the macOS keychain |
+| `AddKeysToAgent` | `yes` | Add keys to `ssh-agent` automatically on first use  |
+
+## Machine-specific & per-account hosts
+
+Host blocks for specific machines (infra IPs) **and** per-account GitHub aliases
+(perso / pro) live in `~/.ssh/config.d/*.conf`, which is **not tracked by git**
+(this repo is public). They are included first so their settings take precedence:
 
 ```
-Include ~/.ssh/config.local
+Include ~/.ssh/config.d/*.conf
 ```
 
-Or add host entries directly after the `Host *` block in a local, untracked file.
+Example `~/.ssh/config.d/github.conf`:
+
+```ssh-config
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/id_ed25519
+  IdentitiesOnly yes
+
+Host github.com-pro
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/id_ed25519_pro
+  IdentitiesOnly yes
+```
+
+See [Guide — Git multi-comptes (perso / pro)](../guides/git-multi-account) for the
+full clone workflow combining these aliases with per-directory Git identities.

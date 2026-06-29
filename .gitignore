@@ -8,3 +8,4 @@ config/ssh/config.d/
 
 # macOS
 .DS_Store
+.claude/
