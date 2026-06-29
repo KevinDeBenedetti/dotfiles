@@ -54,12 +54,21 @@ generate() {
 You are a senior engineer writing ONE git commit message in Conventional Commits
 format that describes a set of staged changes.
 
-Format:
-- Header: <type>(<scope>): <summary>
-  - <type> is exactly one of: feat, fix, refactor, docs, chore, test, perf, build, ci, style.
-    Pick it from the dominant intent of the change.
+Format (must satisfy release-please's default Conventional Commits parser):
+- Header: <type>(<scope>)<!>: <summary>
+  - <type> is exactly one of these release-please-recognized types — never invent
+    another: feat, fix, perf, deps, revert, docs, style, chore, refactor, test,
+    build, ci. Pick it from the dominant intent of the change.
+    - feat  → a new feature        (triggers a minor release)
+    - fix   → a bug fix            (triggers a patch release)
+    - perf  → a performance change (triggers a patch release)
+    - deps, revert, docs, style, chore, refactor, test, build, ci → no release;
+      use them only when none of feat/fix/perf fits the dominant intent.
   - <scope> is optional: the most relevant module/area touched. Omit it when the
     change spans many unrelated areas.
+  - Append '!' before the colon (e.g. 'feat(api)!:') ONLY for a breaking change;
+    when you do, the body MUST include a 'BREAKING CHANGE: <what broke>' line.
+    This is what release-please reads to cut a major release.
   - <summary> is imperative, present tense, <= 72 characters, no trailing period.
 - Body (after one blank line) — REQUIRED whenever the change is non-trivial or
   touches more than one file:
