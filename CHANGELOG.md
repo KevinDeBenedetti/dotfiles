@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.1.1...v0.1.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* **tests:** add assertion for gitleaks hook in pre-commit stage ([9f94192](https://github.com/KevinDeBenedetti/dotfiles/commit/9f941922b235c0f77d39044289bbfe3885a53d2e))
+
 ## [0.1.1](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.1.0...v0.1.1) (2026-06-19)
 
 
