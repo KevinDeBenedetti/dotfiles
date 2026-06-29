@@ -49,6 +49,16 @@ link_shared_configs() {
   mkdir -p "$HOME/.config/git"
   link_with_backup "$config_dir/git/ignore" "$HOME/.config/git/ignore"
 
+  # SSH client config. The drop-in dir ~/.ssh/config.d/ holds ALL host-specific
+  # entries (github accounts, infra hosts with real IPs) as LOCAL UNVERSIONED
+  # files — nothing in there is tracked by the repo. We only create the empty
+  # dir so the `Include ~/.ssh/config.d/*.conf` in config never errors.
+  mkdir -p "$HOME/.ssh"
+  chmod 700 "$HOME/.ssh"
+  mkdir -p "$HOME/.ssh/config.d"
+  chmod 700 "$HOME/.ssh/config.d"
+  link_with_backup "$config_dir/ssh/config" "$HOME/.ssh/config"
+
   # Shell config → ~/.config/dotfiles/
   mkdir -p "$HOME/.config/dotfiles"
   local item

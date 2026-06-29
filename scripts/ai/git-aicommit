@@ -31,7 +31,10 @@ if [ -z "$diff" ]; then
 fi
 
 # Keep the prompt bounded: truncate the diff to AI_MAX_DIFF bytes.
-diff="$(printf '%s' "$diff" | head -c "$AI_MAX_DIFF")"
+# Pure-bash slicing (no pipe) so a large diff can't SIGPIPE `printf` when
+# `head` closes the pipe early — which, under `set -euo pipefail`, aborted the
+# whole script silently on any diff larger than AI_MAX_DIFF.
+diff="${diff:0:$AI_MAX_DIFF}"
 
 prompt="$(cat <<EOF
 You are a tool that writes a single git commit message in Conventional Commits format.

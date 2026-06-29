@@ -3,5 +3,8 @@
 .gitconfig.local
 env.local.sh
 
+# Local, unversioned SSH host drop-ins (github accounts, infra IPs, …)
+config/ssh/config.d/
+
 # macOS
 .DS_Store

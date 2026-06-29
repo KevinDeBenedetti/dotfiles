@@ -69,3 +69,20 @@ run_link_shared_configs() {
   assert_symlink_to "$CONFIG_DIR/oh-my-zsh/kevin-de-benedetti.zsh-theme" \
     "$FAKE_HOME/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme"
 }
+
+@test "link_shared_configs links ssh config and creates the local config.d dir" {
+  run run_link_shared_configs
+  assert_success
+  assert_symlink_to "$CONFIG_DIR/ssh/config" "$FAKE_HOME/.ssh/config"
+  assert_dir_exists "$FAKE_HOME/.ssh/config.d"
+}
+
+@test "link_shared_configs leaves local ~/.ssh/config.d files untouched" {
+  mkdir -p "$FAKE_HOME/.ssh/config.d"
+  printf 'Host k3s\n    HostName 1.2.3.4\n' > "$FAKE_HOME/.ssh/config.d/infra.conf"
+  run run_link_shared_configs
+  assert_success
+  assert_link_not_exists "$FAKE_HOME/.ssh/config.d/infra.conf"
+  run cat "$FAKE_HOME/.ssh/config.d/infra.conf"
+  assert_line "Host k3s"
+}

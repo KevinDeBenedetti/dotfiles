@@ -12,12 +12,7 @@ echo "🔗 Creating symlinks..."
 # Zsh — symlinked here; the OS init scripts copy it instead (machine-specific edits)
 link_with_backup "$CONFIG_DIR/zsh/.zshrc" "$HOME/.zshrc"
 
-# Everything shared with the OS init scripts (git, proto, shell, claude, …)
+# Everything shared with the OS init scripts (git, proto, shell, claude, ssh, …)
 link_shared_configs "$CONFIG_DIR"
-
-# SSH client config
-mkdir -p "$HOME/.ssh"
-chmod 700 "$HOME/.ssh"
-link_with_backup "$CONFIG_DIR/ssh/config" "$HOME/.ssh/config"
 
 echo "✅ Symlinks created"

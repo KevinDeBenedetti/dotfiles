@@ -1,6 +1,11 @@
 # ~/.ssh/config — managed by dotfiles
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Machine/infra-specific hosts (IPs, internal servers, …) live in local,
+# UNVERSIONED files. Listed first so their settings take precedence
+# (ssh uses the first obtained value for each parameter).
+Include ~/.ssh/config.d/*.conf
+
 Host *
   # Do NOT forward local LC_* / LANG variables to remote hosts.
   # macOS sends these by default; remote Debian servers may not have the
@@ -20,15 +25,3 @@ Host *
   # Passphrase
   UseKeychain yes
   AddKeysToAgent yes
-
-Host github-pro
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/github_pro
-    IdentitiesOnly yes
-
-Host github-perso
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/id_rsa
-    IdentitiesOnly yes
