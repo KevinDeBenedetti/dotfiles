@@ -142,6 +142,32 @@ setup() {
   assert_success
 }
 
+# --- SSH port consistency (sshd drop-in / ufw / fail2ban) ---
+# A custom SSH_PORT must reach all three places, or the firewall/jail protect
+# the wrong port. These guard against re-hardcoding a literal port anywhere.
+
+@test "SSH port is parameterized via \$SSH_PORT in the sshd drop-in" {
+  run grep -F 'Port $SSH_PORT' "$SECURITY_SCRIPT"
+  assert_success
+}
+
+@test "ufw allows the configured \$SSH_PORT" {
+  run grep -F 'ufw allow "$SSH_PORT/tcp"' "$SECURITY_SCRIPT"
+  assert_success
+}
+
+@test "fail2ban sshd jail watches the configured \$SSH_PORT" {
+  run grep -F 'port     = $SSH_PORT' "$SECURITY_SCRIPT"
+  assert_success
+}
+
+@test "fail2ban sshd jail does not hardcode the SSH port" {
+  # Regression guard for the original bug: port = ssh (or a literal number)
+  # ignored a custom SSH_PORT.
+  run grep -E '^port[[:space:]]+=[[:space:]]+(ssh|[0-9]+)[[:space:]]*$' "$SECURITY_SCRIPT"
+  assert_failure
+}
+
 # --- Sysctl hardening content ---
 
 @test "sysctl disables IP forwarding" {

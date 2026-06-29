@@ -241,6 +241,10 @@ fi
 # Shared symlink helpers (backup_if_exists, link_with_backup, link_shared_configs)
 # shellcheck source=../helpers/links.sh
 source "$HELPERS_DIR/links.sh"
+# Shared "link dotfiles" post-steps (create_allowed_signers, create_local_stubs,
+# install_vscode_config) — kept in sync with os/macos/init.sh.
+# shellcheck source=../helpers/dotfiles.sh
+source "$HELPERS_DIR/dotfiles.sh"
 
 # Link dotfiles
 if [[ "$COPY_DOTFILES" = "true" ]]; then
@@ -252,68 +256,16 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   cp "$CONFIG_DIR/zsh/.zshrc" "$HOME/.zshrc"
   link_shared_configs "$CONFIG_DIR"
 
-  # Create SSH allowed signers file for local commit signature verification
-  SSH_SIGNING_KEY="$HOME/.ssh/id_rsa.pub"
-  ALLOWED_SIGNERS="$HOME/.ssh/allowed_signers"
-  GIT_EMAIL=$(git config --global user.email 2>/dev/null || echo "contact@kevindb.dev")
-  if [ -f "$SSH_SIGNING_KEY" ]; then
-    mkdir -p "$HOME/.ssh"
-    printf '%s %s\n' "$GIT_EMAIL" "$(tr -d '\r' < "$SSH_SIGNING_KEY" | tr -d '\n')" > "$ALLOWED_SIGNERS"
-    chmod 600 "$ALLOWED_SIGNERS"
-    printf '%b' "${red}[git]${no_color} SSH allowed_signers file created at $ALLOWED_SIGNERS\n"
-  else
-    printf '%b' "${red}[warning]${no_color} No SSH public key found — skipping allowed_signers setup.\n"
-  fi
-
-  # Create local override stubs if they don't already exist
-  if [ ! -f "$HOME/.zshrc.local" ]; then
-    cat > "$HOME/.zshrc.local" <<'EOF'
-# Machine-specific zsh overrides — not tracked by git
-# Add aliases, exports, path additions, etc. specific to this machine.
-# This file is sourced at the end of .zshrc and always wins.
-EOF
-    printf '%b' "${red}[local]${no_color} Created stub: ~/.zshrc.local\n"
-  fi
-
-  if [ ! -f "$HOME/.gitconfig.local" ]; then
-    cat > "$HOME/.gitconfig.local" <<'EOF'
-# Machine-specific git overrides — not tracked by git
-# Overrides values from .gitconfig (user.email, signingkey, etc.)
-EOF
-    printf '%b' "${red}[local]${no_color} Created stub: ~/.gitconfig.local\n"
-  fi
-
-  if [ ! -f "$HOME/.config/dotfiles/env.local.sh" ]; then
-    mkdir -p "$HOME/.config/dotfiles"
-    cat > "$HOME/.config/dotfiles/env.local.sh" <<'EOF'
-# Machine-specific environment variables — not tracked by git
-# Overrides / supplements env.sh values for this machine.
-# Sourced automatically at the end of .zshrc.
-EOF
-    printf '%b' "${red}[local]${no_color} Created stub: ~/.config/dotfiles/env.local.sh\n"
-  fi
+  # SSH allowed_signers and per-machine override stubs — shared with
+  # os/macos/init.sh via os/helpers/dotfiles.sh.
+  create_allowed_signers
+  create_local_stubs
 
   # Configure proto proxies
   bash "$HELPERS_DIR/proto.sh"
 
-  # Install .vscode configs
-  if [ -x "$(command -v code)" ]; then
-    mkdir -p "$HOME/.config/Code/User"
-    backup_if_exists "$HOME/.config/Code/User/settings.json"
-    ln -sf "$CONFIG_DIR/vscode/settings.json" "$HOME/.config/Code/User/settings.json"
-    backup_if_exists "$HOME/.config/Code/User/mcp.json"
-    ln -sf "$CONFIG_DIR/vscode/mcp.json" "$HOME/.config/Code/User/mcp.json"
-    INSTALLED_EXTENSIONS=$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')
-    while IFS= read -r extension; do
-      if echo "$INSTALLED_EXTENSIONS" | grep -qi "^${extension}$"; then
-        printf '%b' "${red}[vscode]${no_color} $extension already installed — skipping.\n"
-      else
-        code --install-extension "$extension"
-      fi
-    done < <(grep -v '//' "$CONFIG_DIR/vscode/extensions.json" \
-      | grep -E '\S' \
-      | jq -r '.recommendations[]')
-  fi
+  # VS Code config (Linux user dir) — shared helper from dotfiles.sh.
+  install_vscode_config "$CONFIG_DIR" "$HOME/.config/Code/User"
 fi
 
 

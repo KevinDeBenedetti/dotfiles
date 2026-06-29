@@ -8,6 +8,12 @@
 #   SSH_NOPASSWD        Grant passwordless sudo — true|false (default: false)
 #   COPY_ROOT_SSH_KEY   Copy /root/.ssh/authorized_keys to the new user (default: true)
 #   SUDO                sudo prefix, e.g. "sudo" (default: empty = running as root)
+#
+# NOTE: the user is created with --disabled-password (key-only login). When
+# SSH_NOPASSWD is not "true", sudo will prompt for a password the account does
+# not have, so the user cannot escalate until you run `sudo passwd <user>`.
+# Since setup-security.sh later disables root login, set a password OR pass
+# SSH_NOPASSWD=true to avoid locking yourself out of admin access.
 # =============================================================================
 
 set -euo pipefail
@@ -57,6 +63,13 @@ if [[ "${SSH_NOPASSWD}" == "true" ]]; then
   echo "${CREATE_USER} ALL=(ALL) NOPASSWD:ALL" | $SUDO tee "/etc/sudoers.d/${CREATE_USER}" > /dev/null
   $SUDO chmod 440 "/etc/sudoers.d/${CREATE_USER}"
   printf '%b' "${red}[user]${no_color} NOPASSWD sudo granted via /etc/sudoers.d/${CREATE_USER}.\n"
+else
+  # The user was created with --disabled-password and is in the sudo group, but
+  # sudo prompts for a password the account does not have — so it can never
+  # escalate until one is set. setup-security.sh then disables root login, which
+  # would lock admin access entirely. Warn loudly and tell the operator how to fix.
+  printf '%b' "${red}[warning]${no_color} '${CREATE_USER}' has no password and cannot run sudo yet.\n"
+  printf '%b' "${red}[warning]${no_color} Set one with: ${red}sudo passwd ${CREATE_USER}${no_color} (or re-run with SSH_NOPASSWD=true for passwordless sudo).\n"
 fi
 
 printf '%b' "${red}[user]${no_color} ✅ User '${CREATE_USER}' ready.\n"

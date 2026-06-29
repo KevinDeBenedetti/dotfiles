@@ -20,11 +20,11 @@ key, commit e-mail, signing key) is selected automatically.
 ## TL;DR
 
 ```sh
-# Personal → personal key + personal identity, everywhere except ~/dev/pro/
-git clone git@github.com:KevinDeBenedetti/my-repo.git ~/dev/personal/my-repo
+# Personal → personal key + personal identity (auto under ~/dev/)
+git clone git@github.com:KevinDeBenedetti/my-repo.git ~/dev/my-repo
 
-# Work → SSH alias "github.com-pro" + work identity (auto under ~/dev/pro/)
-git clone git@github.com-pro:client-org/project.git ~/dev/pro/project
+# Work → SSH alias "github.com-pro" + work identity (auto under ~/pro/)
+git clone git@github.com-pro:client-org/project.git ~/pro/project
 ```
 
 The only thing that changes in the command is the **host** in the URL:
@@ -117,9 +117,9 @@ ssh -T git@github.com-pro     # → Hi <work-account>!
 
 ## 3. Switch the Git identity per directory
 
-[`config/git/.gitconfig`](https://github.com/KevinDeBenedetti/dotfiles/blob/main/config/git/.gitconfig) defines the **personal
-identity by default**, then applies the **work** identity to any repository under
-`~/dev/pro/`:
+[`config/git/.gitconfig`](https://github.com/KevinDeBenedetti/dotfiles/blob/main/config/git/.gitconfig) defines a **personal
+identity by default**, then selects the right identity based on **where the repo
+lives**: personal under `~/dev/`, professional under `~/pro/`:
 
 ```ini
 [user]
@@ -127,29 +127,39 @@ identity by default**, then applies the **work** identity to any repository unde
   name  = KevinDeBenedetti
   signingkey = ~/.ssh/id_rsa.pub
 
-# Work identity: applied to any repo under ~/dev/pro/ (placed last → takes precedence)
-[includeIf "gitdir:~/dev/pro/"]
+# Per-directory identity (placed last → takes precedence over the default [user])
+[includeIf "gitdir:~/dev/"]
+  path = ~/.gitconfig-perso
+[includeIf "gitdir:~/pro/"]
   path = ~/.gitconfig-pro
 ```
 
-The `gitdir:~/dev/pro/` condition triggers as soon as the repository's `.git`
-directory is located under that path (the trailing `/` implicitly appends `**`).
-See [git-scm.com/docs/git-config](https://git-scm.com/docs/git-config) →
+Each `gitdir:` condition triggers as soon as the repository's `.git` directory is
+located under that path (the trailing `/` implicitly appends `**`). See
+[git-scm.com/docs/git-config](https://git-scm.com/docs/git-config) →
 *Conditional includes*.
 
-Create `~/.gitconfig-pro` (untracked, gitignored like `~/.gitconfig.local`):
+Create `~/.gitconfig-perso` and `~/.gitconfig-pro` (untracked, gitignored like
+`~/.gitconfig.local`), each with its own `[user]` block:
 
 ```ini
-# ~/.gitconfig-pro — professional identity
+# ~/.gitconfig-perso — personal identity (repos under ~/dev/)
+[user]
+  email = contact@kevindb.dev
+  name  = KevinDeBenedetti
+  signingkey = ~/.ssh/id_ed25519.pub
+```
+
+```ini
+# ~/.gitconfig-pro — professional identity (repos under ~/pro/)
 [user]
   email = work@company.com
   name  = Kevin De Benedetti
   signingkey = ~/.ssh/id_ed25519_pro.pub
 ```
 
-> **Layout convention**: everything work-related goes under `~/dev/pro/…`, the rest
-> inherits the personal identity. The directory layout drives the identity — not the
-> URL.
+> **Layout convention**: personal projects live under `~/dev/…`, work projects under
+> `~/pro/…`. The directory layout drives the identity — not the URL.
 
 ### Commit signing (SSH)
 
@@ -168,21 +178,21 @@ The SSH URL has the form `git@<host>:<owner>/<repo>.git`. The **host** selects t
 key; the **destination directory** selects the identity.
 
 ```sh
-# Personal — host "github.com", anywhere outside ~/dev/pro/
-git clone git@github.com:KevinDeBenedetti/dotfiles.git ~/dev/personal/dotfiles
+# Personal — host "github.com", destination under ~/dev/
+git clone git@github.com:KevinDeBenedetti/dotfiles.git ~/dev/dotfiles
 
-# Work — host "github.com-pro" + destination under ~/dev/pro/
-git clone git@github.com-pro:client-org/api.git ~/dev/pro/api
+# Work — host "github.com-pro" + destination under ~/pro/
+git clone git@github.com-pro:client-org/api.git ~/pro/api
 ```
 
 > ⚠️ For work, **both** matter: the `github.com-pro` alias (correct SSH key) **and**
-> the `~/dev/pro/` directory (correct commit identity). Cloning a work repo elsewhere
+> the `~/pro/` directory (correct commit identity). Cloning a work repo elsewhere
 > will still authenticate over SSH but sign commits with the personal e-mail.
 
 ### Verify the identity after cloning
 
 ```sh
-cd ~/dev/pro/api
+cd ~/pro/api
 git config user.email      # → work@company.com
 git config user.name       # → Kevin De Benedetti
 git config user.signingkey # → ~/.ssh/id_ed25519_pro.pub
@@ -226,13 +236,13 @@ git remote set-url origin git@github.com-pro:client-org/repo.git
 git remote -v                        # verify
 ```
 
-### Move an existing work repo under ~/dev/pro/
+### Move an existing work repo under ~/pro/
 
 If a work repository was cloned in the wrong place (personal identity applied):
 
 ```sh
-mv ~/dev/personal/api ~/dev/pro/api
-cd ~/dev/pro/api
+mv ~/dev/api ~/pro/api
+cd ~/pro/api
 git config user.email                # should now return the work e-mail
 # Optional: re-attribute the last commit to the correct identity
 git commit --amend --reset-author --no-edit
@@ -246,8 +256,8 @@ git commit --amend --reset-author --no-edit
 | ---------------- | --------------------------------- | ---------------------------------- |
 | SSH key          | `~/.ssh/id_ed25519`               | `~/.ssh/id_ed25519_pro`            |
 | Host in the URL  | `github.com`                      | `github.com-pro`                   |
-| Directory        | anywhere except `~/dev/pro/`      | `~/dev/pro/…`                      |
-| Git identity     | `config/git/.gitconfig` (default) | `~/.gitconfig-pro` (via `includeIf`) |
+| Directory        | `~/dev/…`                         | `~/pro/…`                          |
+| Git identity     | `~/.gitconfig-perso` (via `includeIf`) | `~/.gitconfig-pro` (via `includeIf`) |
 | Commit e-mail    | `contact@kevindb.dev`             | `work@company.com`                 |
 
 See also: [Config — SSH](../config/ssh.md) · [Config — Git](../config/git.md).

@@ -18,6 +18,10 @@ FULL_MODE_SETUP="${FULL_MODE_SETUP:-false}"
 # Configurable via env vars (set before sourcing or in init.sh)
 SSH_PORT="${SSH_PORT:-22}"
 SSH_ALLOWED_USERS="${SSH_ALLOWED_USERS:-}"
+# Opt-in: remount /tmp as a size-capped noexec tmpfs. Off by default because
+# `noexec /tmp` breaks apt/dpkg postinst scripts and build tooling, and the
+# 1G cap is wrong for small VPSes. Set HARDEN_TMP=true to enable.
+HARDEN_TMP="${HARDEN_TMP:-false}"
 
 # ──────────────────────────────────────────────
 # SSH Hardening
@@ -128,8 +132,10 @@ install_configure_fail2ban() {
 
   $SUDO apt-get install -y --no-install-recommends fail2ban
 
-  # Create local jail config (never edit jail.conf directly)
-  $SUDO tee /etc/fail2ban/jail.local > /dev/null <<'EOF'
+  # Create local jail config (never edit jail.conf directly).
+  # Unquoted heredoc so $SSH_PORT expands — the jail must watch the same port
+  # the sshd drop-in listens on (see configure_ssh), not the default 22.
+  $SUDO tee /etc/fail2ban/jail.local > /dev/null <<EOF
 # Fail2Ban local configuration — managed by dotfiles setup-security.sh
 
 [DEFAULT]
@@ -146,7 +152,7 @@ banaction = ufw
 
 [sshd]
 enabled  = true
-port     = ssh
+port     = $SSH_PORT
 filter   = sshd
 maxretry = 3
 findtime = 5m
@@ -328,21 +334,27 @@ disable_unused_services() {
 secure_shared_memory() {
   printf '%b' "\n\n${red}[security] =>${no_color} Secure shared memory and /tmp\n\n"
 
-  local shm_entry="tmpfs /run/shm tmpfs defaults,noexec,nosuid 0 0"
+  # Harden /dev/shm — the canonical shared-memory tmpfs on modern Debian.
+  # (/run/shm is only a legacy symlink to it, so mounting there hardens nothing.)
+  local shm_entry="tmpfs /dev/shm tmpfs defaults,noexec,nosuid,nodev 0 0"
   local tmp_entry="tmpfs /tmp tmpfs defaults,noexec,nosuid,nodev,size=1G 0 0"
 
-  if ! grep -q "/run/shm" /etc/fstab; then
+  if ! grep -qE '[[:space:]]/dev/shm[[:space:]]' /etc/fstab; then
     echo "$shm_entry" | $SUDO tee -a /etc/fstab > /dev/null
-    printf '%b' "${red}[security]${no_color} Shared memory secured in /etc/fstab.\n"
+    printf '%b' "${red}[security]${no_color} Shared memory (/dev/shm) secured in /etc/fstab.\n"
   else
     printf '%b' "${red}[security]${no_color} Shared memory entry already present — skipping.\n"
   fi
 
-  if ! grep -q "^tmpfs /tmp" /etc/fstab; then
-    echo "$tmp_entry" | $SUDO tee -a /etc/fstab > /dev/null
-    printf '%b' "${red}[security]${no_color} /tmp secured (noexec,nosuid,nodev) in /etc/fstab.\n"
+  if [ "$HARDEN_TMP" = "true" ]; then
+    if ! grep -q "^tmpfs /tmp" /etc/fstab; then
+      echo "$tmp_entry" | $SUDO tee -a /etc/fstab > /dev/null
+      printf '%b' "${red}[security]${no_color} /tmp secured (noexec,nosuid,nodev,size=1G) in /etc/fstab.\n"
+    else
+      printf '%b' "${red}[security]${no_color} /tmp entry already present — skipping.\n"
+    fi
   else
-    printf '%b' "${red}[security]${no_color} /tmp entry already present — skipping.\n"
+    printf '%b' "${red}[security]${no_color} /tmp tmpfs hardening skipped (set HARDEN_TMP=true to enable; noexec/size=1G can break apt/dpkg/builds).\n"
   fi
 }
 

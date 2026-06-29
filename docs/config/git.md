@@ -76,14 +76,22 @@ This file is included at the bottom of `.gitconfig`:
 
 ## Per-directory identity (perso / pro)
 
-`.gitconfig` switches to the professional identity for any repo under `~/dev/pro/`
-via a conditional include (placed last so it overrides the default `[user]`):
+`.gitconfig` switches identity based on **where the repo lives**, via two
+conditional includes (placed last so they override the default `[user]`):
 
 ```ini
-[includeIf "gitdir:~/dev/pro/"]
+[includeIf "gitdir:~/dev/"]
+  path = ~/.gitconfig-perso
+[includeIf "gitdir:~/pro/"]
   path = ~/.gitconfig-pro
 ```
 
-Create `~/.gitconfig-pro` (untracked) with the pro `[user]` block. See
-[Guide — Git multi-comptes (perso / pro)](../guides/git-multi-account.md) for the full
+| Directory   | Include file        | Identity     |
+| ----------- | ------------------- | ------------ |
+| `~/dev/…`   | `~/.gitconfig-perso` | Personal     |
+| `~/pro/…`   | `~/.gitconfig-pro`   | Professional |
+
+Create both files (untracked, gitignored like `~/.gitconfig.local`) with their
+own `[user]` block. See
+[Guide — Git multi-account (perso / pro)](../guides/git-multi-account.md) for the full
 SSH + clone workflow.

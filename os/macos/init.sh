@@ -260,6 +260,10 @@ fi
 # Shared symlink helpers (backup_if_exists, link_with_backup, link_shared_configs)
 # shellcheck source=../helpers/links.sh
 source "$HELPERS_DIR/links.sh"
+# Shared "link dotfiles" post-steps (create_allowed_signers, create_local_stubs,
+# install_vscode_config) — kept in sync with os/debian/init.sh.
+# shellcheck source=../helpers/dotfiles.sh
+source "$HELPERS_DIR/dotfiles.sh"
 
 # Link dotfiles
 if [[ "$COPY_DOTFILES" = "true" ]]; then
@@ -272,82 +276,11 @@ if [[ "$COPY_DOTFILES" = "true" ]]; then
   cp "$CONFIG_DIR/zsh/.zshrc" "$HOME/.zshrc" && gsed -i 's/^# alias sed=.*/alias sed="gsed"/g' "$HOME/.zshrc"
   link_shared_configs "$CONFIG_DIR"
 
-  # Create SSH allowed signers file for local commit signature verification
-  SSH_SIGNING_KEY="$HOME/.ssh/id_rsa.pub"
-  ALLOWED_SIGNERS="$HOME/.ssh/allowed_signers"
-  GIT_EMAIL=$(git config --global user.email 2>/dev/null || echo "contact@kevindb.dev")
-  if [ -f "$SSH_SIGNING_KEY" ]; then
-    mkdir -p "$HOME/.ssh"
-    printf '%s %s\n' "$GIT_EMAIL" "$(tr -d '\r' < "$SSH_SIGNING_KEY" | tr -d '\n')" > "$ALLOWED_SIGNERS"
-    chmod 600 "$ALLOWED_SIGNERS"
-    printf '%b' "${red}[git]${no_color} SSH allowed_signers file created at $ALLOWED_SIGNERS\n"
-  else
-    printf '%b' "${red}[warning]${no_color} No SSH public key found — skipping allowed_signers setup.\n"
-  fi
-
-
-  # Create local override stubs if they don't already exist
-  # These files are gitignored — safe to fill in per-machine without touching the repo
-  if [ ! -f "$HOME/.zshrc.local" ]; then
-    cat > "$HOME/.zshrc.local" <<'EOF'
-# Machine-specific zsh overrides — not tracked by git
-# Add aliases, exports, path additions, etc. specific to this machine.
-# This file is sourced at the end of .zshrc and always wins.
-
-# Example:
-# export MY_WORK_TOKEN="secret"
-# alias myserver="ssh me@192.168.1.1"
-EOF
-    printf '%b' "${red}[local]${no_color} Created stub: ~/.zshrc.local\n"
-  fi
-
-  if [ ! -f "$HOME/.gitconfig.local" ]; then
-    cat > "$HOME/.gitconfig.local" <<'EOF'
-# Machine-specific git overrides — not tracked by git
-# Overrides values from .gitconfig (user.email, signingkey, etc.)
-
-# Uncomment and fill in to override the shared .gitconfig:
-# [user]
-# 	email = you@example.com
-# 	signingkey = ~/.ssh/id_ed25519.pub
-EOF
-    printf '%b' "${red}[local]${no_color} Created stub: ~/.gitconfig.local\n"
-  fi
-
-  if [ ! -f "$HOME/.config/dotfiles/env.local.sh" ]; then
-    mkdir -p "$HOME/.config/dotfiles"
-    cat > "$HOME/.config/dotfiles/env.local.sh" <<'EOF'
-# Machine-specific environment variables — not tracked by git
-# Overrides / supplements env.sh values for this machine.
-# Sourced automatically at the end of .zshrc.
-
-# Set your Context7 API key — used by the VS Code MCP config (config/vscode/mcp.json)
-# Get your key at: https://context7.com
-# export CONTEXT7_API_KEY="your-real-key-here"
-EOF
-    printf '%b' "${red}[local]${no_color} Created stub: ~/.config/dotfiles/env.local.sh\n"
-  fi
-
-  # Install .vscode configs
-  if [ -x "$(command -v code)" ]; then
-    mkdir -p "$HOME/Library/Application Support/Code/User"
-    backup_if_exists "$HOME/Library/Application Support/Code/User/settings.json"
-    ln -sf "$CONFIG_DIR/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
-    backup_if_exists "$HOME/Library/Application Support/Code/User/mcp.json"
-    ln -sf "$CONFIG_DIR/vscode/mcp.json" "$HOME/Library/Application Support/Code/User/mcp.json"
-    INSTALLED_EXTENSIONS=$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')
-    grep -v '//' "$CONFIG_DIR/vscode/extensions.json" \
-      | grep -E '\S' \
-      | jq -r '.recommendations[]' \
-      | while IFS= read -r extension; do
-          if echo "$INSTALLED_EXTENSIONS" | grep -qi "^${extension}$"; then
-            printf '%b' "${red}[vscode]${no_color} $extension already installed — skipping.\n"
-          else
-            code --install-extension "$extension"
-          fi
-        done
-  fi
-
+  # SSH allowed_signers, per-machine override stubs, and VS Code config — shared
+  # with os/debian/init.sh via os/helpers/dotfiles.sh.
+  create_allowed_signers
+  create_local_stubs
+  install_vscode_config "$CONFIG_DIR" "$HOME/Library/Application Support/Code/User"
 
   # Update brew links if architecture is arm64
   if [ "$(uname -m)" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then
