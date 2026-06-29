@@ -161,7 +161,7 @@ RUN test -f /etc/sysctl.d/99-security.conf \
     && echo "Sysctl hardening config verified"
 
 # Verify shared memory entry in fstab
-RUN grep -q "/run/shm" /etc/fstab \
+RUN grep -q "/dev/shm" /etc/fstab \
     && grep -q "noexec,nosuid" /etc/fstab \
     && echo "Shared memory fstab entry verified"
 
