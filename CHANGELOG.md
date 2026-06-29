@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.1.2...v0.1.3) (2026-06-29)
+
+
+### Bug Fixes
+
+* **docs:** update guide links to use markdown file extension ([5e9f1e8](https://github.com/KevinDeBenedetti/dotfiles/commit/5e9f1e8ba7e7b5e3f1318dcf901c2380fe21c7cc))
+
 ## [0.1.2](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.1.1...v0.1.2) (2026-06-29)
 
 
