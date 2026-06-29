@@ -9,4 +9,3 @@
 ## 🤖 Claude — recommandations
 
 ## ✅ Fait
-- [x] 2026-06-28 — TEST: ajouter une assertion bats vérifiant que `prek.toml` câble le hook `gitleaks` au stage `pre-commit` — empêche une suppression silencieuse, comme le test « prek no longer wires… »
