@@ -58,15 +58,30 @@ printf '┌─ Proposed commit message ─────────────�
 printf '%s\n' "$msg" | sed 's/^/│ /'
 printf '└───────────────────────────────────────────────────────\n'
 
+# Run `git commit` with the generated message; if it fails (e.g. a pre-commit
+# hook rejected it) print the exact command so the same message can be reused —
+# no need to re-run `ai commit` and regenerate a different one.
+do_commit() {
+  if git commit "$@" -m "$msg"; then
+    return 0
+  fi
+  local status=$?
+  printf '\n' >&2
+  printf 'Commit failed (pre-commit hook?). To retry with the SAME message:\n\n' >&2
+  printf '  git commit -m %s\n\n' "$(printf '%q' "$msg")" >&2
+  printf 'Append --no-verify to skip the hooks.\n' >&2
+  exit "$status"
+}
+
 if [ "$ASSUME_YES" = true ]; then
-  git commit -m "$msg"
+  do_commit
   exit $?
 fi
 
 printf 'Commit with this message? [y/N/e] '
 read -r reply || reply=""
 case "$reply" in
-  y | Y) git commit -m "$msg" ;;
-  e | E) git commit -e -m "$msg" ;;
+  y | Y) do_commit ;;
+  e | E) do_commit -e ;;
   *)     printf 'Annulé.\n' >&2; exit 1 ;;
 esac
