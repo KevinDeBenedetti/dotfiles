@@ -57,13 +57,15 @@ format that describes a set of staged changes.
 Format (must satisfy release-please's default Conventional Commits parser):
 - Header: <type>(<scope>)<!>: <summary>
   - <type> is exactly one of these release-please-recognized types — never invent
-    another: feat, fix, perf, deps, revert, docs, style, chore, refactor, test,
-    build, ci. Pick it from the dominant intent of the change.
+    another: feat, fix, perf, deps, revert, docs, style, chore, test, build, ci.
+    Pick it from the dominant intent of the change.
     - feat  → a new feature        (triggers a minor release)
     - fix   → a bug fix            (triggers a patch release)
     - perf  → a performance change (triggers a patch release)
-    - deps, revert, docs, style, chore, refactor, test, build, ci → no release;
-      use them only when none of feat/fix/perf fits the dominant intent.
+    - deps, revert, docs, style, chore, test, build, ci → no release; use them
+      only when none of feat/fix/perf fits the dominant intent.
+    - NEVER use 'refactor': this release-please config does not surface it. When
+      the change is a pure code refactor with no user-facing effect, use 'chore'.
   - <scope> is optional: the most relevant module/area touched. Omit it when the
     change spans many unrelated areas.
   - Append '!' before the colon (e.g. 'feat(api)!:') ONLY for a breaking change;

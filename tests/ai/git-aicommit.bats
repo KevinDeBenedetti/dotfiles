@@ -27,10 +27,20 @@ setup() {
   git config user.name "Test"
   git config commit.gpgsign false
 
-  # Stub curl: record that it was hit, return a fixed Ollama-shaped response.
+  # Stub curl: record that it was hit, capture the JSON payload (the `-d` arg, so
+  # the prompt can be inspected), and return a fixed Ollama-shaped response.
   export CURL_MARKER="$BATS_TEST_TMPDIR/curl_called"
+  export AI_PAYLOAD_FILE="$BATS_TEST_TMPDIR/curl_payload"
   export AI_RESPONSE='{"response":"feat: ajout X"}'
-  curl() { : > "$CURL_MARKER"; printf '%s' "$AI_RESPONSE"; }
+  curl() {
+    : > "$CURL_MARKER"
+    local prev=""
+    for arg in "$@"; do
+      [ "$prev" = "-d" ] && printf '%s' "$arg" > "$AI_PAYLOAD_FILE"
+      prev="$arg"
+    done
+    printf '%s' "$AI_RESPONSE"
+  }
   export -f curl
 }
 
@@ -53,4 +63,23 @@ setup() {
 
   # The stub intercepted the call — no real curl/network escaped.
   assert [ -f "$CURL_MARKER" ]
+}
+
+@test "git-aicommit prompt lists the release-please types and forbids refactor" {
+  echo "content" > file.txt
+  git add file.txt
+
+  run bash "$SCRIPT" --yes
+  assert_success
+  assert [ -f "$AI_PAYLOAD_FILE" ]
+
+  # Guard the prompt against regressions: the release-relevant Conventional
+  # Commits types must be presented to the model, and 'refactor' (not surfaced by
+  # the release-please config) must be explicitly forbidden.
+  run jq -r '.prompt' "$AI_PAYLOAD_FILE"
+  assert_success
+  assert_output --partial 'feat'
+  assert_output --partial 'fix'
+  assert_output --partial 'perf'
+  assert_output --partial "NEVER use 'refactor'"
 }
