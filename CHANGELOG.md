@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.1.3...v0.2.0) (2026-07-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ai-tools:** Add README.md and update git-aicommit script
+
+### Features
+
+* **ai:** add new `test-api` command for smoke-testing OpenAI-compatible APIs ([e9f5bb5](https://github.com/KevinDeBenedetti/dotfiles/commit/e9f5bb5159db1a779da88e2def81e29d1c428d0a))
+
+
+### Bug Fixes
+
+* **scripts/ai/git-aicommit:** update git commit message format ([6efe9f2](https://github.com/KevinDeBenedetti/dotfiles/commit/6efe9f2b54cfd863b33de9b5cfd4f8635b627181))
+
+
+### Documentation
+
+* **ai-tools:** Add README.md and update git-aicommit script ([9763b52](https://github.com/KevinDeBenedetti/dotfiles/commit/9763b5251951ebf75e115de138495cdd1668975f))
+
 ## [0.1.3](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.1.2...v0.1.3) (2026-06-29)
 
 
