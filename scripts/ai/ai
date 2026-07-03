@@ -18,12 +18,14 @@ Commands:
   commit             Generate a Conventional Commits message from the staged diff
   explain <file>     Explain what a file does
   ask "<question>"   Ask the model a one-off question
+  test-api           Smoke-test an OpenAI-compatible API from the local .env
   help               Show this help
 
 Examples:
   ai commit
   ai explain os/helpers/links.sh
   ai ask "what does set -euo pipefail do?"
+  ai test-api --models-only
 
 Configuration (override via environment):
   AI_HOST=$AI_HOST
@@ -38,6 +40,7 @@ cmd="${1:-help}"
 case "$cmd" in
   commit)    exec git-aicommit "$@" ;;
   explain)   exec ai-explain "$@" ;;
+  test-api)  exec ai-test-api "$@" ;;
   ask)
     if [ "$#" -eq 0 ]; then
       printf 'error: ask requires a question\n' >&2

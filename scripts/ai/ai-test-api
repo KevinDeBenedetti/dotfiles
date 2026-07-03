@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ai-test-api — smoke-test an OpenAI-compatible API with the credentials found
+# in the .env of the current directory (or --file). Two checks:
+#   1. GET  <base>/models           — connectivity + authentication (free)
+#   2. POST <base>/chat/completions — a minimal real completion (skippable)
+# Works against api.openai.com as well as any compatible endpoint (Ollama /v1,
+# LM Studio, vLLM, OpenRouter…) via OPENAI_BASE_URL.
+
+# shellcheck source=../../config/ai-tools/config.sh
+source "${XDG_CONFIG_HOME:-$HOME/.config}/ai-tools/config.sh"
+
+ENV_FILE=".env"
+MODEL_OVERRIDE=""
+MODELS_ONLY=false
+
+usage() {
+  cat <<'EOF'
+Usage: ai-test-api [options]
+  Smoke-test an OpenAI-compatible API using the .env of the current directory.
+
+Options:
+  -f, --file <path>    env file to read (default: ./.env)
+  -m, --model <name>   model for the completion test
+                       (default: OPENAI_MODEL, else first model from /models)
+      --models-only    only check GET /models — no completion, no token billed
+  -h, --help           show this help
+
+Variables read (real environment wins over the env file):
+  OPENAI_API_KEY    required (use a dummy value for keyless local endpoints)
+  OPENAI_BASE_URL   default: https://api.openai.com/v1
+  OPENAI_MODEL      default model for the completion test
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -f | --file)
+      [ "$#" -ge 2 ] || { printf 'error: %s requires a path\n' "$1" >&2; exit 1; }
+      ENV_FILE="$2"; shift 2 ;;
+    -m | --model)
+      [ "$#" -ge 2 ] || { printf 'error: %s requires a model name\n' "$1" >&2; exit 1; }
+      MODEL_OVERRIDE="$2"; shift 2 ;;
+    --models-only) MODELS_ONLY=true; shift ;;
+    -h | --help) usage; exit 0 ;;
+    *) printf 'error: unknown argument: %s\n' "$1" >&2; exit 1 ;;
+  esac
+done
+
+ai_require_deps || exit 1
+
+# env_lookup <key> — the real environment wins; otherwise take the last
+# assignment in $ENV_FILE. The file is PARSED, never sourced: a .env can
+# contain arbitrary shell, and sourcing it would execute it.
+env_lookup() {
+  local key="$1" line val
+  if [ -n "${!key:-}" ]; then
+    printf '%s' "${!key}"
+    return 0
+  fi
+  [ -f "$ENV_FILE" ] || return 0
+  line="$(grep -E "^(export[[:space:]]+)?${key}=" "$ENV_FILE" | tail -n 1)" || true
+  [ -n "$line" ] || return 0
+  val="${line#*=}"
+  val="${val%$'\r'}"
+  case "$val" in
+    \"*\") val="${val#\"}"; val="${val%\"}" ;;
+    \'*\') val="${val#\'}"; val="${val%\'}" ;;
+  esac
+  printf '%s' "$val"
+}
+
+# mask <secret> — printable form of the key; the full value never reaches stdout.
+mask() {
+  local s="$1"
+  if [ "${#s}" -gt 10 ]; then
+    printf '%s…%s' "${s:0:4}" "${s: -4}"
+  else
+    printf '•••'
+  fi
+}
+
+# api_call <method> <path> [json-body] — sets $HTTP_CODE and $HTTP_BODY.
+# No `-f`: on a 4xx we want the body so the API's own error message can surface.
+api_call() {
+  local method="$1" path="$2" body="${3:-}" raw
+  local args=(-sS --max-time "$AI_TIMEOUT" -w $'\n%{http_code}'
+    -X "$method" -H "Authorization: Bearer $API_KEY")
+  [ -n "$body" ] && args+=(-H 'Content-Type: application/json' -d "$body")
+  if ! raw="$(curl "${args[@]}" "$BASE_URL$path")"; then
+    printf '✗ request to %s%s failed — endpoint unreachable?\n' "$BASE_URL" "$path" >&2
+    return 1
+  fi
+  HTTP_CODE="${raw##*$'\n'}"
+  HTTP_BODY="${raw%$'\n'*}"
+}
+
+# api_error_message — best-effort extraction of the API's error text from $HTTP_BODY.
+api_error_message() {
+  printf '%s' "$HTTP_BODY" | jq -r '.error.message // .error // empty' 2>/dev/null || true
+}
+
+if [ -f "$ENV_FILE" ]; then
+  printf '✓ env file: %s\n' "$ENV_FILE"
+else
+  printf '· no env file at %s — using environment variables only\n' "$ENV_FILE"
+fi
+
+API_KEY="$(env_lookup OPENAI_API_KEY)"
+BASE_URL="$(env_lookup OPENAI_BASE_URL)"
+BASE_URL="${BASE_URL:-https://api.openai.com/v1}"
+BASE_URL="${BASE_URL%/}"
+
+if [ -z "$API_KEY" ]; then
+  printf '✗ OPENAI_API_KEY not found (neither in the environment nor in %s).\n' "$ENV_FILE" >&2
+  printf '  For a keyless local endpoint, set a dummy value: OPENAI_API_KEY=none\n' >&2
+  exit 1
+fi
+printf '✓ OPENAI_API_KEY: %s\n' "$(mask "$API_KEY")"
+printf '✓ base URL: %s\n' "$BASE_URL"
+
+# ── Check 1: GET /models (connectivity + auth, costs nothing) ────────────────
+api_call GET /models || exit 1
+if [ "$HTTP_CODE" != "200" ]; then
+  printf '✗ GET /models → HTTP %s' "$HTTP_CODE" >&2
+  err="$(api_error_message)"
+  [ -n "$err" ] && printf ' — %s' "$err" >&2
+  printf '\n' >&2
+  exit 1
+fi
+model_count="$(printf '%s' "$HTTP_BODY" | jq -r '.data | length' 2>/dev/null || printf '?')"
+printf '✓ GET /models → 200 (%s models available)\n' "$model_count"
+
+if [ "$MODELS_ONLY" = true ]; then
+  printf '✓ done (models-only — no completion requested)\n'
+  exit 0
+fi
+
+# ── Check 2: minimal chat completion ─────────────────────────────────────────
+model="$MODEL_OVERRIDE"
+[ -n "$model" ] || model="$(env_lookup OPENAI_MODEL)"
+[ -n "$model" ] || model="$(printf '%s' "$HTTP_BODY" | jq -r '.data[0].id // empty' 2>/dev/null || true)"
+if [ -z "$model" ]; then
+  printf '✗ no model to test: /models returned none — set OPENAI_MODEL or use --model\n' >&2
+  exit 1
+fi
+
+# No max_tokens: o-series/newer models want max_completion_tokens instead, and
+# the prompt is tiny anyway — omitting the field keeps the call compatible.
+payload="$(jq -n --arg model "$model" \
+  '{model: $model, messages: [{role: "user", content: "Reply with the single word: pong"}]}')"
+
+api_call POST /chat/completions "$payload" || exit 1
+if [ "$HTTP_CODE" != "200" ]; then
+  printf '✗ POST /chat/completions (%s) → HTTP %s' "$model" "$HTTP_CODE" >&2
+  err="$(api_error_message)"
+  [ -n "$err" ] && printf ' — %s' "$err" >&2
+  printf '\n' >&2
+  exit 1
+fi
+
+reply="$(printf '%s' "$HTTP_BODY" | jq -r '.choices[0].message.content // empty' | head -c 80)"
+tokens="$(printf '%s' "$HTTP_BODY" | jq -r '.usage.total_tokens // "?"')"
+printf '✓ POST /chat/completions (%s) → 200 — reply: "%s" (%s tokens)\n' \
+  "$model" "$reply" "$tokens"
+printf '✓ API is up and the key works.\n'
