@@ -72,7 +72,7 @@
       ],
       "allowRead": [
         "~/.ssh/*.pub",
-        "**/.env.example"
+        "/**/.env.example"
       ],
       "denyWrite": [
         "**/.env",
