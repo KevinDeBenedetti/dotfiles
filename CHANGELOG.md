@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.2.0...v0.2.1) (2026-07-04)
+
+
+### Bug Fixes
+
+* **config:** update glob patterns for file access ([0f5339b](https://github.com/KevinDeBenedetti/dotfiles/commit/0f5339bb144e122e486396e9c5801d003f4de710))
+
 ## [0.2.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.1.3...v0.2.0) (2026-07-03)
 
 
