@@ -8,7 +8,19 @@
       "Bash(dig *)",
       "Bash(git *)",
       "Bash(gh *)",
-      "Bash(kubectl *)",
+      "Bash(kubectl get *)",
+      "Bash(kubectl describe *)",
+      "Bash(kubectl logs *)",
+      "Bash(kubectl top *)",
+      "Bash(kubectl explain *)",
+      "Bash(kubectl api-resources*)",
+      "Bash(kubectl version*)",
+      "Bash(kubectl config get-contexts*)",
+      "Bash(kubectl config current-context)",
+      "Bash(kubectl config view*)",
+      "Bash(kubectl kustomize *)",
+      "Bash(kubectl diff *)",
+      "Bash(kubectl auth can-i *)",
       "Bash(docker *)",
       "Bash(terraform *)",
       "Bash(gitleaks *)",
@@ -174,6 +186,27 @@
       "Bash(git push)",
       "Bash(git push *)",
       "Bash(gh repo delete*)",
+      "Bash(kubectl apply*)",
+      "Bash(kubectl delete*)",
+      "Bash(kubectl patch*)",
+      "Bash(kubectl rollout*)",
+      "Bash(kubectl create*)",
+      "Bash(kubectl annotate*)",
+      "Bash(kubectl edit*)",
+      "Bash(kubectl scale*)",
+      "Bash(kubectl exec*)",
+      "Bash(kubectl debug*)",
+      "Bash(kubectl run*)",
+      "Bash(kubectl replace*)",
+      "Bash(kubectl set*)",
+      "Bash(kubectl label*)",
+      "Bash(kubectl taint*)",
+      "Bash(kubectl cordon*)",
+      "Bash(kubectl uncordon*)",
+      "Bash(kubectl drain*)",
+      "Bash(kubectl cp*)",
+      "Bash(kubectl expose*)",
+      "Bash(kubectl autoscale*)",
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Edit(**/.env)",
@@ -199,7 +232,6 @@
     "ask": [
       "Bash(terraform apply*)",
       "Bash(terraform destroy*)",
-      "Bash(kubectl delete*)",
       "Bash(gh pr merge*)"
     ],
     "additionalDirectories": []
@@ -213,6 +245,10 @@
           {
             "type": "command",
             "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+|[[:space:]]+-C[[:space:]]+[^[:space:]]+)*[[:space:]]+(commit|push)([[:space:]]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git commit/push sont bloqués par la configuration (settings.json)\"}}'; fi"
+          },
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[;&|[:space:]])kubectl[[:space:]]([^;&|]*[[:space:]])?(apply|delete|patch|rollout|create|annotate|edit|scale|exec|debug|run|replace|set|label|taint|cordon|uncordon|drain|cp|expose|autoscale)([[:space:]]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"kubectl est en lecture seule pour l agent : les verbes mutants sont bloqués par la configuration (settings.json)\"}}'; fi"
           }
         ]
       }
@@ -246,18 +282,14 @@
     "allowUnsandboxedCommands": false,
     "network": {
       "allowedDomains": [
-        "kevindb.dev",
-        "*.kevindb.dev",
         "github.com",
         "*.github.com",
         "*.githubusercontent.com",
         "registry.npmjs.org",
         "releases.hashicorp.com",
         "registry.terraform.io",
-        "api.hetzner.cloud",
         "localhost",
-        "127.0.0.1",
-        "10.8.0.1"
+        "127.0.0.1"
       ],
       "allowLocalBinding": true
     },
