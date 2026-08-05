@@ -92,18 +92,38 @@ link_shared_configs() {
     link_with_backup "$config_dir/ai-tools" "$HOME/.config/ai-tools"
   fi
 
-  # Local AI tooling commands → ~/.local/bin/ (already on PATH via .zshrc).
-  # $config_dir is <repo>/config, so the scripts live one level up.
-  local ai_dir="$config_dir/../scripts/ai"
-  if [ -d "$ai_dir" ]; then
+  # Local tooling commands → ~/.local/bin/ (already on PATH via .zshrc).
+  # $config_dir is <repo>/config, so the scripts live one level up. Every
+  # scripts/<domain>/ directory is linked, so adding a domain needs no edit here.
+  local scripts_dir="$config_dir/../scripts"
+  if [ -d "$scripts_dir" ]; then
     mkdir -p "$HOME/.local/bin"
-    for item in "$ai_dir/"*; do
-      case "$item" in
-        *.md) continue ;;
-      esac
+    for domain in "$scripts_dir"/*/; do
+      [ -d "$domain" ] || continue
+      for item in "$domain"*; do
+        case "$item" in
+          *.md) continue ;;
+        esac
+        [ -f "$item" ] || continue
+        chmod +x "$item"
+        link_with_backup "$item" "$HOME/.local/bin/$(basename "$item")"
+      done
+    done
+  fi
+
+  # Ollama server config → ~/.config/ollama/ (read by scripts/ollama/*)
+  if [ -d "$config_dir/ollama" ]; then
+    link_with_backup "$config_dir/ollama" "$HOME/.config/ollama"
+  fi
+
+  # Ollama LaunchAgent → ~/Library/LaunchAgents/ (macOS only).
+  # This is what makes the OLLAMA_* settings survive a reboot: `launchctl setenv`
+  # run by hand is session-scoped and lost. See config/ollama/README.md.
+  if [ "$(uname -s)" = "Darwin" ] && [ -d "$config_dir/ollama/launchd" ]; then
+    mkdir -p "$HOME/Library/LaunchAgents"
+    for item in "$config_dir/ollama/launchd/"*.plist; do
       [ -f "$item" ] || continue
-      chmod +x "$item"
-      link_with_backup "$item" "$HOME/.local/bin/$(basename "$item")"
+      link_with_backup "$item" "$HOME/Library/LaunchAgents/$(basename "$item")"
     done
   fi
 }

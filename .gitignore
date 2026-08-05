@@ -6,6 +6,22 @@ env.local.sh
 # Local, unversioned SSH host drop-ins (github accounts, infra IPs, …)
 config/ssh/config.d/
 
+# Ollama: never version the local state. config/ollama/ records *which* models
+# to restore, never their bytes (~/.ollama/models is 14 GB) and never the
+# per-machine identity key. Defence in depth — nothing here should ever be
+# copied into the repo in the first place.
+.ollama/
+id_ed25519
+id_rsa
+id_ecdsa
+
+# Private key material of any kind. id_*.pub is public and deliberately absent
+# from this list.
+*.pem
+*.key
+*.p12
+*.pfx
+
 # macOS
 .DS_Store
 .claude/

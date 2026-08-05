@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Replays the OLLAMA_* values from config/ollama/env.sh through
+       `launchctl setenv` at every login. Without an agent, a setenv run by hand
+       is session-scoped and lost at reboot, and the Ollama menu-bar app silently
+       falls back to its defaults.
+
+       Label: `local.` rather than a personal reverse-DNS domain. Apple's
+       convention is a domain you own, but this repo is meant to be forked —
+       baking in an author's name leaves it in every forker's `launchctl list`.
+       `local.` claims no domain and stays correct for anyone. -->
+  <key>Label</key>
+  <string>local.ollama-env</string>
+
+  <!-- Wrapped in /bin/sh because launchd expands neither ~ nor $HOME inside
+       ProgramArguments; sh does. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>exec "$HOME/.local/bin/ollama-setenv"</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- One-shot: it sets variables and exits. Without this, launchd reads the
+       exit as a crash and restarts it in a loop. -->
+  <key>KeepAlive</key>
+  <false/>
+
+  <!-- Deliberately no StandardOutPath / StandardErrorPath. Those keys do not
+       expand $HOME, which would force a world-writable /tmp path — shared
+       between accounts on a multi-user machine, and pre-emptible by a symlink
+       planted there. `ollama-setenv` writes its own log under
+       $XDG_STATE_HOME instead, which is per-user. -->
+</dict>
+</plist>

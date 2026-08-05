@@ -1,0 +1,15 @@
+# models.txt — models restored by `ollama-bootstrap` on a fresh machine.
+#
+# One fully pinned tag per line. A tag without its size (`qwen3.5` instead of
+# `qwen3.5:9b`) resolves to whatever `latest` points at on the day it runs, which
+# is not reproducible six months out.
+#
+# `#` starts a comment; blank lines are ignored.
+#
+# Sizes below are the on-disk footprint reported by `ollama list`, and matter:
+# this machine has 16 GB of unified memory, ~10.6 GB of which is usable as VRAM.
+# See config/ai-tools/README.md for how the AI tooling picks among these.
+
+qwen3.5:9b            # main model — ai commit, ai ask, ai explain  (6.6 GB)
+qwen3.5:4b            # fast model — quick tasks                     (3.4 GB)
+qwen2.5-coder:7b      # fallback, kept while qwen3.5 proves itself   (4.7 GB)
