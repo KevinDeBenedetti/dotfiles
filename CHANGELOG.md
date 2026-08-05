@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.2.1...v0.3.0) (2026-08-05)
+
+
+### Features
+
+* **ai-tools:** introduce AI tool configuration and model selection logic ([7d8db2e](https://github.com/KevinDeBenedetti/dotfiles/commit/7d8db2efd951a3104a6914f1120d4a9bb712601a))
+
 ## [0.2.1](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.2.0...v0.2.1) (2026-07-04)
 
 
