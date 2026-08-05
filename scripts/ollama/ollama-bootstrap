@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ollama-bootstrap — restore the models and Modelfiles listed in
+# config/ollama/ on a machine that already has Ollama installed.
+#
+# Idempotent: `ollama pull` skips blobs already on disk, and `ollama create`
+# rebuilds a model from its Modelfile without side effects. Safe to re-run.
+#
+# This pulls several GB. Use --dry-run first.
+
+usage() {
+  cat <<EOF
+ollama-bootstrap — pull the models listed in models.txt and build the Modelfiles
+
+Usage: ollama-bootstrap [--dry-run]
+
+  -n, --dry-run   Show what would be pulled and built, download nothing.
+  -h, --help      Show this help.
+EOF
+}
+
+DRY_RUN=false
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -n | --dry-run) DRY_RUN=true; shift ;;
+    -h | --help)    usage; exit 0 ;;
+    *) printf 'error: unknown argument: %s\n\n' "$1" >&2; usage >&2; exit 1 ;;
+  esac
+done
+
+# Resolve paths against the script, never the caller's cwd — this runs from
+# anywhere, and via a symlink in ~/.local/bin.
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+  SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+CONFIG_DIR="$(cd "$SCRIPT_DIR/../../config/ollama" && pwd)"
+
+MODELS_FILE="$CONFIG_DIR/models.txt"
+MODELFILES_DIR="$CONFIG_DIR/modelfiles"
+OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
+case "$OLLAMA_API" in http*) ;; *) OLLAMA_API="http://$OLLAMA_API" ;; esac
+
+# ── Preflight ────────────────────────────────────────────────────────────────
+
+if ! command -v ollama >/dev/null 2>&1; then
+  printf 'error: ollama is not on PATH.\n' >&2
+  printf 'Install it first:  brew install --cask ollama-app\n' >&2
+  exit 1
+fi
+
+if ! curl -sf --max-time 5 "$OLLAMA_API/api/version" >/dev/null 2>&1; then
+  printf 'error: the Ollama daemon is not answering at %s\n' "$OLLAMA_API" >&2
+  printf 'Start Ollama.app (menu bar), or run `ollama serve`, then retry.\n' >&2
+  exit 1
+fi
+
+if [ ! -f "$MODELS_FILE" ]; then
+  printf 'error: %s not found\n' "$MODELS_FILE" >&2
+  exit 1
+fi
+
+# ── Models ───────────────────────────────────────────────────────────────────
+
+pulled=0 built=0 failed=0
+
+printf '── Models ─────────────────────────────────────────────\n'
+while IFS= read -r line; do
+  # Strip comments (whole-line and trailing) and surrounding whitespace.
+  tag="${line%%#*}"
+  tag="$(printf '%s' "$tag" | tr -d '[:space:]')"
+  [ -n "$tag" ] || continue
+
+  if [ "$DRY_RUN" = true ]; then
+    printf '  would pull  %s\n' "$tag"
+  else
+    printf '  pulling     %s\n' "$tag"
+    if ollama pull "$tag"; then
+      pulled=$((pulled + 1))
+    else
+      printf '  FAILED      %s\n' "$tag" >&2
+      failed=$((failed + 1))
+    fi
+  fi
+done < "$MODELS_FILE"
+
+# ── Modelfiles ───────────────────────────────────────────────────────────────
+
+printf '\n── Modelfiles ─────────────────────────────────────────\n'
+shopt -s nullglob
+modelfiles=("$MODELFILES_DIR"/*.Modelfile)
+shopt -u nullglob
+
+if [ "${#modelfiles[@]}" -eq 0 ]; then
+  printf '  none\n'
+else
+  for f in "${modelfiles[@]}"; do
+    name="$(basename "$f" .Modelfile)"
+    if [ "$DRY_RUN" = true ]; then
+      printf '  would build %s  (from %s)\n' "$name" "$(basename "$f")"
+    else
+      printf '  building    %s\n' "$name"
+      if ollama create "$name" -f "$f"; then
+        built=$((built + 1))
+      else
+        printf '  FAILED      %s\n' "$name" >&2
+        failed=$((failed + 1))
+      fi
+    fi
+  done
+fi
+
+# ── Summary ──────────────────────────────────────────────────────────────────
+
+printf '\n── Summary ────────────────────────────────────────────\n'
+if [ "$DRY_RUN" = true ]; then
+  printf '  dry run — nothing downloaded or built.\n'
+  printf '  Re-run without --dry-run to apply.\n'
+  exit 0
+fi
+
+printf '  models pulled : %d\n' "$pulled"
+printf '  models built  : %d\n' "$built"
+printf '  failures      : %d\n' "$failed"
+
+[ "$failed" -eq 0 ] || exit 1
