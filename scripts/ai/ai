@@ -19,6 +19,7 @@ Commands:
   explain <file>     Explain what a file does
   ask "<question>"   Ask the model a one-off question
   test-api           Smoke-test an OpenAI-compatible API from the local .env
+  models             Show which model is selected, and what Ollama has installed
   help               Show this help
 
 Examples:
@@ -29,8 +30,20 @@ Examples:
 
 Configuration (override via environment):
   AI_HOST=$AI_HOST
-  AI_MODEL=$AI_MODEL
-  AI_MODEL_FAST=$AI_MODEL_FAST
+  AI_MODELS=${AI_MODELS:-<empty: automatic selection>}
+  AI_MAX_MODEL_GB=$AI_MAX_MODEL_GB
+  AI_NUM_CTX=$AI_NUM_CTX
+  AI_TEMPERATURE=$AI_TEMPERATURE
+  AI_PRESENCE_PENALTY=$AI_PRESENCE_PENALTY
+
+No model is hardcoded. AI_MODELS is an ordered preference list — set it in the
+untracked ~/.config/dotfiles/env.local.sh, e.g.
+
+  export AI_MODELS="qwen3.5:9b qwen2.5-coder:7b"
+
+Left empty, the largest installed model that can generate and fits
+AI_MAX_MODEL_GB is used. Reasoning support is read from the model's own
+capabilities. \`ai models\` shows the outcome.
 EOF
 }
 
@@ -46,7 +59,20 @@ case "$cmd" in
       printf 'error: ask requires a question\n' >&2
       exit 1
     fi
-    ai_run "$AI_MODEL" "$*"
+    ai_run "$*"
+    ;;
+  models)
+    # Selection is otherwise invisible: it happens inside ai_run, at call time.
+    if _ai_resolve; then
+      printf 'model      %s\n' "$AI_MODEL"
+      printf 'fast       %s\n' "$AI_MODEL_FAST"
+      printf 'think      %s\n' "${AI_THINK:-<omitted from payload>}"
+      printf 'chosen by  %s\n' "$AI_SELECTED_BY"
+    fi
+    printf '\ninstalled:\n'
+    _ai_model_list | while IFS="$(printf '\t')" read -r size name; do
+      printf '  %-28s %s GB\n' "$name" "$(( size / 1000000000 ))"
+    done
     ;;
   help | -h | --help) usage ;;
   *)

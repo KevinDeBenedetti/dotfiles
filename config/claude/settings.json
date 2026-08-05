@@ -236,7 +236,6 @@
     ],
     "additionalDirectories": []
   },
-  "model": "claude-fable-5[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -249,6 +248,15 @@
           {
             "type": "command",
             "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[;&|[:space:]])kubectl[[:space:]]([^;&|]*[[:space:]])?(apply|delete|patch|rollout|create|annotate|edit|scale|exec|debug|run|replace|set|label|taint|cordon|uncordon|drain|cp|expose|autoscale)([[:space:]]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"kubectl est en lecture seule pour l agent : les verbes mutants sont bloqués par la configuration (settings.json)\"}}'; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
           }
         ]
       }
@@ -294,6 +302,9 @@
       "allowLocalBinding": true
     },
     "filesystem": {
+      "allowWrite": [
+        "~/Library/Application Support/rtk/**"
+      ],
       "denyWrite": [
         "**/.env",
         "**/.env.*",
@@ -322,5 +333,8 @@
       ]
     }
   },
-  "theme": "dark"
+  "theme": "dark",
+  "switchModelsOnFlag": true,
+  "effortLevel": "high",
+  "model": "sonnet"
 }

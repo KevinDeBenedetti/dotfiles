@@ -29,17 +29,30 @@ setup() {
 
   # Stub curl: record that it was hit, capture the JSON payload (the `-d` arg, so
   # the prompt can be inspected), and return a fixed Ollama-shaped response.
+  # /api/tags is answered separately — profile resolution consults it before any
+  # generation, and must find the profile's model listed for the run to proceed.
   export CURL_MARKER="$BATS_TEST_TMPDIR/curl_called"
   export AI_PAYLOAD_FILE="$BATS_TEST_TMPDIR/curl_payload"
   export AI_RESPONSE='{"response":"feat: ajout X"}'
+  export AI_TAGS='{"models":[{"name":"test-model:9b","size":6600000000}]}'
+  export AI_CAPS='{"capabilities":["completion","thinking"]}'
   curl() {
     : > "$CURL_MARKER"
-    local prev=""
+    local arg prev="" url="" body=""
     for arg in "$@"; do
-      [ "$prev" = "-d" ] && printf '%s' "$arg" > "$AI_PAYLOAD_FILE"
+      [ "$prev" = "-d" ] && body="$arg"
+      case "$arg" in http*) url="$arg" ;; esac
       prev="$arg"
     done
-    printf '%s' "$AI_RESPONSE"
+    case "$url" in
+      */api/tags) printf '%s' "$AI_TAGS" ;;
+      */api/show) printf '%s' "$AI_CAPS" ;;
+      *)
+        # Only the generation body is worth capturing for prompt assertions.
+        printf '%s' "$body" > "$AI_PAYLOAD_FILE"
+        printf '%s' "$AI_RESPONSE"
+        ;;
+    esac
   }
   export -f curl
 }

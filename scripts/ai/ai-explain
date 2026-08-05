@@ -44,4 +44,4 @@ $content
 EOF
 )"
 
-ai_run "$AI_MODEL" "$prompt"
+ai_run "$prompt"

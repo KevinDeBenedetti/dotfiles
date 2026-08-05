@@ -91,7 +91,7 @@ $diff
 EOF
 )"
 
-  msg="$(ai_run "$AI_MODEL" "$prompt")" || return 1
+  msg="$(ai_run "$prompt")" || return 1
   # Drop any stray Markdown code-fence lines the model may have added.
   printf '%s\n' "$msg" | grep -v '^[[:space:]]*```' || true
 }
