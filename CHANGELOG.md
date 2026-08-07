@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.3.0...v0.4.0) (2026-08-07)
+
+
+### Features
+
+* **config:** add reproducible Ollama configuration and bootstrap scripts ([5662277](https://github.com/KevinDeBenedetti/dotfiles/commit/5662277541b0f53271097110c7e3e22b0020e019))
+
 ## [0.3.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.2.1...v0.3.0) (2026-08-05)
 
 
