@@ -45,18 +45,13 @@ VS Code settings, recommended extensions, and MCP server configuration.
 | Markdown   | Markdown All in One |
 | YAML       | Red Hat YAML        |
 
-### GitHub Copilot
-
-Copilot is enabled for all file types except plain text and SCM input. Custom instruction
-files are loaded for commit messages, pull request descriptions, and code reviews from
-`~/.config/dotfiles/copilot/instructions/`.
-
 ## Extensions
 
 | Extension                                     | Category       |
 | --------------------------------------------- | -------------- |
 | `mechatroner.rainbow-csv`                     | CSV            |
 | `ms-vscode-remote.remote-containers`          | Remote         |
+| `coder.coder-remote`                          | Remote         |
 | `ms-vsliveshare.vsliveshare`                  | Collaboration  |
 | `oderwat.indent-rainbow`                      | General        |
 | `pflannery.vscode-versionlens`                | General        |
@@ -76,9 +71,9 @@ files are loaded for commit messages, pull request descriptions, and code review
 
 ## MCP servers
 
-| Server     | Type | Description                                                 |
-| ---------- | ---- | ----------------------------------------------------------- |
-| `github`   | HTTP | GitHub Copilot MCP (`https://api.githubcopilot.com/mcp/`)   |
-| `context7` | HTTP | Context7 documentation API (`https://mcp.context7.com/mcp`) |
+| Server     | Type  | Description                                                 |
+| ---------- | ----- | ----------------------------------------------------------- |
+| `context7` | HTTP  | Context7 documentation API (`https://mcp.context7.com/mcp`) |
+| `shadcn`   | stdio | shadcn/ui component registry (`npx shadcn@4.11.0 mcp`)      |
 
 The `CONTEXT7_API_KEY` for the Context7 server is read from the environment variable set in `env.sh` / `env.local.sh`.

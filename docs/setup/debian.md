@@ -235,6 +235,13 @@ Running `-d` symlinks (or copies) config files from the repository into `$HOME`.
 | `config/proto/.prototools`     | `~/.proto/.prototools`              | symlink                          |
 | `config/oh-my-zsh/*.zsh-theme` | `~/.oh-my-zsh/custom/themes/`       | symlink                          |
 | `config/shell/*`               | `~/.config/dotfiles/`               | symlink                          |
+| `config/git/ignore`            | `~/.config/git/ignore`              | symlink                          |
+| `config/ssh/config`            | `~/.ssh/config`                     | symlink                          |
+| `config/claude/settings.json`  | `~/.claude/settings.json`           | symlink                          |
+| `config/claude/commands/*`     | `~/.claude/commands/`               | symlink                          |
+| `config/ai-tools/`             | `~/.config/ai-tools`                | symlink                          |
+| `config/ollama/`               | `~/.config/ollama`                  | symlink                          |
+| `scripts/*/` (executables)     | `~/.local/bin/`                     | symlink                          |
 | `config/vscode/settings.json`  | `~/.config/Code/User/settings.json` | symlink (if `code` is available) |
 | `config/vscode/mcp.json`       | `~/.config/Code/User/mcp.json`      | symlink (if `code` is available) |
 

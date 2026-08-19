@@ -15,8 +15,7 @@ install_additional_setup() {
   # Install homebrew graphic app packages
   printf '%b' "\n\n${red}[ai] =>${no_color} Install homebrew packages (graphic)\n\n"
   brew install --cask \
-    ollama \
-    copilot-cli
+    ollama
 }
 
 

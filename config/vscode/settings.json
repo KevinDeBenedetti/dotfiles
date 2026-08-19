@@ -115,37 +115,6 @@
   // markdown preview
   "markdown-preview-enhanced.previewTheme": "github-dark.css",
   "markdown-preview-enhanced.codeBlockTheme": "github-dark.css",
-  // copilot
-  "github.copilot.chat.agent.autoFix": true,
-  "github.copilot.chat.reviewAgent.enabled": true,
-  "github.copilot.chat.agent.thinkingTool": true,
-  "github.copilot.chat.editor.temporalContext.enabled": true,
-  "github.copilot.chat.edits.temporalContext.enabled": true,
-  "github.copilot.chat.languageContext.fix.typescript.enabled": true,
-  "github.copilot.chat.languageContext.inline.typescript.enabled": true,
-  "github.copilot.chat.languageContext.typescript.enabled": true,
-  "github.copilot.editor.enableCodeActions": false,
-  "github.copilot.chat.commitMessageGeneration.instructions": [
-    {
-      "file": "${userHome}/.config/dotfiles/copilot/instructions/commit-message.md"
-    },
-  ],
-  "github.copilot.chat.pullRequestDescriptionGeneration.instructions":[
-    {
-      "file": "${userHome}/.config/dotfiles/copilot/instructions/pull-request.md"
-    },
-  ],
-  "github.copilot.chat.reviewSelection.instructions": [
-    {
-      "file": "${userHome}/.config/dotfiles/copilot/instructions/code-review.md"
-    },
-  ],
-  "github.copilot.enable": {
-    "*": true,
-    "markdown": true,
-    "plaintext": false,
-    "scminput": false
-  },
   "chat.agent.maxRequests": 100,
   "chat.tools.edits.autoApprove": {
     "**/*": true,
@@ -302,10 +271,10 @@
     }
   },
   "terminal.integrated.enableMultiLinePasteWarning": "never",
-  "github.copilot.nextEditSuggestions.eagerness": "low",
   "claudeCode.preferredLocation": "panel",
   "claudeCode.useTerminal": true,
   "extensions.ignoreRecommendations": true,
   "sonarlint.automaticAnalysis": false,
-  "chat.disableAIFeatures": true
+  "chat.disableAIFeatures": true,
+  "makefile.configureOnOpen": false
 }

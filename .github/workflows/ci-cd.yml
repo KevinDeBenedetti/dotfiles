@@ -42,13 +42,13 @@ jobs:
       actions: read
       security-events: write
       pull-requests: read
-    with:
-      run-node-audit: false # no Node.js project
-      run-codeql: false     # shell scripts are not supported by CodeQL
     # No `secrets:` block (least privilege): security.yml declares no
     # workflow_call secrets and uses only the auto-provided GITHUB_TOKEN, so
     # there is nothing to inherit. Re-add an explicit allow-list only if the
     # reusable workflow starts requiring a passed secret.
+    with:
+      run-node-audit: false # no Node.js project
+      run-codeql: false     # shell scripts are not supported by CodeQL
 
   bot-check:
     if: github.event_name == 'pull_request'

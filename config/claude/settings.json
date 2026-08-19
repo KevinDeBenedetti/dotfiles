@@ -236,6 +236,7 @@
     ],
     "additionalDirectories": []
   },
+  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
@@ -333,8 +334,9 @@
       ]
     }
   },
+  "effortLevel": "high",
   "theme": "dark",
   "switchModelsOnFlag": true,
-  "effortLevel": "high",
-  "model": "sonnet"
+  "remoteControlAtStartup": true,
+  "agentPushNotifEnabled": true
 }

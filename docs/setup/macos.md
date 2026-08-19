@@ -132,7 +132,6 @@ Full mode only.
 | Tool                           | Description                       |
 | ------------------------------ | --------------------------------- |
 | [`ollama`](https://ollama.com) | Run large language models locally |
-| `copilot-cli`                  | GitHub Copilot for the CLI        |
 
 ### `extras`
 
@@ -146,15 +145,23 @@ Personal applications.
 
 Running `-d` symlinks (or copies) config files from the repository into `$HOME`. Any existing file is backed up with a datestamp (e.g. `~/.zshrc.bak.20260311`) before being replaced.
 
-| Source                         | Target                                                  | Method  |
-| ------------------------------ | ------------------------------------------------------- | ------- |
-| `config/zsh/.zshrc`            | `~/.zshrc`                                              | copy¹   |
-| `config/git/.gitconfig`        | `~/.gitconfig`                                          | symlink |
-| `config/proto/.prototools`     | `~/.proto/.prototools`                                  | symlink |
-| `config/oh-my-zsh/*.zsh-theme` | `~/.oh-my-zsh/custom/themes/`                           | symlink |
-| `config/shell/*`               | `~/.config/dotfiles/`                                   | symlink |
-| `config/vscode/settings.json`  | `~/Library/Application Support/Code/User/settings.json` | symlink |
-| `config/vscode/mcp.json`       | `~/Library/Application Support/Code/User/mcp.json`      | symlink |
+| Source                          | Target                                                  | Method  |
+| ------------------------------- | ------------------------------------------------------- | ------- |
+| `config/zsh/.zshrc`             | `~/.zshrc`                                              | copy¹   |
+| `config/git/.gitconfig`         | `~/.gitconfig`                                          | symlink |
+| `config/proto/.prototools`      | `~/.proto/.prototools`                                  | symlink |
+| `config/oh-my-zsh/*.zsh-theme`  | `~/.oh-my-zsh/custom/themes/`                           | symlink |
+| `config/shell/*`                | `~/.config/dotfiles/`                                   | symlink |
+| `config/git/ignore`             | `~/.config/git/ignore`                                  | symlink |
+| `config/ssh/config`             | `~/.ssh/config`                                         | symlink |
+| `config/claude/settings.json`   | `~/.claude/settings.json`                               | symlink |
+| `config/claude/commands/*`      | `~/.claude/commands/`                                   | symlink |
+| `config/ai-tools/`              | `~/.config/ai-tools`                                    | symlink |
+| `config/ollama/`                | `~/.config/ollama`                                      | symlink |
+| `scripts/*/` (executables)      | `~/.local/bin/`                                         | symlink |
+| `config/ollama/launchd/*.plist` | `~/Library/LaunchAgents/`                               | symlink |
+| `config/vscode/settings.json`   | `~/Library/Application Support/Code/User/settings.json` | symlink |
+| `config/vscode/mcp.json`        | `~/Library/Application Support/Code/User/mcp.json`      | symlink |
 
 > ¹ `.zshrc` is copied rather than symlinked because the init script applies macOS-specific patches: `gsed` alias and Homebrew paths for Apple Silicon (`/opt/homebrew`).
 

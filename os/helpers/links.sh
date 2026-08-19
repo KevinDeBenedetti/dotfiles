@@ -78,15 +78,6 @@ link_shared_configs() {
     done
   fi
 
-  # Claude Code global skills → ~/.claude/skills/ (one symlink per skill dir)
-  if [ -d "$config_dir/claude/skills" ]; then
-    mkdir -p "$HOME/.claude/skills"
-    for item in "$config_dir/claude/skills/"*; do
-      [ -d "$item" ] || continue
-      link_with_backup "$item" "$HOME/.claude/skills/$(basename "$item")"
-    done
-  fi
-
   # Local AI tooling config → ~/.config/ai-tools/ (sourced by scripts/ai/*)
   if [ -d "$config_dir/ai-tools" ]; then
     link_with_backup "$config_dir/ai-tools" "$HOME/.config/ai-tools"
