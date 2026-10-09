@@ -236,7 +236,6 @@
     ],
     "additionalDirectories": []
   },
-  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {
@@ -346,5 +345,6 @@
   "theme": "dark",
   "switchModelsOnFlag": true,
   "remoteControlAtStartup": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "model": "sonnet"
 }
