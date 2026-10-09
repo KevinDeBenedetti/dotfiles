@@ -236,7 +236,7 @@
     ],
     "additionalDirectories": []
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {
@@ -335,6 +335,14 @@
     }
   },
   "effortLevel": "high",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "medium"
+    },
+    "claude-sonnet-5-5": {
+      "effortLevel": "medium"
+    }
+  },
   "theme": "dark",
   "switchModelsOnFlag": true,
   "remoteControlAtStartup": true,

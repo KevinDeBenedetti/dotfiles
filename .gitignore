@@ -26,3 +26,6 @@ id_ecdsa
 .DS_Store
 .claude/
 TODO.md
+
+config/git/gitconfig-perso
+config/git/gitconfig-pro

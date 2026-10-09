@@ -276,5 +276,6 @@
   "extensions.ignoreRecommendations": true,
   "sonarlint.automaticAnalysis": false,
   "chat.disableAIFeatures": true,
-  "makefile.configureOnOpen": false
+  "makefile.configureOnOpen": false,
+  "claudeCode.hideOnboarding": true
 }

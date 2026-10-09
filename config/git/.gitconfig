@@ -1,3 +1,5 @@
+[user]
+	useConfigOnly = true
 [push]
 	default = simple
 [status]
@@ -7,9 +9,6 @@
 	tool = meld
 [branch]
 	autosetuprebase = always
-	rebase = merges
-[credential]
-	helper = cache --timeout=3600
 [color]
 	ui = true
 [rerere]
@@ -18,6 +17,8 @@
 	defaultBranch = main
 [pull]
 	rebase = true
+
+# Signature SSH
 [commit]
 	gpgsign = true
 [tag]
@@ -26,17 +27,24 @@
 	format = ssh
 [gpg "ssh"]
 	allowedSignersFile = ~/.ssh/allowed_signers
-[user]
-	email = contact@kevindb.dev
-	name = KevinDeBenedetti
-	signingkey = ~/.ssh/id_rsa.pub
 
-# Machine-specific overrides (user.email, user.signingkey, etc.) — not tracked by git
-# Create ~/.gitconfig.local with your local [user] or any other section to override.
+# Authentification HTTPS via GCM
+[credential]
+	helper =
+	helper = manager
+[credential "https://dev.azure.com"]
+	useHttpPath = true
+
+# Les remotes SSH existantes passent en HTTPS (donc par GCM)
+[url "https://github.com/"]
+	insteadOf = git@github.com:
+
+# Overrides propres à la machine (non versionnés)
 [include]
 	path = ~/.gitconfig.local
 
-[includeIf "gitdir:~/dev/"]
-  path = ~/.gitconfig-perso
-[includeIf "gitdir:~/pro/"]
-  path = ~/.gitconfig-pro
+# Identité par dossier : en dernier pour écraser le reste
+[includeIf "gitdir/i:~/dev/"]
+	path = ~/.gitconfig-perso
+[includeIf "gitdir/i:~/pro/"]
+	path = ~/.gitconfig-pro

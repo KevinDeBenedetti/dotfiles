@@ -183,7 +183,7 @@ _cleanmac_path() {
 
 cleanmac() {
 	case "$1" in
-	-h | --help | "")
+	-h | --help)
 		printf "Description:\n"
 		printf "  Reclaim disk space on macOS: caches, logs, trash, Homebrew, DNS cache.\n"
 		printf "  Safe by default — shows what would be freed; deletes nothing without --yes.\n\n"
