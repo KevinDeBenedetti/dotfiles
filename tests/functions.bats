@@ -208,10 +208,22 @@ setup() {
   assert_output --partial "Reclaim disk space"
 }
 
-@test "cleanmac with no args prints help (no destructive action)" {
+@test "cleanmac with no args is a dry run (no destructive action)" {
+  if [ "$(uname)" != "Darwin" ]; then
+    skip "cleanmac only runs on macOS"
+  fi
   run cleanmac
   assert_success
-  assert_output --partial "dry run"
+  assert_output --partial "Dry run"
+}
+
+@test "cleanmac refuses to run on non-macOS" {
+  if [ "$(uname)" = "Darwin" ]; then
+    skip "only relevant off macOS"
+  fi
+  run cleanmac
+  assert_failure
+  assert_output --partial "only runs on macOS"
 }
 
 # --- dks ---
