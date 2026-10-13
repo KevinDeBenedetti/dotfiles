@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.4.0...v0.4.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **config/shell:** handle zsh globbing and clear search domains ([540a60a](https://github.com/KevinDeBenedetti/dotfiles/commit/540a60a008e8da85513a351f7b9ae7f6c022f954))
+
 ## [0.4.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.3.0...v0.4.0) (2026-08-07)
 
 
