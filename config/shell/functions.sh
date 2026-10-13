@@ -378,6 +378,8 @@ _vpn_purge_stale_resolvers() {
 	if [ -n "$(sudo wg show interfaces 2>/dev/null)" ]; then
 		return 0 # a tunnel is up; its resolvers are legitimate
 	fi
+	# zsh aborts on an unmatched glob (empty /etc/resolver); expand to nothing.
+	[ -n "${ZSH_VERSION-}" ] && setopt local_options null_glob
 	local r
 	for r in /etc/resolver/*; do
 		[ -e "$r" ] || continue
@@ -444,6 +446,7 @@ vpn() {
 			"" | An\ asterisk* | \** ) continue ;;
 			esac
 			if sudo networksetup -setdnsservers "$svc" "Empty" 2>/dev/null; then
+				sudo networksetup -setsearchdomains "$svc" "Empty" 2>/dev/null
 				echo "  reset DNS for $svc"
 			fi
 		done < <(networksetup -listallnetworkservices 2>/dev/null)
