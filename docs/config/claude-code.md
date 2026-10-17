@@ -52,13 +52,6 @@ plus a `network.allowedDomains` allowlist (see precedence below).
 | Hook           | Purpose                                                            |
 | -------------- | ------------------------------------------------------------------ |
 | `PreToolUse`   | Blocks any `git commit` / `git push` command before it runs        |
-| `Notification` | macOS notification when Claude Code is waiting for input           |
-| `Stop`         | macOS notification when a task finishes                            |
-
-::: warning macOS-specific hooks
-The `Notification` and `Stop` hooks use `osascript`, which only exists on macOS.
-On Linux they fail silently — replace them with `notify-send` if needed.
-:::
 
 ## Settings precedence and the sandbox allowlist
 

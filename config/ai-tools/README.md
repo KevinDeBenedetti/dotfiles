@@ -24,6 +24,9 @@ Override any `AI_*` default via the environment.
 | `AI_MODEL`      | *(selected)*           | Pinning it bypasses selection entirely |
 | `AI_MODEL_FAST` | *(selected)*           | Lighter / faster model |
 | `AI_MAX_DIFF`   | `6000`                 | Max diff **bytes** sent to the model |
+| `AI_COMMIT_BACKEND` | `claude`           | `ai commit` backend: `claude` (one-shot `claude -p`, no local inference) or `ollama` |
+| `AI_CLAUDE_MODEL` | `haiku`              | Model used by the `claude` backend |
+| `AI_CLAUDE_MAX_DIFF` | `20000`           | Max diff bytes for the `claude` backend (replaces `AI_MAX_DIFF`) |
 | `AI_TIMEOUT`    | `120`                  | `curl --max-time`, in seconds |
 | `AI_NUM_CTX`    | `16384`                | Context window in **tokens** (`options.num_ctx`) |
 | `AI_TEMPERATURE`| `0.3`                  | Sampling temperature |

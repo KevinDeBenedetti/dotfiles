@@ -178,7 +178,11 @@
       "WebFetch(domain:golang.org)",
       "WebFetch(domain:go.uber.org)",
       "WebFetch(domain:gopkg.in)",
-      "WebFetch(domain:filippo.io)"
+      "WebFetch(domain:filippo.io)",
+      "Read(.claude/skills/**)",
+      "Edit(.claude/skills/**)",
+      "Read(~/.claude/skills/**)",
+      "Edit(~/.claude/skills/**)"
     ],
     "deny": [
       "Bash(git commit)",
@@ -208,11 +212,14 @@
       "Bash(kubectl expose*)",
       "Bash(kubectl autoscale*)",
       "Read(**/.env)",
-      "Read(**/.env.*)",
+      "Read(**/.env.local)",
+      "Read(**/.env.production)",
       "Edit(**/.env)",
-      "Edit(**/.env.*)",
+      "Edit(**/.env.local)",
+      "Edit(**/.env.production)",
       "Write(**/.env)",
-      "Write(**/.env.*)",
+      "Write(**/.env.local)",
+      "Write(**/.env.production)",
       "Read(**/*.env)",
       "Edit(**/*.env)",
       "Write(**/*.env)",
@@ -236,6 +243,7 @@
     ],
     "additionalDirectories": []
   },
+  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
@@ -260,29 +268,18 @@
           }
         ]
       }
-    ],
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "terminal-notifier -title \"Claude Code — $(basename \"$(git rev-parse --show-toplevel 2>/dev/null || echo \"$PWD\")\")\" -message \"Question en attente\" -sound Glass -activate com.microsoft.VSCode"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "terminal-notifier -title \"Claude Code — $(basename \"$(git rev-parse --show-toplevel 2>/dev/null || echo \"$PWD\")\")\" -message \"Tâche terminée\" -sound Hero -activate com.microsoft.VSCode"
-          }
-        ]
-      }
     ]
+  },
+  "enabledPlugins": {
+    "ecc@ecc": true
+  },
+  "extraKnownMarketplaces": {
+    "ecc": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/affaan-m/ECC.git"
+      }
+    }
   },
   "sandbox": {
     "enabled": true,
@@ -296,6 +293,13 @@
         "registry.npmjs.org",
         "releases.hashicorp.com",
         "registry.terraform.io",
+        "ghcr.io",
+        "quay.io",
+        "gcr.io",
+        "registry-1.docker.io",
+        "auth.docker.io",
+        "index.docker.io",
+        "production.cloudflare.docker.com",
         "localhost",
         "127.0.0.1"
       ],
@@ -303,11 +307,13 @@
     },
     "filesystem": {
       "allowWrite": [
-        "~/Library/Application Support/rtk/**"
+        "~/Library/Application Support/rtk/**",
+        "~/dev/infra"
       ],
       "denyWrite": [
         "**/.env",
-        "**/.env.*",
+        "**/.env.local",
+        "**/.env.production",
         "**/*.env",
         "~/.ssh/**",
         "~/.aws/**",
@@ -316,7 +322,8 @@
       ],
       "denyRead": [
         "**/.env",
-        "**/.env.*",
+        "**/.env.local",
+        "**/.env.production",
         "**/*.env",
         "~/.ssh/id_*",
         "~/.aws/**",
@@ -346,5 +353,11 @@
   "switchModelsOnFlag": true,
   "remoteControlAtStartup": true,
   "agentPushNotifEnabled": true,
-  "model": "sonnet"
+  "pluginConfigs": {
+    "ecc@ecc": {
+      "options": {
+        "hooks_enabled": true
+      }
+    }
+  }
 }

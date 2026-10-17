@@ -55,6 +55,9 @@ setup() {
     esac
   }
   export -f curl
+
+  # Existing tests exercise the Ollama path; the claude backend has its own below.
+  export AI_COMMIT_BACKEND=ollama
 }
 
 @test "git-aicommit fails when nothing is staged" {
@@ -95,4 +98,26 @@ setup() {
   assert_output --partial 'fix'
   assert_output --partial 'perf'
   assert_output --partial "NEVER use 'refactor'"
+}
+
+@test "git-aicommit claude backend pipes the prompt to a tool-less haiku call" {
+  echo "content" > file.txt
+  git add file.txt
+
+  export AI_COMMIT_BACKEND=claude
+  export CLAUDE_ARGS_FILE="$BATS_TEST_TMPDIR/claude_args"
+  claude() { printf '%s\n' "$*" > "$CLAUDE_ARGS_FILE"; cat > /dev/null; printf 'feat: via claude'; }
+  export -f claude
+
+  run bash "$SCRIPT" --yes
+  assert_success
+
+  run git log -1 --pretty=%s
+  assert_output "feat: via claude"
+
+  run cat "$CLAUDE_ARGS_FILE"
+  assert_output --partial "--model haiku"
+  assert_output --partial "--no-session-persistence"
+  # Ollama must not be touched.
+  assert [ ! -f "$CURL_MARKER" ]
 }

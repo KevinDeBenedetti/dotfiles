@@ -2,8 +2,13 @@
 set -euo pipefail
 
 # git-aicommit — generate a Conventional Commits message from the staged diff
-# (via the local AI tooling / Ollama) and optionally create the commit.
-# Usable as `git aicommit` once on $PATH.
+# and optionally create the commit. Usable as `git aicommit` once on $PATH.
+#
+# Backend (AI_COMMIT_BACKEND):
+#   claude (default) — one-shot `claude -p` on Haiku: no tools, no session, a
+#                      bounded diff, so it is cheap in tokens and runs nothing
+#                      locally (no heat).
+#   ollama           — the local model via the ai-tools HTTP helpers.
 
 # shellcheck source=../../config/ai-tools/config.sh
 source "${XDG_CONFIG_HOME:-$HOME/.config}/ai-tools/config.sh"
@@ -22,9 +27,25 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-ai_require_deps || exit 1
+: "${AI_COMMIT_BACKEND:=claude}"
+: "${AI_CLAUDE_MODEL:=haiku}"
+: "${AI_CLAUDE_MAX_DIFF:=20000}"
 
-diff="$(git diff --staged)"
+case "$AI_COMMIT_BACKEND" in
+  claude)
+    command -v claude >/dev/null 2>&1 || { printf 'error: claude CLI not found\n' >&2; exit 1; }
+    AI_MAX_DIFF="$AI_CLAUDE_MAX_DIFF"
+    # Minimal context lines + no lockfiles: smaller prompt, same information.
+    diff_args=(-U1 -- . ':(exclude)*.lock' ':(exclude)*lock.json' ':(exclude)*lock.yaml')
+    ;;
+  ollama)
+    ai_require_deps || exit 1
+    diff_args=()
+    ;;
+  *) printf 'error: unknown AI_COMMIT_BACKEND: %s (claude|ollama)\n' "$AI_COMMIT_BACKEND" >&2; exit 1 ;;
+esac
+
+diff="$(git diff --staged ${diff_args[@]+"${diff_args[@]}"})"
 if [ -z "$diff" ]; then
   printf 'error: no staged changes. Stage something with `git add` first.\n' >&2
   exit 1
@@ -91,7 +112,12 @@ $diff
 EOF
 )"
 
-  msg="$(ai_run "$prompt")" || return 1
+  if [ "$AI_COMMIT_BACKEND" = claude ]; then
+    msg="$(printf '%s' "$prompt" | claude -p --model "$AI_CLAUDE_MODEL" --tools "" \
+      --no-session-persistence --disable-slash-commands --setting-sources "")" || return 1
+  else
+    msg="$(ai_run "$prompt")" || return 1
+  fi
   # Drop any stray Markdown code-fence lines the model may have added.
   printf '%s\n' "$msg" | grep -v '^[[:space:]]*```' || true
 }
