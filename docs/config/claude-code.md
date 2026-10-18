@@ -11,7 +11,7 @@ User-level Claude Code settings and the system-wide managed policy.
 
 > Shared agent skills (also read by OpenCode and VS Code Copilot) live in
 > `config/skills/` and are linked into `~/.claude/skills/` — see
-> [Skills](./skills).
+> [Skills](./skills.md).
 
 > This file is the **reference** for agent guardrails. OpenCode
 > (`config/opencode/opencode.json` → `permission`) and VS Code Copilot

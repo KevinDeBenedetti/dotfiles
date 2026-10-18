@@ -92,10 +92,23 @@ repo = "local"
 [[repos.hooks]]
 id = "bats"
 name = "BATS — unit tests"
-# Runs the offline test suite before every push.
+# Runs the offline test suite before every commit and push, like the CI
+# `Bats tests` job. A failing test blocks; a missing bats only warns.
 # Install bats: brew install bats-core
 language = "system"
-entry = "bash -c 'which bats >/dev/null 2>&1 && bats tests/ tests/ai/ || echo \"⚠️  bats not installed — skipping (brew install bats-core)\"'"
+entry = "bash -c 'if which bats >/dev/null 2>&1; then bats tests/ tests/ai/; else echo \"⚠️  bats not installed — skipping (brew install bats-core)\"; fi'"
 pass_filenames = false
 always_run = true
-stages = ["pre-push"]
+stages = ["pre-commit", "pre-push"]
+
+[[repos.hooks]]
+id = "lychee"
+name = "lychee — docs link check (offline)"
+# Mirrors the CI `Link check` job for local links; --offline skips remote
+# URLs so the hook stays fast and works without network.
+# Install lychee: brew install lychee
+language = "system"
+entry = "bash -c 'if which lychee >/dev/null 2>&1; then lychee --offline --no-progress \"docs/**/*.md\"; else echo \"⚠️  lychee not installed — skipping (brew install lychee)\"; fi'"
+pass_filenames = false
+files = "^docs/.*\\.md$"
+stages = ["pre-commit", "pre-push"]

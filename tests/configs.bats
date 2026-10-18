@@ -131,10 +131,18 @@ setup() {
 @test "claude env deny uses working globs, not unsupported extglob" {
   # Claude Code permission globs follow gitignore syntax; extglob !(...) is a
   # silent no-op (matches nothing), so it must never be used to deny secrets.
+  # Variants are listed explicitly instead of a blanket .env.* because deny
+  # always wins over allow: .env.* would also lock out .env.example.
   for f in settings managed-settings; do
+    for op in Read Edit Write; do
+      for v in .env .env.local '.env.*.local' .env.development .env.production .env.staging .env.test; do
+        run jq -e --arg r "$op(**/$v)" '.permissions.deny | index($r)' "$CONFIG_DIR/claude/$f.json"
+        assert_success
+      done
+    done
+    run jq -e '[.permissions.deny[] | select(test("!\\("))] | length > 0' "$CONFIG_DIR/claude/$f.json"
+    assert_failure
     run jq -e '.permissions.deny | index("Read(**/.env.*)")' "$CONFIG_DIR/claude/$f.json"
-    assert_success
-    run jq -e '.permissions.deny | index("Read(**/.env.!(example))")' "$CONFIG_DIR/claude/$f.json"
     assert_failure
   done
 }
