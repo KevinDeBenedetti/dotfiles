@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.4.0...v0.5.0) (2026-10-18)
+
+
+### Features
+
+* **ai:** default git-aicommit to a tool-less claude backend ([295fa2d](https://github.com/KevinDeBenedetti/dotfiles/commit/295fa2ddb05ca12dcbd5cfbbb560393950a2d5e3))
+* share agent skills across Claude Code, OpenCode and Copilot ([ffc9317](https://github.com/KevinDeBenedetti/dotfiles/commit/ffc9317dc8d2f1ca26f284f8fcc3e96620735958))
+
+
+### Bug Fixes
+
+* **claude:** deny explicit .env variants instead of blanket .env.* ([01e70e1](https://github.com/KevinDeBenedetti/dotfiles/commit/01e70e1b6be51b244424b83b61403df37f025438))
+* **config/shell:** handle zsh globbing and clear search domains ([540a60a](https://github.com/KevinDeBenedetti/dotfiles/commit/540a60a008e8da85513a351f7b9ae7f6c022f954))
+
 ## [0.4.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.3.0...v0.4.0) (2026-08-07)
 
 
