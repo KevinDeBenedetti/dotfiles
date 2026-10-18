@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "bash \"$HOME/.copilot/hooks/agent-guard.sh\"",
+        "timeout": 10
+      }
+    ]
+  }
+}

@@ -120,8 +120,15 @@
     "**/*": true,
     "**/.vscode/*.json": false,
     "**/.git/**": false,
-    "**/{package.json,package-lock.json,server.xml,build.rs,web.config,.gitattributes,.env}": false,
-    "**/*.{csproj,fsproj,vbproj}": false
+    "**/{package.json,package-lock.json,server.xml,build.rs,web.config,.gitattributes}": false,
+    "**/*.{csproj,fsproj,vbproj}": false,
+    // secrets — same list as config/claude/settings.json; hard-denied by
+    // ~/.copilot/hooks/agent-guard.sh, kept here so they never auto-apply
+    "**/{.env,.env.*,*.env}": false,
+    "**/*.{pem,key}": false,
+    "~/.ssh/**": false,
+    "~/.aws/**": false,
+    "~/.gnupg/**": false
   },
   "chat.tools.terminal.autoApprove": {
     "cd": true,
@@ -150,6 +157,9 @@
     "git log": true,
     "git show": true,
     "git diff": true,
+    // never auto-approved; hard-denied by ~/.copilot/hooks/agent-guard.sh
+    "git commit": false,
+    "git push": false,
     "Get-ChildItem": true,
     "Get-Content": true,
     "Get-Date": true,
@@ -228,7 +238,8 @@
     "timeout": true,
     "pnpm": true,
     "docker": true,
-    "kubectl": true,
+    // kubectl is read-only for agents (same verbs as config/claude/settings.json)
+    "/^kubectl\\s+(get|describe|logs|top|explain|api-resources|version|kustomize|diff|auth\\s+can-i|config\\s+(get-contexts|current-context|view))\\b/": true,
     "make": true,
     "diff": true,
     "task": true,
@@ -237,6 +248,8 @@
     "actionlint": true
   },
   "chat.tools.global.autoApprove": false,
+  // agent hooks: loads ~/.copilot/hooks/agent-guard.json (linked by os/helpers/links.sh)
+  "chat.useHooks": true,
   "chat.useAgentsMdFile": true,
   "chat.mcp.autostart": "newAndOutdated",
   // extensions
@@ -268,6 +281,10 @@
     "https://raw.githubusercontent.com": {
       "approveRequest": false,
       "approveResponse": true
+    },
+    "https://opencode.ai": {
+      "approveRequest": true,
+      "approveResponse": false
     }
   },
   "terminal.integrated.enableMultiLinePasteWarning": "never",
@@ -275,7 +292,6 @@
   "claudeCode.useTerminal": true,
   "extensions.ignoreRecommendations": true,
   "sonarlint.automaticAnalysis": false,
-  "chat.disableAIFeatures": true,
   "makefile.configureOnOpen": false,
   "claudeCode.hideOnboarding": true
 }

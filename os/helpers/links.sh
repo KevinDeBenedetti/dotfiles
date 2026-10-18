@@ -78,6 +78,64 @@ link_shared_configs() {
     done
   fi
 
+  # Shared agent commands: config/commands/<name>.md is the single source,
+  # linked into every tool's own command dir so /<name> works everywhere:
+  #   Claude Code → ~/.claude/commands/<name>.md
+  #   OpenCode    → ~/.config/opencode/commands/<name>.md
+  #   VS Code     → <User>/prompts/<name>.prompt.md (Copilot prompt files,
+  #                 only when VS Code's user dir exists)
+  if [ -d "$config_dir/commands" ]; then
+    local vscode_user="$HOME/.config/Code/User"
+    [ "$(uname -s)" = "Darwin" ] && vscode_user="$HOME/Library/Application Support/Code/User"
+    mkdir -p "$HOME/.claude/commands" "$HOME/.config/opencode/commands"
+    [ -d "$vscode_user" ] && mkdir -p "$vscode_user/prompts"
+    local name
+    for item in "$config_dir/commands/"*.md; do
+      [ -f "$item" ] || continue
+      name=$(basename "$item" .md)
+      link_with_backup "$item" "$HOME/.claude/commands/$name.md"
+      link_with_backup "$item" "$HOME/.config/opencode/commands/$name.md"
+      if [ -d "$vscode_user" ]; then
+        link_with_backup "$item" "$vscode_user/prompts/$name.prompt.md"
+      fi
+    done
+  fi
+
+  # Shared agent skills → ~/.claude/skills/, each skill folder linked
+  # individually. That directory is the pivot read natively by Claude Code,
+  # OpenCode (Claude compat) and VS Code Copilot (personal skills), so one
+  # symlink per skill shares it with all three. NEVER link the skills dir
+  # itself: Claude Code manages its own `synced/` and `.trash/` subdirs there
+  # and a symlink would clobber them.
+  if [ -d "$config_dir/skills" ]; then
+    mkdir -p "$HOME/.claude/skills"
+    for item in "$config_dir/skills/"*/; do
+      [ -d "$item" ] || continue
+      link_with_backup "$item" "$HOME/.claude/skills/$(basename "$item")"
+    done
+  fi
+
+  # opencode base config. Only the file is linked: ~/.config/opencode/ also holds
+  # opencode's own node_modules/package.json, which must stay local. The tracked
+  # provider is a placeholder; the real endpoint/models live in an untracked
+  # override and the API key comes from $LLM_API_KEY (env.local.sh).
+  if [ -f "$config_dir/opencode/opencode.json" ]; then
+    mkdir -p "$HOME/.config/opencode"
+    link_with_backup "$config_dir/opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
+  fi
+
+  # VS Code Copilot agent hooks → ~/.copilot/hooks/ (user-level hook location).
+  # agent-guard mirrors the hard denies of config/claude/settings.json
+  # (git commit/push, mutating kubectl, secrets). Files are linked one by one:
+  # ~/.copilot/ also holds Copilot's own local state.
+  if [ -d "$config_dir/copilot/hooks" ]; then
+    mkdir -p "$HOME/.copilot/hooks"
+    for item in "$config_dir/copilot/hooks/"*; do
+      [ -f "$item" ] || continue
+      link_with_backup "$item" "$HOME/.copilot/hooks/$(basename "$item")"
+    done
+  fi
+
   # Local AI tooling config → ~/.config/ai-tools/ (sourced by scripts/ai/*)
   if [ -d "$config_dir/ai-tools" ]; then
     link_with_backup "$config_dir/ai-tools" "$HOME/.config/ai-tools"

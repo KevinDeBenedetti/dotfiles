@@ -5,7 +5,13 @@ argument-hint: "[all]"
 
 Work tasks in the current project's TODO.md, following a strict format.
 
-## 0. Mode (read `$ARGUMENTS`)
+<!-- Single source shared by Claude Code, OpenCode and VS Code Copilot
+     (linked by os/helpers/links.sh). Keep it tool-neutral. -->
+
+## 0. Mode
+The argument is `$ARGUMENTS`. If that placeholder was left as-is (the tool did
+not substitute it), the argument is whatever the user typed after the
+`/next-task` command instead.
 - **No argument** (or anything other than `all`) → **single mode**: do exactly ONE
   task, then stop. This is the default.
 - **`all`** → **batch mode**: repeat the per-task procedure (steps 3→6b) for every

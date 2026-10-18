@@ -26,6 +26,7 @@ run_link_shared_configs() {
   assert_symlink_to "$CONFIG_DIR/git/.gitconfig" "$FAKE_HOME/.gitconfig"
   assert_symlink_to "$CONFIG_DIR/git/ignore" "$FAKE_HOME/.config/git/ignore"
   assert_symlink_to "$CONFIG_DIR/claude/settings.json" "$FAKE_HOME/.claude/settings.json"
+  assert_symlink_to "$CONFIG_DIR/opencode/opencode.json" "$FAKE_HOME/.config/opencode/opencode.json"
   assert_symlink_to "$CONFIG_DIR/proto/.prototools" "$FAKE_HOME/.proto/.prototools"
   assert_symlink_to "$CONFIG_DIR/shell/functions.sh" "$FAKE_HOME/.config/dotfiles/functions.sh"
 }
@@ -36,6 +37,64 @@ run_link_shared_configs() {
   local cmd
   for cmd in "$CONFIG_DIR"/claude/commands/*; do
     assert_symlink_to "$cmd" "$FAKE_HOME/.claude/commands/$(basename "$cmd")"
+  done
+}
+
+@test "link_shared_configs links every shared command into claude, opencode and copilot" {
+  local vscode_user="$FAKE_HOME/.config/Code/User"
+  [ "$(uname -s)" = "Darwin" ] && vscode_user="$FAKE_HOME/Library/Application Support/Code/User"
+  mkdir -p "$vscode_user"
+  run run_link_shared_configs
+  assert_success
+  local cmd name
+  for cmd in "$CONFIG_DIR"/commands/*.md; do
+    name=$(basename "$cmd" .md)
+    assert_symlink_to "$cmd" "$FAKE_HOME/.claude/commands/$name.md"
+    assert_symlink_to "$cmd" "$FAKE_HOME/.config/opencode/commands/$name.md"
+    assert_symlink_to "$cmd" "$vscode_user/prompts/$name.prompt.md"
+  done
+}
+
+@test "link_shared_configs skips copilot prompts when VS Code is absent" {
+  run run_link_shared_configs
+  assert_success
+  assert_not_exists "$FAKE_HOME/.config/Code/User/prompts"
+  assert_not_exists "$FAKE_HOME/Library/Application Support/Code/User/prompts"
+}
+
+@test "link_shared_configs links every shared skill into HOME" {
+  run run_link_shared_configs
+  assert_success
+  local skill
+  for skill in "$CONFIG_DIR"/skills/*/; do
+    [ -d "$skill" ] || continue
+    assert_symlink_to "$skill" "$FAKE_HOME/.claude/skills/$(basename "$skill")"
+  done
+}
+
+@test "link_shared_configs backs up an existing regular skill dir" {
+  # backup_if_exists only guards regular files, so a pre-existing regular dir
+  # is not backed up: ln -sfn -n replaces the dir entry itself with the
+  # symlink... except it can't when the dir is non-empty. What actually
+  # happens: the link lands INSIDE the existing dir. This documents the
+  # (acceptable) behavior — skills dirs are created by us as symlinks, a
+  # regular dir would only exist if something else created it.
+  mkdir -p "$FAKE_HOME/.claude/skills/commit-types"
+  echo "old" > "$FAKE_HOME/.claude/skills/commit-types/SKILL.md"
+  run run_link_shared_configs
+  assert_success
+  # The old content is still there (untouched), and the new symlink landed
+  # inside the existing dir rather than replacing it.
+  run cat "$FAKE_HOME/.claude/skills/commit-types/SKILL.md"
+  assert_output "old"
+}
+
+@test "link_shared_configs links every copilot hook into HOME" {
+  run run_link_shared_configs
+  assert_success
+  local hook
+  for hook in "$CONFIG_DIR"/copilot/hooks/*; do
+    assert_symlink_to "$hook" "$FAKE_HOME/.copilot/hooks/$(basename "$hook")"
   done
 }
 

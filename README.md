@@ -9,6 +9,7 @@
 - One-liner bootstrap for macOS and Debian — clones to `~/.dotfiles` automatically
 - Profile flags to install only what you need (`-a` for all)
 - Managed configs: Git, Zsh, SSH, VS Code, oh-my-zsh, shell aliases, proto
+- Shared agent skills (`config/skills/`) exposed to Claude Code, OpenCode and VS Code Copilot via `~/.claude/skills/`
 - proto installed via its official installer; all tool versions pinned in `config/proto/.prototools`
 - Bats unit tests covering init flags, functions, and security profile
 - Docker integration tests for full Debian install validation (no real machine required)

@@ -76,15 +76,15 @@ Core CLI tools installed via Homebrew. Split into lite (always) and additional (
 
 **Additional (full mode):**
 
-| Tool                                                        | Description                                                          |
-| ----------------------------------------------------------- | -------------------------------------------------------------------- |
-| [`gh`](https://cli.github.com)                              | GitHub CLI — PRs, issues, repos from the terminal                    |
-| [`lazygit`](https://github.com/jesseduffield/lazygit)       | Terminal UI for Git                                                  |
-| [`lazydocker`](https://github.com/jesseduffield/lazydocker) | Terminal UI for Docker                                               |
-| [`lima`](https://github.com/lima-vm/lima)                   | Linux VMs on macOS — used for local Debian setup testing             |
-| [`nmap`](https://nmap.org)                                  | Network exploration and port scanning                                |
-| Browsers                                                    | Brave, Firefox, Arc                                                  |
-| Apps                                                        | Insomnia, Mattermost, OpenVPN Connect                                |
+| Tool                                                        | Description                                              |
+| ----------------------------------------------------------- | -------------------------------------------------------- |
+| [`gh`](https://cli.github.com)                              | GitHub CLI — PRs, issues, repos from the terminal        |
+| [`lazygit`](https://github.com/jesseduffield/lazygit)       | Terminal UI for Git                                      |
+| [`lazydocker`](https://github.com/jesseduffield/lazydocker) | Terminal UI for Docker                                   |
+| [`lima`](https://github.com/lima-vm/lima)                   | Linux VMs on macOS — used for local Debian setup testing |
+| [`nmap`](https://nmap.org)                                  | Network exploration and port scanning                    |
+| Browsers                                                    | Brave, Firefox, Arc                                      |
+| Apps                                                        | Insomnia, Mattermost, OpenVPN Connect                    |
 
 ### `javascript`
 
@@ -156,6 +156,8 @@ Running `-d` symlinks (or copies) config files from the repository into `$HOME`.
 | `config/ssh/config`             | `~/.ssh/config`                                         | symlink |
 | `config/claude/settings.json`   | `~/.claude/settings.json`                               | symlink |
 | `config/claude/commands/*`      | `~/.claude/commands/`                                   | symlink |
+| `config/commands/*.md`          | `~/.claude/commands/`, `~/.config/opencode/commands/`, `~/Library/Application Support/Code/User/prompts/*.prompt.md` | symlink |
+| `config/skills/*`               | `~/.claude/skills/`                                     | symlink |
 | `config/ai-tools/`              | `~/.config/ai-tools`                                    | symlink |
 | `config/ollama/`                | `~/.config/ollama`                                      | symlink |
 | `scripts/*/` (executables)      | `~/.local/bin/`                                         | symlink |

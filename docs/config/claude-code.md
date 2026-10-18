@@ -4,10 +4,20 @@ User-level Claude Code settings and the system-wide managed policy.
 
 ## Location
 
-| File                                  | Installed to                                              | Method            |
-| ------------------------------------- | --------------------------------------------------------- | ----------------- |
-| `config/claude/settings.json`         | `~/.claude/settings.json`                                  | symlink           |
+| File                                  | Installed to                                                                     | Method            |
+| ------------------------------------- | -------------------------------------------------------------------------------- | ----------------- |
+| `config/claude/settings.json`         | `~/.claude/settings.json`                                                        | symlink           |
 | `config/claude/managed-settings.json` | `/Library/Application Support/ClaudeCode/` (macOS) / `/etc/claude-code/` (Linux) | copy (root-owned) |
+
+> Shared agent skills (also read by OpenCode and VS Code Copilot) live in
+> `config/skills/` and are linked into `~/.claude/skills/` — see
+> [Skills](./skills).
+
+> This file is the **reference** for agent guardrails. OpenCode
+> (`config/opencode/opencode.json` → `permission`) and VS Code Copilot
+> (`config/copilot/hooks/agent-guard.sh`, see [VS Code](./vscode.md)) mirror
+> its denies (commit/push, mutating kubectl, secrets) and asks — update all
+> three together.
 
 ## Managed settings — why a copy, not a symlink
 
@@ -49,9 +59,9 @@ plus a `network.allowedDomains` allowlist (see precedence below).
 
 ### Hooks
 
-| Hook           | Purpose                                                            |
-| -------------- | ------------------------------------------------------------------ |
-| `PreToolUse`   | Blocks any `git commit` / `git push` command before it runs        |
+| Hook         | Purpose                                                     |
+| ------------ | ----------------------------------------------------------- |
+| `PreToolUse` | Blocks any `git commit` / `git push` command before it runs |
 
 ## Settings precedence and the sandbox allowlist
 
@@ -66,10 +76,10 @@ Claude Code resolves a setting from highest to lowest precedence:
 Precedence alone doesn't tell you how a given key behaves, because keys merge
 differently:
 
-| Key kind                                    | Behaviour across scopes                                  |
-| ------------------------------------------- | -------------------------------------------------------- |
-| Booleans (`sandbox.enabled`, `failIfUnavailable`) | Highest-precedence value wins; lower scopes ignored |
-| Arrays (`sandbox.network.allowedDomains`, `filesystem.allow*`/`deny*`, permission rules) | **Merged** — entries from every scope are unioned |
+| Key kind                                                                                 | Behaviour across scopes                             |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Booleans (`sandbox.enabled`, `failIfUnavailable`)                                        | Highest-precedence value wins; lower scopes ignored |
+| Arrays (`sandbox.network.allowedDomains`, `filesystem.allow*`/`deny*`, permission rules) | **Merged** — entries from every scope are unioned   |
 
 ### Is `managed-settings.json` a hard ceiling for `network.allowedDomains`?
 

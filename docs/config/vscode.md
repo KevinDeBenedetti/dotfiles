@@ -45,6 +45,31 @@ VS Code settings, recommended extensions, and MCP server configuration.
 | Markdown   | Markdown All in One |
 | YAML       | Red Hat YAML        |
 
+### Copilot agent guardrails
+
+Copilot follows the same hard rules as Claude Code (`config/claude/settings.json`
+is the reference) and OpenCode (`config/opencode/opencode.json`):
+
+| Rule                                                   | Copilot mechanism                                       |
+| ------------------------------------------------------ | ------------------------------------------------------- |
+| `git commit` / `git push` / `gh repo delete` blocked   | `agent-guard` hook → `deny`                             |
+| `kubectl` read-only (mutating verbs blocked)           | `agent-guard` hook → `deny`; read verbs auto-approved   |
+| `terraform apply/destroy`, `gh pr merge` need approval | `agent-guard` hook → `ask`                              |
+| Secrets never read/written (`.env.example` allowed)    | `agent-guard` hook → `deny` + edits never auto-approved |
+
+Secrets = `.env`, `.env.*`, `*.env`, `*.pem`, `*.key`, `~/.ssh/id_*`,
+`~/.aws`, `~/.gnupg`, `~/.netrc`, `~/.npmrc`, `~/.claude/.credentials.json`.
+
+| File                                    | Installed to                        | Method  |
+| --------------------------------------- | ----------------------------------- | ------- |
+| `config/copilot/hooks/agent-guard.json` | `~/.copilot/hooks/agent-guard.json` | symlink |
+| `config/copilot/hooks/agent-guard.sh`   | `~/.copilot/hooks/agent-guard.sh`   | symlink |
+
+Copilot has no OS sandbox and its tool names differ from Claude Code's, so the
+hook is tool-agnostic: it inspects `tool_input.command` and every path-like
+argument. It needs `jq` and fails closed without it. Hooks are enabled by
+`chat.useHooks`. Keep the three configs in sync when changing a rule.
+
 ## Extensions
 
 | Extension                                     | Category       |

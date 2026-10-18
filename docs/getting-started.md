@@ -68,6 +68,7 @@ cd ~/.dotfiles
 - **Git config** — commit signing, rebase-by-default, credential cache
 - **SSH config** — host aliases and key references
 - **VS Code** — settings and extension list
+- **Agent skills** — shared AI assistant skills (see [Skills](./config/skills))
 
 ## Local overrides
 

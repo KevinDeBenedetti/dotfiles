@@ -238,8 +238,7 @@ Running `-d` symlinks (or copies) config files from the repository into `$HOME`.
 | `config/git/ignore`            | `~/.config/git/ignore`              | symlink                          |
 | `config/ssh/config`            | `~/.ssh/config`                     | symlink                          |
 | `config/claude/settings.json`  | `~/.claude/settings.json`           | symlink                          |
-| `config/claude/commands/*`     | `~/.claude/commands/`               | symlink                          |
-| `config/ai-tools/`             | `~/.config/ai-tools`                | symlink                          |
+| `config/claude/commands/*`     | `~/.claude/commands/`               | symlink                          |  | `config/commands/*.md` | `~/.claude/commands/`, `~/.config/opencode/commands/`, `~/.config/Code/User/prompts/*.prompt.md` | symlink |  | `config/skills/*` | `~/.claude/skills/` | symlink |  | `config/ai-tools/` | `~/.config/ai-tools` | symlink |
 | `config/ollama/`               | `~/.config/ollama`                  | symlink                          |
 | `scripts/*/` (executables)     | `~/.local/bin/`                     | symlink                          |
 | `config/vscode/settings.json`  | `~/.config/Code/User/settings.json` | symlink (if `code` is available) |
