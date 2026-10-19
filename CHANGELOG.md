@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.5.0...v0.5.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **agent-hooks:** catch wrapped and -c git/kubectl forms in guards ([4ac1ede](https://github.com/KevinDeBenedetti/dotfiles/commit/4ac1ede668e7a7f151dff8d6cd9905ee2b22c26c))
+
 ## [0.5.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.4.0...v0.5.0) (2026-10-18)
 
 
