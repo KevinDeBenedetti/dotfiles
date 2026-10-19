@@ -85,7 +85,7 @@ Three stub files are created automatically on first run with `-d`. They are **gi
 Run Bats unit tests locally:
 
 ```sh
-bats tests/
+bats tests/ tests/ai/ tests/ollama/
 ```
 
 Run full integration tests in Docker (Debian):

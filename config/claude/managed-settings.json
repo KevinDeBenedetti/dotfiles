@@ -20,16 +20,8 @@
       "Edit(**/.env.production)",
       "Edit(**/.env.staging)",
       "Edit(**/.env.test)",
-      "Write(**/.env)",
-      "Write(**/.env.local)",
-      "Write(**/.env.*.local)",
-      "Write(**/.env.development)",
-      "Write(**/.env.production)",
-      "Write(**/.env.staging)",
-      "Write(**/.env.test)",
       "Read(**/*.env)",
       "Edit(**/*.env)",
-      "Write(**/*.env)",
       "Read(~/.ssh/id_*)",
       "Edit(~/.ssh/**)",
       "Read(~/.aws/**)",
@@ -107,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+|[[:space:]]+-C[[:space:]]+[^[:space:]]+)*[[:space:]]+(commit|push)([[:space:]]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git commit/push sont bloqués par la politique managée (managed-settings.json)\"}}'; fi"
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[^[:alnum:]_.-])git([[:space:]]+(-[Cc]|--git-dir|--work-tree|--namespace|--exec-path|--config-env)[[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+(commit|push)([^[:alnum:]_-]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git commit/push sont bloqués par la politique managée (managed-settings.json)\"}}'; fi"
           }
         ]
       }

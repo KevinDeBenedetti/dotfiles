@@ -121,3 +121,35 @@ setup() {
   # Ollama must not be touched.
   assert [ ! -f "$CURL_MARKER" ]
 }
+
+@test "git-aicommit claude backend sees the whole repo diff from a subdirectory" {
+  mkdir -p sub
+  echo "root" > root.txt
+  echo "nested" > sub/nested.txt
+  git add root.txt sub/nested.txt
+
+  export AI_COMMIT_BACKEND=claude
+  export CLAUDE_PROMPT_FILE="$BATS_TEST_TMPDIR/claude_prompt"
+  claude() { cat > "$CLAUDE_PROMPT_FILE"; printf 'feat: via claude'; }
+  export -f claude
+
+  cd sub
+  run bash "$SCRIPT" --yes
+  assert_success
+
+  # The staged diff body (not just --stat) must include the file outside sub/.
+  run grep -c '^+root$' "$CLAUDE_PROMPT_FILE"
+  assert_output "1"
+}
+
+@test "git-aicommit exits non-zero when git commit fails" {
+  echo "content" > file.txt
+  git add file.txt
+  # A rejecting pre-commit hook makes `git commit` fail.
+  printf '#!/bin/sh\nexit 1\n' > .git/hooks/pre-commit
+  chmod +x .git/hooks/pre-commit
+
+  run bash "$SCRIPT" --yes
+  assert_failure
+  assert_output --partial "Commit failed"
+}

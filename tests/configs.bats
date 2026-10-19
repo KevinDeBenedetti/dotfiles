@@ -94,6 +94,15 @@ setup() {
   done
 }
 
+@test "kubectl config view asks first (--raw dumps kubeconfig credentials)" {
+  run jq -e '.permissions.allow | index("Bash(kubectl config view*)")' "$CONFIG_DIR/claude/settings.json"
+  assert_failure
+  run jq -e '.permissions.ask | index("Bash(kubectl config view*)")' "$CONFIG_DIR/claude/settings.json"
+  assert_success
+  run jq -r '.permission.bash["kubectl config view*"]' "$CONFIG_DIR/opencode/opencode.json"
+  assert_output "ask"
+}
+
 @test "claude settings keep git commit/push denied" {
   run jq -e '.permissions.deny | index("Bash(git push)")' "$CONFIG_DIR/claude/settings.json"
   assert_success
@@ -134,7 +143,11 @@ setup() {
   # Variants are listed explicitly instead of a blanket .env.* because deny
   # always wins over allow: .env.* would also lock out .env.example.
   for f in settings managed-settings; do
-    for op in Read Edit Write; do
+    # No Write(...) rules: Claude Code ignores them for file permission checks
+    # (it warns "only Edit(path) rules are"); Edit covers every file-editing tool.
+    run jq -e '[.permissions.deny[] | select(startswith("Write("))] | length == 0' "$CONFIG_DIR/claude/$f.json"
+    assert_success
+    for op in Read Edit; do
       for v in .env .env.local '.env.*.local' .env.development .env.production .env.staging .env.test; do
         run jq -e --arg r "$op(**/$v)" '.permissions.deny | index($r)' "$CONFIG_DIR/claude/$f.json"
         assert_success

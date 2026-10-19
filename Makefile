@@ -28,16 +28,23 @@ help: ## Show available commands
 # Tests
 # ──────────────────────────────────────────────────────────────────────────────
 
-.PHONY: test test-configs test-functions test-init test-security test-ai
+.PHONY: test test-configs test-functions test-init test-security test-ai test-ollama
+
+# bats does not recurse (and -r would pick up the test_helper submodules' own
+# suites), so every test subdirectory is listed explicitly.
+BATS_DIRS := $(TESTS_DIR)/ $(TESTS_DIR)/ai/ $(TESTS_DIR)/ollama/
 
 test: ## Run all Bats tests
-	bats $(TESTS_DIR)/ $(TESTS_DIR)/ai/
+	bats $(BATS_DIRS)
 
 test-configs: ## Run config/file existence tests
 	bats $(TESTS_DIR)/configs.bats
 
 test-ai: ## Run local AI tooling tests
 	bats $(TESTS_DIR)/ai/
+
+test-ollama: ## Run Ollama script tests
+	bats $(TESTS_DIR)/ollama/
 
 test-functions: ## Run shell function tests
 	bats $(TESTS_DIR)/functions.bats

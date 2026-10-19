@@ -21,8 +21,20 @@ backup_if_exists() {
 # the link itself instead of dereferencing it and creating a self-referential
 # loop *inside* the target dir (e.g. config/ai-tools/ai-tools). Harmless for
 # file and non-existent destinations.
+#
+# A real (non-symlink) directory at $dest is moved aside first: ln cannot
+# replace a directory, it would drop the link INSIDE it and leave the stale dir
+# in place. It goes under ~/.local/state/dotfiles/backup/ rather than next to
+# $dest, so e.g. a backed-up skill dir is not picked up as a duplicate skill.
 link_with_backup() {
   local src="$1" dest="$2"
+  if [ -d "$dest" ] && [ ! -L "$dest" ]; then
+    local backup
+    backup="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/backup/${dest#"$HOME"/}.$(date +%Y%m%d%H%M%S)"
+    mkdir -p "$(dirname "$backup")"
+    mv "$dest" "$backup"
+    printf '[backup] Moved directory %s to %s\n' "$dest" "$backup"
+  fi
   backup_if_exists "$dest"
   ln -sfn "$src" "$dest"
 }

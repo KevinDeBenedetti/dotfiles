@@ -36,7 +36,8 @@ case "$AI_COMMIT_BACKEND" in
     command -v claude >/dev/null 2>&1 || { printf 'error: claude CLI not found\n' >&2; exit 1; }
     AI_MAX_DIFF="$AI_CLAUDE_MAX_DIFF"
     # Minimal context lines + no lockfiles: smaller prompt, same information.
-    diff_args=(-U1 -- . ':(exclude)*.lock' ':(exclude)*lock.json' ':(exclude)*lock.yaml')
+    # ':/' is the repo root, so running from a subdirectory still sees every file.
+    diff_args=(-U1 -- ':/' ':(exclude)*.lock' ':(exclude)*lock.json' ':(exclude)*lock.yaml')
     ;;
   ollama)
     ai_require_deps || exit 1
@@ -142,10 +143,11 @@ show_msg
 # hook rejected it) print the exact command so the same message can be reused —
 # no need to re-run `ai commit` and regenerate a different one.
 do_commit() {
-  if git commit "$@" -m "$msg"; then
-    return 0
-  fi
-  local status=$?
+  # Capture git's status directly: after `if cmd; then …; fi` $? is the status
+  # of the `if` (0), not of the failed commit.
+  local status=0
+  git commit "$@" -m "$msg" || status=$?
+  [ "$status" -eq 0 ] && return 0
   printf '\n' >&2
   printf 'Commit failed (pre-commit hook?). To retry with the SAME message:\n\n' >&2
   printf '  %s\n\n' "$(commit_command)" >&2

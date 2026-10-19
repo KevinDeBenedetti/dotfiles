@@ -31,7 +31,7 @@
       "kubectl version*": "allow",
       "kubectl config get-contexts*": "allow",
       "kubectl config current-context": "allow",
-      "kubectl config view*": "allow",
+      "kubectl config view*": "ask",
       "kubectl kustomize *": "allow",
       "kubectl diff *": "allow",
       "kubectl auth can-i *": "allow",

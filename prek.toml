@@ -96,7 +96,7 @@ name = "BATS — unit tests"
 # `Bats tests` job. A failing test blocks; a missing bats only warns.
 # Install bats: brew install bats-core
 language = "system"
-entry = "bash -c 'if which bats >/dev/null 2>&1; then bats tests/ tests/ai/; else echo \"⚠️  bats not installed — skipping (brew install bats-core)\"; fi'"
+entry = "bash -c 'if which bats >/dev/null 2>&1; then bats tests/ tests/ai/ tests/ollama/; else echo \"⚠️  bats not installed — skipping (brew install bats-core)\"; fi'"
 pass_filenames = false
 always_run = true
 stages = ["pre-commit", "pre-push"]

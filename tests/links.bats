@@ -16,7 +16,7 @@ setup() {
 }
 
 run_link_shared_configs() {
-  env HOME="$FAKE_HOME" bash -c \
+  env -u XDG_STATE_HOME HOME="$FAKE_HOME" bash -c \
     "source '$REPO_ROOT/os/helpers/links.sh' && link_shared_configs '$CONFIG_DIR'"
 }
 
@@ -72,20 +72,19 @@ run_link_shared_configs() {
   done
 }
 
-@test "link_shared_configs backs up an existing regular skill dir" {
-  # backup_if_exists only guards regular files, so a pre-existing regular dir
-  # is not backed up: ln -sfn -n replaces the dir entry itself with the
-  # symlink... except it can't when the dir is non-empty. What actually
-  # happens: the link lands INSIDE the existing dir. This documents the
-  # (acceptable) behavior — skills dirs are created by us as symlinks, a
-  # regular dir would only exist if something else created it.
+@test "link_shared_configs moves an existing regular skill dir out of the skills dir" {
+  # ln cannot replace a directory: without the move, the link would land
+  # INSIDE the stale dir and the repo's skill would never be installed.
   mkdir -p "$FAKE_HOME/.claude/skills/commit-types"
   echo "old" > "$FAKE_HOME/.claude/skills/commit-types/SKILL.md"
   run run_link_shared_configs
   assert_success
-  # The old content is still there (untouched), and the new symlink landed
-  # inside the existing dir rather than replacing it.
-  run cat "$FAKE_HOME/.claude/skills/commit-types/SKILL.md"
+  assert_symlink_to "$CONFIG_DIR/skills/commit-types/" "$FAKE_HOME/.claude/skills/commit-types"
+  # No backup copy left among the skills (it would load as a duplicate skill)…
+  run bash -c "ls -d '$FAKE_HOME'/.claude/skills/commit-types.* 2>/dev/null"
+  assert_output ""
+  # …the old content is preserved under the state backup dir instead.
+  run bash -c "cat '$FAKE_HOME'/.local/state/dotfiles/backup/.claude/skills/commit-types.*/SKILL.md"
   assert_output "old"
 }
 

@@ -26,7 +26,8 @@ decide() {
   exit 0
 }
 
-# Same patterns as config/claude/settings.json (deny list + sandbox denyRead).
+# Stricter than config/claude/settings.json: every .env.* except .env.example is
+# denied, since Copilot has no sandbox behind this guard.
 is_sensitive_path() {
   local p="$1" base
   p="${p#file://}"
@@ -45,13 +46,16 @@ is_sensitive_path() {
 cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // .tool_input.cmd // empty' 2>/dev/null)
 
 if [ -n "$cmd" ]; then
-  if printf '%s' "$cmd" | grep -qE '(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+|[[:space:]]+-C[[:space:]]+[^[:space:]]+)*[[:space:]]+(commit|push)([[:space:]]|$)'; then
+  # The prefix accepts any non-word char (quotes, backticks, $(, /usr/bin/) so
+  # `bash -c "git push"` is caught; value-taking global options (-c, -C,
+  # --git-dir, …) are skipped with their argument.
+  if printf '%s' "$cmd" | grep -qE '(^|[^[:alnum:]_.-])git([[:space:]]+(-[Cc]|--git-dir|--work-tree|--namespace|--exec-path|--config-env)[[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+(commit|push)([^[:alnum:]_-]|$)'; then
     decide deny "git commit/push are done manually — blocked by agent-guard"
   fi
   if printf '%s' "$cmd" | grep -qE '(^|[;&|[:space:]])gh[[:space:]]+repo[[:space:]]+delete'; then
     decide deny "gh repo delete is blocked by agent-guard"
   fi
-  if printf '%s' "$cmd" | grep -qE '(^|[;&|[:space:]])kubectl[[:space:]]([^;&|]*[[:space:]])?(apply|delete|patch|rollout|create|annotate|edit|scale|exec|debug|run|replace|set|label|taint|cordon|uncordon|drain|cp|expose|autoscale)([[:space:]]|$)'; then
+  if printf '%s' "$cmd" | grep -qE '(^|[^[:alnum:]_.-])kubectl[[:space:]]([^;&|]*[[:space:]])?(apply|delete|patch|rollout|create|annotate|edit|scale|exec|debug|run|replace|set|label|taint|cordon|uncordon|drain|cp|expose|autoscale)([^[:alnum:]_-]|$)'; then
     decide deny "kubectl is read-only for the agent — mutating verbs are blocked by agent-guard"
   fi
   # Secrets referenced on the command line (cat .env, source .env.production, …)
