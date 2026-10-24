@@ -38,6 +38,13 @@ install_lite_setup() {
     watch \
     yq \
     rsync
+
+  # Git Credential Manager: config/git/.gitconfig sets `credential.helper =
+  # manager`. Its installer runs `git-credential-manager configure`, which
+  # writes to ~/.gitconfig: harmless on a fresh machine (profiles run before
+  # the dotfiles are linked); on a machine already linked, `git diff` the
+  # linked config/git/.gitconfig afterwards.
+  install_cask git-credential-manager
 }
 
 install_additional_setup() {

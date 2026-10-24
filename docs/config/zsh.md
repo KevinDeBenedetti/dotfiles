@@ -1,12 +1,17 @@
+---
+title: Zsh
+---
+
 # Zsh
 
-Zsh shell configuration symlinked to `~/.zshrc`.
+Zsh shell configuration installed as `~/.zshrc`.
 
 ## Location
 
-| File                | Symlinked to |
-| ------------------- | ------------ |
-| `config/zsh/.zshrc` | `~/.zshrc`   |
+| File                | Installed to | Method                                                 |
+| ------------------- | ------------ | ------------------------------------------------------ |
+| `config/zsh/.zshrc` | `~/.zshrc`   | copy (init scripts, to apply machine-specific patches) |
+| `config/zsh/.zshrc` | `~/.zshrc`   | symlink (`scripts/symlink.sh`)                         |
 
 ## Environment
 
@@ -101,12 +106,14 @@ Loaded in order at the end of `.zshrc`:
 | `~/.config/dotfiles/functions.sh`            | Utility functions                         |
 | `~/.config/dotfiles/functions-completion.sh` | Completion helpers (optional)             |
 | `~/.config/dotfiles/functions-dso.sh`        | DSO-specific functions (optional)         |
-| `~/.config/dotfiles/env.local.sh`            | Machine-specific env vars (not tracked)   |
+| `~/.config/dotfiles/env.local.sh`            | Machine-specific env vars (no API keys)   |
 | `~/.zshrc.local`                             | Machine-specific zsh config (not tracked) |
 
 ## Local overrides
 
 Machine-specific or private configuration goes in files that are not tracked by git:
 
-- **`~/.config/dotfiles/env.local.sh`** — Extra environment variables, API keys
+- **`~/.config/dotfiles/env.local.sh`** — Extra environment variables. Never API
+  keys or tokens: every process started from the shell inherits them, AI agents
+  included (see [Shell](./shell.md))
 - **`~/.zshrc.local`** — Aliases, `PATH` additions, functions specific to this machine

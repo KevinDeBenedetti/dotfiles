@@ -1,3 +1,7 @@
+---
+title: SSH
+---
+
 # SSH
 
 SSH client configuration symlinked to `~/.ssh/config`.
@@ -46,31 +50,25 @@ Prevents idle connections from being dropped by firewalls or routers.
 | `UseKeychain`    | `yes` | Read/store the key passphrase in the macOS keychain |
 | `AddKeysToAgent` | `yes` | Add keys to `ssh-agent` automatically on first use  |
 
-## Machine-specific & per-account hosts
+## Machine-specific hosts
 
-Host blocks for specific machines (infra IPs) **and** per-account GitHub aliases
-(perso / pro) live in `~/.ssh/config.d/*.conf`, which is **not tracked by git**
-(this repo is public). They are included first so their settings take precedence:
+Host blocks for specific machines (infra IPs, internal servers) live in
+`~/.ssh/config.d/*.conf`, which is **not tracked by git** (this repo is public).
+They are included first so their settings take precedence:
 
-```
+```ssh-config
 Include ~/.ssh/config.d/*.conf
 ```
 
-Example `~/.ssh/config.d/github.conf`:
+Example `~/.ssh/config.d/servers.conf`:
 
 ```ssh-config
-Host github.com
-  HostName github.com
-  User git
+Host my-server
+  HostName 203.0.113.10
+  User deploy
   IdentityFile ~/.ssh/id_ed25519
-  IdentitiesOnly yes
-
-Host github.com-pro
-  HostName github.com
-  User git
-  IdentityFile ~/.ssh/id_ed25519_pro
   IdentitiesOnly yes
 ```
 
-See [Guide — Git multi-comptes (perso / pro)](../guides/git-multi-account.md) for the
-full clone workflow combining these aliases with per-directory Git identities.
+GitHub needs no host block: `config/git/.gitconfig` rewrites `git@github.com:`
+remotes to HTTPS, authenticated by Git Credential Manager (see [Git](./git.md)).

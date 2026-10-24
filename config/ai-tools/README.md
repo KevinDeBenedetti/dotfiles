@@ -156,24 +156,28 @@ my releases — the source of truth lives in the **`github-workflows`** repo at
 `.github/release/release-please-config.json` (mirrored here for this repo at the
 same path).
 
-That config uses `release-type: "simple"` with **no custom `changelog-sections`**,
-so release-please falls back to its **default Conventional Commits parser**. The
-practical consequences the prompt is built around:
+That config uses `release-type: "simple"` with **no custom `changelog-sections`**
+and `bump-minor-pre-major: true`, so release-please applies its default sections:
 
-| Type                                   | Release effect            | Changelog |
-| -------------------------------------- | ------------------------- | --------- |
-| `feat`                                 | minor                     | shown (Features) |
-| `fix`                                  | patch                     | shown (Bug Fixes) |
-| `perf`                                 | patch                     | shown |
-| `deps`, `revert`, `docs`, `style`, `chore`, `test`, `build`, `ci` | none | hidden |
-| `refactor`                             | **never emitted**         | — |
+| Type                                                        | Changelog                        |
+| ----------------------------------------------------------- | -------------------------------- |
+| `feat`                                                      | shown (Features)                 |
+| `fix`                                                       | shown (Bug Fixes)                |
+| `perf`                                                      | shown (Performance Improvements) |
+| `revert`                                                    | shown (Reverts)                  |
+| `chore`, `docs`, `style`, `refactor`, `test`, `build`, `ci` | hidden                           |
+| `deps`                                                      | hidden (not a default section)   |
 
-`refactor` is deliberately **excluded** from the types `git-aicommit` may suggest:
-the config does not surface it, so a pure code refactor with no user-facing effect
-is committed as `chore` instead. The prompt in `scripts/ai/git-aicommit` is the
-implementation of this policy; `tests/ai/git-aicommit.bats` guards it against
-regression.
+A breaking change (`!` before the colon) bumps the major version — the minor one
+while the version is `0.x` — `feat` bumps minor and `fix` bumps patch.
+
+`refactor` is **never suggested** by `git-aicommit`: release-please would accept it
+(hidden, like `chore`), but this repo uses `chore` for a refactor with no
+user-facing effect. The prompt in `scripts/ai/git-aicommit` implements this policy
+and `tests/ai/git-aicommit.bats` guards it against regression. The shared
+`commit-types` skill and VS Code's commit-message instructions
+(`config/vscode/settings.json`) carry the same rules.
 
 When the release-please config changes (e.g. a custom `changelog-sections` block
-is added), update the type list and grouping in `scripts/ai/git-aicommit`'s prompt
-to match — they must stay in sync with this source of truth.
+is added), update the type list in `scripts/ai/git-aicommit`'s prompt, the
+`commit-types` skill and `config/vscode/settings.json` to match.

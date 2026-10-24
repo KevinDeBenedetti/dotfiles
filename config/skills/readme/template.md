@@ -52,7 +52,7 @@ has nothing real to say; never omit a `[required]` one.
 ## Documentation
 <!-- [required if docs/ exists] Exact wording below, substituting the URL. -->
 Full documentation is available at **<docs-url>**.
-It is generated from the `docs/` directory and published automatically on push.
+It is generated from the `docs/` directory and published by the docs hub, which picks up pushed changes within 12 hours.
 
 ## Contributing
 <!-- Only if CONTRIBUTING.md exists. One line linking it. -->

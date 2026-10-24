@@ -62,7 +62,7 @@ link_shared_configs() {
   link_with_backup "$config_dir/git/ignore" "$HOME/.config/git/ignore"
 
   # SSH client config. The drop-in dir ~/.ssh/config.d/ holds ALL host-specific
-  # entries (github accounts, infra hosts with real IPs) as LOCAL UNVERSIONED
+  # entries (infra hosts with real IPs, internal servers) as LOCAL UNVERSIONED
   # files — nothing in there is tracked by the repo. We only create the empty
   # dir so the `Include ~/.ssh/config.d/*.conf` in config never errors.
   mkdir -p "$HOME/.ssh"
@@ -87,6 +87,17 @@ link_shared_configs() {
     mkdir -p "$HOME/.claude/commands"
     for item in "$config_dir/claude/commands/"*; do
       link_with_backup "$item" "$HOME/.claude/commands/$(basename "$item")"
+    done
+  fi
+
+  # Claude Code hook scripts → ~/.claude/hooks/, linked one by one (the dir
+  # may hold other hooks). Wired in config/claude/settings.json.
+  if [ -d "$config_dir/claude/hooks" ]; then
+    mkdir -p "$HOME/.claude/hooks"
+    for item in "$config_dir/claude/hooks/"*; do
+      [ -f "$item" ] || continue
+      chmod +x "$item"
+      link_with_backup "$item" "$HOME/.claude/hooks/$(basename "$item")"
     done
   fi
 

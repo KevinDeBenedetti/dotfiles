@@ -50,9 +50,16 @@ Rules to stay portable:
 
 | Skill               | Purpose                                                                     |
 | ------------------- | --------------------------------------------------------------------------- |
-| [`commit-types`](#) | Conventional Commits type selection, aligned with the release-please config |
-| [`readme`](#)       | Generate or restructure a `README.md` to the canonical repo architecture     |
-| [`docs-hub`](#)     | Edit `docs/` following the kevindebenedetti.github.io hub contract           |
+| [`commit-types`](#) | Conventional Commits format and type for every commit message               |
+| [`readme`](#)       | Generate or restructure a `README.md` to the canonical repo architecture    |
+| [`docs-hub`](#)     | Edit `docs/` following the kevindebenedetti.github.io hub contract          |
+
+They also run without being asked:
+
+- the Claude Code `Stop` hook asks for `docs-hub` / `readme` when code changed
+  but the docs did not (see [Claude Code](./claude-code.md));
+- VS Code's *Generate commit message* button follows the same Conventional
+  Commits rules as `commit-types` (see [VS Code](./vscode.md)).
 
 ## Shared commands
 

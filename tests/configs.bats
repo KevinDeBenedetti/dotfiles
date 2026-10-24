@@ -270,6 +270,19 @@ setup() {
   assert_success
 }
 
+@test "claude Stop hook runs the docs/README sync check" {
+  run jq -r '.hooks.Stop[0].hooks[0].command' "$CONFIG_DIR/claude/settings.json"
+  assert_output --partial '.claude/hooks/docs-sync-check.sh'
+  assert_file_exists "$CONFIG_DIR/claude/hooks/docs-sync-check.sh"
+}
+
+@test "the public repo stays reusable: MIT LICENSE and a SECURITY.md exist" {
+  assert_file_exists "$REPO_ROOT/LICENSE"
+  run head -1 "$REPO_ROOT/LICENSE"
+  assert_output "MIT License"
+  assert_file_exists "$REPO_ROOT/SECURITY.md"
+}
+
 # --- OS scripts ---
 
 @test "os/macos/init.sh exists and is executable" {

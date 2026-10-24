@@ -97,6 +97,15 @@ run_link_shared_configs() {
   done
 }
 
+@test "link_shared_configs links every claude hook script into HOME" {
+  run run_link_shared_configs
+  assert_success
+  local hook
+  for hook in "$CONFIG_DIR"/claude/hooks/*; do
+    assert_symlink_to "$hook" "$FAKE_HOME/.claude/hooks/$(basename "$hook")"
+  done
+}
+
 @test "link_shared_configs is idempotent" {
   run run_link_shared_configs
   assert_success

@@ -1,3 +1,7 @@
+---
+title: macOS Setup
+---
+
 # macOS Setup
 
 Personal macOS dotfiles and setup scripts powered by [Homebrew](https://brew.sh), [proto](https://moonrepo.dev/proto), and [Oh My Zsh](https://ohmyz.sh).
@@ -63,28 +67,40 @@ Core CLI tools installed via Homebrew. Split into lite (always) and additional (
 
 **Lite:**
 
-| Tool                                           | Description                                           |
-| ---------------------------------------------- | ----------------------------------------------------- |
-| [`fzf`](https://github.com/junegunn/fzf)       | Fuzzy finder for shell history, files, and more       |
-| [`sshs`](https://github.com/quantumsheep/sshs) | Interactive SSH host selector (reads `~/.ssh/config`) |
-| [`cheat`](https://github.com/cheat/cheat)      | Community-driven command cheatsheets                  |
-| [`yq`](https://mikefarah.gitbook.io/yq)        | Portable YAML/JSON/TOML processor                     |
-| `tree`                                         | Directory tree visualizer                             |
-| `watch`                                        | Repeat a command at intervals                         |
-| `rsync`                                        | Incremental file transfer                             |
-| `docker` + `docker-compose`                    | Container build and orchestration CLI                 |
+| Tool                                                                              | Description                                                             |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [`ansible`](https://www.ansible.com)                                              | Agentless configuration management and provisioning                     |
+| [`cheat`](https://github.com/cheat/cheat)                                         | Community-driven command cheatsheets                                    |
+| [`direnv`](https://direnv.net)                                                    | Per-directory environment loader                                        |
+| [`fzf`](https://github.com/junegunn/fzf)                                          | Fuzzy finder for shell history, files, and more                         |
+| `gettext`                                                                         | GNU gettext utilities (`envsubst`, …)                                   |
+| [Git Credential Manager](https://github.com/git-ecosystem/git-credential-manager) | HTTPS Git credential helper behind `credential.helper = manager` (cask) |
+| [`helm`](https://helm.sh)                                                         | Kubernetes package manager                                              |
+| [`kubectl`](https://kubernetes.io/docs/reference/kubectl/)                        | Kubernetes command-line client                                          |
+| [`sshs`](https://github.com/quantumsheep/sshs)                                    | Interactive SSH host selector (reads `~/.ssh/config`)                   |
+| [`terraform`](https://developer.hashicorp.com/terraform)                          | Infrastructure as code                                                  |
+| `tree`                                                                            | Directory tree visualizer                                               |
+| `watch`                                                                           | Repeat a command at intervals                                           |
+| [`yq`](https://mikefarah.gitbook.io/yq)                                           | Portable YAML/JSON/TOML processor                                       |
+| `rsync`                                                                           | Incremental file transfer                                               |
+
+> Git Credential Manager's installer runs `git-credential-manager configure`,
+> which writes to `~/.gitconfig`. On a fresh machine this happens before the
+> dotfiles are linked; on a machine already linked, check
+> `git diff config/git/.gitconfig` afterwards.
 
 **Additional (full mode):**
 
-| Tool                                                        | Description                                              |
-| ----------------------------------------------------------- | -------------------------------------------------------- |
-| [`gh`](https://cli.github.com)                              | GitHub CLI — PRs, issues, repos from the terminal        |
-| [`lazygit`](https://github.com/jesseduffield/lazygit)       | Terminal UI for Git                                      |
-| [`lazydocker`](https://github.com/jesseduffield/lazydocker) | Terminal UI for Docker                                   |
-| [`lima`](https://github.com/lima-vm/lima)                   | Linux VMs on macOS — used for local Debian setup testing |
-| [`nmap`](https://nmap.org)                                  | Network exploration and port scanning                    |
-| Browsers                                                    | Brave, Firefox, Arc                                      |
-| Apps                                                        | Insomnia, Mattermost, OpenVPN Connect                    |
+| Tool                                                        | Description                                       |
+| ----------------------------------------------------------- | ------------------------------------------------- |
+| [`gh`](https://cli.github.com)                              | GitHub CLI — PRs, issues, repos from the terminal |
+| [`k9s`](https://k9scli.io)                                  | Terminal UI for Kubernetes clusters               |
+| [`lazygit`](https://github.com/jesseduffield/lazygit)       | Terminal UI for Git                               |
+| [`lazydocker`](https://github.com/jesseduffield/lazydocker) | Terminal UI for Docker                            |
+| [`nmap`](https://nmap.org)                                  | Network exploration and port scanning             |
+| Docker Desktop                                              | Docker engine, CLI and Compose                    |
+| Browsers                                                    | Brave, Firefox, Arc                               |
+| Apps                                                        | Insomnia, Mattermost, OpenVPN Connect             |
 
 ### `javascript`
 
@@ -145,27 +161,40 @@ Personal applications.
 
 Running `-d` symlinks (or copies) config files from the repository into `$HOME`. Any existing file is backed up with a datestamp (e.g. `~/.zshrc.bak.20260311`) before being replaced.
 
-| Source                          | Target                                                  | Method  |
-| ------------------------------- | ------------------------------------------------------- | ------- |
-| `config/zsh/.zshrc`             | `~/.zshrc`                                              | copy¹   |
-| `config/git/.gitconfig`         | `~/.gitconfig`                                          | symlink |
-| `config/proto/.prototools`      | `~/.proto/.prototools`                                  | symlink |
-| `config/oh-my-zsh/*.zsh-theme`  | `~/.oh-my-zsh/custom/themes/`                           | symlink |
-| `config/shell/*`                | `~/.config/dotfiles/`                                   | symlink |
-| `config/git/ignore`             | `~/.config/git/ignore`                                  | symlink |
-| `config/ssh/config`             | `~/.ssh/config`                                         | symlink |
-| `config/claude/settings.json`   | `~/.claude/settings.json`                               | symlink |
-| `config/claude/commands/*`      | `~/.claude/commands/`                                   | symlink |
-| `config/commands/*.md`          | `~/.claude/commands/`, `~/.config/opencode/commands/`, `~/Library/Application Support/Code/User/prompts/*.prompt.md` | symlink |
-| `config/skills/*`               | `~/.claude/skills/`                                     | symlink |
-| `config/ai-tools/`              | `~/.config/ai-tools`                                    | symlink |
-| `config/ollama/`                | `~/.config/ollama`                                      | symlink |
-| `scripts/*/` (executables)      | `~/.local/bin/`                                         | symlink |
-| `config/ollama/launchd/*.plist` | `~/Library/LaunchAgents/`                               | symlink |
-| `config/vscode/settings.json`   | `~/Library/Application Support/Code/User/settings.json` | symlink |
-| `config/vscode/mcp.json`        | `~/Library/Application Support/Code/User/mcp.json`      | symlink |
+| Source                          | Target                                                        | Method   |
+| ------------------------------- | ------------------------------------------------------------- | -------- |
+| `config/zsh/.zshrc`             | `~/.zshrc`                                                    | copy¹    |
+| `config/git/.gitconfig`         | `~/.gitconfig`                                                | symlink  |
+| `config/git/ignore`             | `~/.config/git/ignore`                                        | symlink  |
+| `config/proto/.prototools`      | `~/.proto/.prototools`                                        | symlink  |
+| `config/oh-my-zsh/*.zsh-theme`  | `~/.oh-my-zsh/custom/themes/`                                 | symlink  |
+| `config/shell/*`                | `~/.config/dotfiles/`                                         | symlink  |
+| `config/ssh/config`             | `~/.ssh/config`                                               | symlink  |
+| `config/claude/settings.json`   | `~/.claude/settings.json`                                     | symlink  |
+| `config/claude/commands/*`      | `~/.claude/commands/`                                         | symlink  |
+| `config/claude/hooks/*`         | `~/.claude/hooks/`                                            | symlink  |
+| `config/commands/*.md`          | `~/.claude/commands/`                                         | symlink  |
+| `config/commands/*.md`          | `~/.config/opencode/commands/`                                | symlink  |
+| `config/commands/*.md`          | `~/Library/Application Support/Code/User/prompts/*.prompt.md` | symlink² |
+| `config/skills/*/`              | `~/.claude/skills/`                                           | symlink  |
+| `config/opencode/opencode.json` | `~/.config/opencode/opencode.json`                            | symlink  |
+| `config/copilot/hooks/*`        | `~/.copilot/hooks/`                                           | symlink  |
+| `config/ai-tools/`              | `~/.config/ai-tools`                                          | symlink  |
+| `scripts/*/*` (executables)     | `~/.local/bin/`                                               | symlink  |
+| `config/ollama/`                | `~/.config/ollama`                                            | symlink  |
+| `config/ollama/launchd/*.plist` | `~/Library/LaunchAgents/`                                     | symlink  |
+| `config/vscode/settings.json`   | `~/Library/Application Support/Code/User/settings.json`       | symlink² |
+| `config/vscode/mcp.json`        | `~/Library/Application Support/Code/User/mcp.json`            | symlink² |
 
 > ¹ `.zshrc` is copied rather than symlinked because the init script applies macOS-specific patches: `gsed` alias and Homebrew paths for Apple Silicon (`/opt/homebrew`).
+>
+> ² Only when VS Code is installed: `settings.json` and `mcp.json` need the `code` CLI on `PATH`, prompt files need the VS Code User directory to exist.
+
+::: tip
+These links point at the checkout the init script ran from. Run it from a clean
+checkout such as `~/.dotfiles` rather than a working copy that AI agents edit —
+see [Claude Code](../config/claude-code.md).
+:::
 
 ## Completions
 
@@ -296,7 +325,7 @@ The following files are sourced at the end of `.zshrc` if they exist. They are *
 
 | File                              | Purpose                                               |
 | --------------------------------- | ----------------------------------------------------- |
-| `~/.config/dotfiles/env.local.sh` | Machine-specific secrets and environment variables    |
+| `~/.config/dotfiles/env.local.sh` | Machine-specific environment variables (no API keys)  |
 | `~/.zshrc.local`                  | Machine-specific aliases, path additions, and exports |
 
 ## Shell Functions
@@ -325,6 +354,7 @@ Custom functions live in `config/shell/functions.sh` and are sourced automatical
 
 | Section      | Setting              | Value                    | Effect                                               |
 | ------------ | -------------------- | ------------------------ | ---------------------------------------------------- |
+| `user`       | `useConfigOnly`      | `true`                   | Identity must come from a config file, never guessed |
 | `push`       | `default`            | `simple`                 | Push to the tracking branch only (safe default)      |
 | `pull`       | `rebase`             | `true`                   | Always rebase on pull instead of merge               |
 | `branch`     | `autosetuprebase`    | `always`                 | New branches track their remote with rebase          |
@@ -334,8 +364,11 @@ Custom functions live in `config/shell/functions.sh` and are sourced automatical
 | `gpg`        | `format`             | `ssh`                    | Use SSH key (not GPG keyring) for signing            |
 | `gpg.ssh`    | `allowedSignersFile` | `~/.ssh/allowed_signers` | File that maps emails to trusted public keys         |
 | `init`       | `defaultBranch`      | `main`                   | New repositories default to `main`                   |
-| `credential` | `helper`             | `cache --timeout=3600`   | Cache credentials for 1 hour                         |
+| `credential` | `helper`             | `manager`                | HTTPS auth through Git Credential Manager³           |
+| `url`        | `insteadOf`          | `git@github.com:`        | GitHub SSH remotes are rewritten to HTTPS (GCM)      |
 | `diff`       | `tool`               | `meld`                   | Use Meld as the visual diff tool                     |
+
+> ³ Git Credential Manager is installed by the [`base`](#base) profile. Details in [Git](../config/git.md).
 
 ### Machine-specific overrides
 

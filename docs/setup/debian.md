@@ -74,19 +74,24 @@ Core CLI tools installed via `apt`. Split into lite (always) and additional (ful
 
 **Lite:**
 
-| Tool                                                        | Description                                         |
-| ----------------------------------------------------------- | --------------------------------------------------- |
-| [Docker CE](https://docs.docker.com/engine/install/debian/) | Docker engine from the official upstream repository |
-| `docker-ce`, `docker-ce-cli`, `containerd.io`               | Core engine, CLI client, and container runtime      |
-| `docker-buildx-plugin`, `docker-compose-plugin`             | BuildKit and Compose v2 plugins                     |
-| [`fzf`](https://github.com/junegunn/fzf)                    | Fuzzy finder for shell history, files, and more     |
-| `ssh`                                                       | OpenSSH client                                      |
-| `tree`                                                      | Directory tree visualizer                           |
-| `watch`                                                     | Repeat a command at intervals                       |
-| [`yq`](https://mikefarah.gitbook.io/yq)                     | Portable YAML/JSON/TOML processor                   |
-| `rsync`                                                     | Incremental file transfer                           |
+| Tool                                                                              | Description                                                      |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [Docker CE](https://docs.docker.com/engine/install/debian/)                       | Docker engine from the official upstream repository              |
+| `docker-ce`, `docker-ce-cli`, `containerd.io`                                     | Core engine, CLI client, and container runtime                   |
+| `docker-buildx-plugin`, `docker-compose-plugin`                                   | BuildKit and Compose v2 plugins                                  |
+| `ansible`                                                                         | Agentless configuration management and provisioning              |
+| [`fzf`](https://github.com/junegunn/fzf)                                          | Fuzzy finder for shell history, files, and more                  |
+| `ssh`                                                                             | OpenSSH client                                                   |
+| `tree`                                                                            | Directory tree visualizer                                        |
+| `watch`                                                                           | Repeat a command at intervals                                    |
+| [`yq`](https://mikefarah.gitbook.io/yq)                                           | Portable YAML/JSON/TOML processor                                |
+| `rsync`                                                                           | Incremental file transfer                                        |
+| [Terraform](https://developer.hashicorp.com/terraform)                            | Infrastructure as code, from HashiCorp's apt repository          |
+| [Git Credential Manager](https://github.com/git-ecosystem/git-credential-manager) | HTTPS Git credential helper behind `credential.helper = manager` |
 
 > Docker CE is installed from `https://download.docker.com/linux/debian` using the official GPG key. The calling user is automatically added to the `docker` group.
+>
+> Git Credential Manager comes from its latest GitHub release (`.deb`, amd64 or arm64), checked against the SHA-256 digest GitHub publishes for the file. Linux has no default credential store, so when none is configured the script sets `credential.credentialStore cache` in the system config (`/etc/gitconfig`): credentials stay in memory (15 minutes by default), never on disk.
 
 **Additional (full mode):**
 
@@ -108,6 +113,7 @@ Set these before invoking the script to customize security behaviour:
 | ------------------- | ------- | --------------------------------------------------------- |
 | `SSH_PORT`          | `22`    | TCP port sshd listens on                                  |
 | `SSH_ALLOWED_USERS` | *(all)* | Space-separated list of users permitted to log in via SSH |
+| `HARDEN_TMP`        | `false` | Remount `/tmp` as a `noexec` tmpfs capped at 1G (opt-in)  |
 
 ```sh
 # Example: custom port + restrict SSH to a single user
@@ -199,8 +205,12 @@ loopback only. Publish a service on purpose with an explicit address
 
 | Mount point | Options                       |
 | ----------- | ----------------------------- |
-| `/run/shm`  | `noexec,nosuid`               |
+| `/dev/shm`  | `noexec,nosuid,nodev`         |
 | `/tmp`      | `noexec,nosuid,nodev,size=1G` |
+
+The `/tmp` entry is only added with `HARDEN_TMP=true`: `noexec` on `/tmp` breaks
+some apt/dpkg maintainer scripts and builds, and the 1G cap is wrong for small
+servers.
 
 #### AppArmor
 
@@ -246,23 +256,33 @@ Tools for Kubernetes cluster management.
 
 Running `-d` symlinks (or copies) config files from the repository into `$HOME`. Any existing file is backed up with a datestamp (e.g. `~/.zshrc.bak.20260311`) before being replaced.
 
-| Source                         | Target                              | Method                           |
-| ------------------------------ | ----------------------------------- | -------------------------------- |
-| `config/zsh/.zshrc`            | `~/.zshrc`                          | copy¹                            |
-| `config/git/.gitconfig`        | `~/.gitconfig`                      | symlink                          |
-| `config/proto/.prototools`     | `~/.proto/.prototools`              | symlink                          |
-| `config/oh-my-zsh/*.zsh-theme` | `~/.oh-my-zsh/custom/themes/`       | symlink                          |
-| `config/shell/*`               | `~/.config/dotfiles/`               | symlink                          |
-| `config/git/ignore`            | `~/.config/git/ignore`              | symlink                          |
-| `config/ssh/config`            | `~/.ssh/config`                     | symlink                          |
-| `config/claude/settings.json`  | `~/.claude/settings.json`           | symlink                          |
-| `config/claude/commands/*`     | `~/.claude/commands/`               | symlink                          |  | `config/commands/*.md` | `~/.claude/commands/`, `~/.config/opencode/commands/`, `~/.config/Code/User/prompts/*.prompt.md` | symlink |  | `config/skills/*` | `~/.claude/skills/` | symlink |  | `config/ai-tools/` | `~/.config/ai-tools` | symlink |
-| `config/ollama/`               | `~/.config/ollama`                  | symlink                          |
-| `scripts/*/` (executables)     | `~/.local/bin/`                     | symlink                          |
-| `config/vscode/settings.json`  | `~/.config/Code/User/settings.json` | symlink (if `code` is available) |
-| `config/vscode/mcp.json`       | `~/.config/Code/User/mcp.json`      | symlink (if `code` is available) |
+| Source                          | Target                                    | Method   |
+| ------------------------------- | ----------------------------------------- | -------- |
+| `config/zsh/.zshrc`             | `~/.zshrc`                                | copy¹    |
+| `config/git/.gitconfig`         | `~/.gitconfig`                            | symlink  |
+| `config/git/ignore`             | `~/.config/git/ignore`                    | symlink  |
+| `config/proto/.prototools`      | `~/.proto/.prototools`                    | symlink  |
+| `config/oh-my-zsh/*.zsh-theme`  | `~/.oh-my-zsh/custom/themes/`             | symlink  |
+| `config/shell/*`                | `~/.config/dotfiles/`                     | symlink  |
+| `config/ssh/config`             | `~/.ssh/config`                           | symlink  |
+| `config/claude/settings.json`   | `~/.claude/settings.json`                 | symlink  |
+| `config/claude/commands/*`      | `~/.claude/commands/`                     | symlink  |
+| `config/claude/hooks/*`         | `~/.claude/hooks/`                        | symlink  |
+| `config/commands/*.md`          | `~/.claude/commands/`                     | symlink  |
+| `config/commands/*.md`          | `~/.config/opencode/commands/`            | symlink  |
+| `config/commands/*.md`          | `~/.config/Code/User/prompts/*.prompt.md` | symlink² |
+| `config/skills/*/`              | `~/.claude/skills/`                       | symlink  |
+| `config/opencode/opencode.json` | `~/.config/opencode/opencode.json`        | symlink  |
+| `config/copilot/hooks/*`        | `~/.copilot/hooks/`                       | symlink  |
+| `config/ai-tools/`              | `~/.config/ai-tools`                      | symlink  |
+| `scripts/*/*` (executables)     | `~/.local/bin/`                           | symlink  |
+| `config/ollama/`                | `~/.config/ollama`                        | symlink  |
+| `config/vscode/settings.json`   | `~/.config/Code/User/settings.json`       | symlink² |
+| `config/vscode/mcp.json`        | `~/.config/Code/User/mcp.json`            | symlink² |
 
 > ¹ `.zshrc` is copied rather than symlinked so machine-specific patches can be applied without affecting the tracked file.
+>
+> ² Only when VS Code is installed: `settings.json` and `mcp.json` need the `code` CLI on `PATH`, prompt files need the VS Code User directory to exist.
 
 ### Local override stubs
 
@@ -272,7 +292,7 @@ The `-d` step also creates the following stub files if they do not already exist
 | --------------------------------- | ---------------------------------------------------------------- |
 | `~/.zshrc.local`                  | Machine-specific zsh aliases, exports, and path additions        |
 | `~/.gitconfig.local`              | Machine-specific git overrides (e.g. `user.email`, `signingkey`) |
-| `~/.config/dotfiles/env.local.sh` | Machine-specific environment variable overrides                  |
+| `~/.config/dotfiles/env.local.sh` | Machine-specific environment variable overrides (no API keys)    |
 
 ### SSH allowed signers
 
@@ -340,7 +360,7 @@ The following files are sourced at the end of `.zshrc` if they exist. They are *
 
 | File                              | Purpose                                               |
 | --------------------------------- | ----------------------------------------------------- |
-| `~/.config/dotfiles/env.local.sh` | Machine-specific secrets and environment variables    |
+| `~/.config/dotfiles/env.local.sh` | Machine-specific environment variables (no API keys)  |
 | `~/.zshrc.local`                  | Machine-specific aliases, path additions, and exports |
 
 ## Shell Functions
@@ -369,6 +389,7 @@ Custom functions live in `config/shell/functions.sh` and are sourced automatical
 
 | Section      | Setting              | Value                    | Effect                                               |
 | ------------ | -------------------- | ------------------------ | ---------------------------------------------------- |
+| `user`       | `useConfigOnly`      | `true`                   | Identity must come from a config file, never guessed |
 | `push`       | `default`            | `simple`                 | Push to the tracking branch only (safe default)      |
 | `pull`       | `rebase`             | `true`                   | Always rebase on pull instead of merge               |
 | `branch`     | `autosetuprebase`    | `always`                 | New branches track their remote with rebase          |
@@ -378,7 +399,10 @@ Custom functions live in `config/shell/functions.sh` and are sourced automatical
 | `gpg`        | `format`             | `ssh`                    | Use SSH key (not GPG keyring) for signing            |
 | `gpg.ssh`    | `allowedSignersFile` | `~/.ssh/allowed_signers` | File that maps emails to trusted public keys         |
 | `init`       | `defaultBranch`      | `main`                   | New repositories default to `main`                   |
-| `credential` | `helper`             | `cache --timeout=3600`   | Cache credentials for 1 hour                         |
+| `credential` | `helper`             | `manager`                | HTTPS auth through Git Credential Manager³           |
+| `url`        | `insteadOf`          | `git@github.com:`        | GitHub SSH remotes are rewritten to HTTPS (GCM)      |
+
+> ³ Git Credential Manager is installed by the [`base`](#base) profile; without it, git warns that `credential-manager` is not a git command and falls back to prompting. Details in [Git](../config/git.md).
 
 ### Machine-specific overrides
 

@@ -58,17 +58,18 @@ cd ~/.dotfiles
 | `-p <profiles>` | Comma-separated list of profiles (e.g. `base,python`)         |
 | `-d`            | Link dotfiles into `$HOME` only                               |
 | `-c`            | Install zsh CLI completions                                   |
-| `-l`            | Lite mode — skip optional/heavy packages (macOS only)         |
+| `-l`            | Lite mode — skip optional/heavy packages                      |
 
 ## What gets installed
 
 - **Oh My Zsh** with custom theme and plugins
 - **proto** — version manager for Node.js, Bun, and other runtimes
 - **Shell config** — `.zshrc`, aliases, environment variables
-- **Git config** — commit signing, rebase-by-default, credential cache
+- **Git config** — SSH commit signing, rebase-by-default, HTTPS auth through Git Credential Manager (see [Git](./config/git.md))
 - **SSH config** — host aliases and key references
 - **VS Code** — settings and extension list
 - **Agent skills** — shared AI assistant skills (see [Skills](./config/skills.md))
+- **AI agent guardrails** — Claude Code settings and managed policy, OpenCode permissions, Copilot guard hook (see [Claude Code](./config/claude-code.md))
 
 ## Local overrides
 
@@ -78,14 +79,20 @@ Three stub files are created automatically on first run with `-d`. They are **gi
 | --------------------------------- | ---------------------------------------------------------------- |
 | `~/.zshrc.local`                  | Aliases, exports, path additions — sourced last in `.zshrc`      |
 | `~/.gitconfig.local`              | Override `[user]` email, signing key — loaded via `[include]`    |
-| `~/.config/dotfiles/env.local.sh` | Secrets and env vars (API keys, tokens) — sourced after `env.sh` |
+| `~/.config/dotfiles/env.local.sh` | Machine-specific env vars, no API keys — sourced after `env.sh`  |
+
+::: warning
+Do not export API keys or tokens from `env.local.sh`: every process started from
+the shell inherits them, AI agents included. See [Shell](./config/shell.md).
+:::
 
 ## Testing
 
-Run Bats unit tests locally:
+Run the same checks as CI locally (run `make submodules` once on a fresh clone):
 
 ```sh
-bats tests/ tests/ai/ tests/ollama/
+make ci     # ShellCheck + yamllint + Bats
+make test   # Bats only
 ```
 
 Run full integration tests in Docker (Debian):
@@ -94,4 +101,4 @@ Run full integration tests in Docker (Debian):
 make docker-test-full
 ```
 
-See [Setup — macOS](./setup/macos) and [Setup — Debian](./setup/debian) for platform-specific details.
+See [Setup — macOS](./setup/macos.md) and [Setup — Debian](./setup/debian.md) for platform-specific details.

@@ -12,6 +12,8 @@ User-level Claude Code settings and the system-wide managed policy.
 | ------------------------------------- | -------------------------------------------------------------------------------- | ----------------- |
 | `config/claude/settings.json`         | `~/.claude/settings.json`                                                        | symlink           |
 | `config/claude/managed-settings.json` | `/Library/Application Support/ClaudeCode/` (macOS) / `/etc/claude-code/` (Linux) | copy (root-owned) |
+| `config/claude/commands/*`            | `~/.claude/commands/`                                                            | symlink           |
+| `config/claude/hooks/*`               | `~/.claude/hooks/`                                                               | symlink           |
 
 > Shared agent skills (also read by OpenCode and VS Code Copilot) live in
 > `config/skills/` and are linked into `~/.claude/skills/` — see
@@ -50,19 +52,22 @@ The script validates the JSON, shows a diff against the currently installed
 policy, then copies it with `sudo install -o root`. Re-run it after every
 change to the repo file.
 
-The policy enforces (non-exhaustive): hard deny on `git commit`/`git push`
-and on reading/writing secrets (`.env`, SSH/AWS/GnuPG keys, `*.pem`, `*.key`),
-mandatory sandbox with a network domain allowlist, no unsandboxed commands,
-and bypass-permissions mode disabled.
+The policy enforces (non-exhaustive): hard deny on `git commit`/`git push`, on
+reading/writing secrets (`.env` variants, `*.pem`, `*.key`, everything under
+`~/.ssh` except public keys and client config, `~/.aws`, `~/.gnupg`,
+`~/.kube/config`, `~/.config/dotfiles/env.local.sh`) and on printing stored
+tokens (`gh auth token`, `git credential`); mandatory sandbox with a network
+domain allowlist, no unsandboxed commands, and bypass-permissions mode disabled.
 
 ## What it contains
 
 ### Permissions
 
-Pre-approved commands (`curl`, `git`, `gh`, `kubectl`, `docker`, …) so Claude Code
-does not prompt for them, and hard denies:
+Pre-approved commands (`curl`, `git`, `docker`, read-only `gh` and `kubectl`, …)
+so Claude Code does not prompt for them, and hard denies:
 
 - `git commit` / `git push` — commits and pushes are always done manually
+- mutating `kubectl` verbs (`apply`, `delete`, `exec`, …) — kubectl is read-only
 - read/write/edit on any `.env` file
 - reading anything under `~/.ssh` except `*.pub`, `config`, `config.d/` and
   `known_hosts` (private keys are not all named `id_*`), `~/.kube/config` and
@@ -71,8 +76,9 @@ does not prompt for them, and hard denies:
   `kubectl get secret(s)`
 
 `gh` is pre-approved for read-only subcommands only (`gh pr view`,
-`gh run list`, …); `gh api` asks first, since it can push, merge or delete
-through the REST API.
+`gh run list`, …). These ask first: `gh api` (it can push, merge or delete
+through the REST API), `gh pr merge`, `terraform apply` / `destroy` and
+`kubectl config view`.
 
 ### Sandbox
 
@@ -96,9 +102,21 @@ Changes made in the working copy go live only after review, commit and
 
 ### Hooks
 
-| Hook         | Purpose                                                     |
-| ------------ | ----------------------------------------------------------- |
-| `PreToolUse` | Blocks any `git commit` / `git push` command before it runs |
+| Event        | Command              | Purpose                                                                                                         |
+| ------------ | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `PreToolUse` | inline `jq` + `grep` | Blocks `git commit` / `git push`, including wrapped (`bash -c`, `$(…)`) and `-c`/`-C` forms                     |
+| `PreToolUse` | inline `jq` + `grep` | Blocks mutating `kubectl` verbs — kubectl is read-only for agents                                               |
+| `PreToolUse` | `rtk hook claude`    | Rewrites Bash commands through `rtk` for token-optimized output                                                 |
+| `Stop`       | `docs-sync-check.sh` | Code changed but neither `docs/` nor `README.md` did → asks for the `docs-hub` / `readme` skills, once per turn |
+
+The `git commit` / `git push` hook is also in `managed-settings.json`. These
+regex hooks catch mistakes, not a determined bypass: the sandbox and the secret
+deny rules are the actual security boundary.
+
+Hook scripts live in `config/claude/hooks/` and are linked into
+`~/.claude/hooks/`. A hook cannot invoke a skill itself: the `Stop` hook blocks
+the end of the turn with a reason naming the skills, and lets the next stop
+through (`stop_hook_active`), so it never loops.
 
 ## Settings precedence and the sandbox allowlist
 

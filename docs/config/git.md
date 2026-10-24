@@ -1,12 +1,16 @@
+---
+title: Git
+---
+
 # Git
 
 Global Git configuration symlinked to `~/.gitconfig`.
 
 ## Location
 
-| File                    | Symlinked to         |
-| ----------------------- | -------------------- |
-| `config/git/.gitconfig` | `~/.gitconfig`       |
+| File                    | Symlinked to           |
+| ----------------------- | ---------------------- |
+| `config/git/.gitconfig` | `~/.gitconfig`         |
 | `config/git/ignore`     | `~/.config/git/ignore` |
 
 ## Global ignore
@@ -14,11 +18,19 @@ Global Git configuration symlinked to `~/.gitconfig`.
 `~/.config/git/ignore` is git's default global excludes file (XDG location, no
 `core.excludesfile` entry needed). It ignores files across **all** repositories:
 
-| Pattern                          | Reason                                              |
-| -------------------------------- | --------------------------------------------------- |
+| Pattern                          | Reason                                                   |
+| -------------------------------- | -------------------------------------------------------- |
 | `**/.claude/settings.local.json` | Claude Code per-project local overrides, never committed |
+| `**/.claude/.cc-writes/`         | Claude Code internal state, never committed              |
 
 ## Key settings
+
+### Identity
+
+`user.useConfigOnly = true`: Git never guesses `user.name` / `user.email` from
+the host. Set them in `~/.gitconfig.local` (see
+[Machine-specific overrides](#machine-specific-overrides)), otherwise
+`git commit` stops and asks for an identity.
 
 ### Push & pull
 
@@ -38,15 +50,24 @@ Commits and tags are signed with an SSH key.
 | `tag.gpgSign`                | `true`                   |
 | `gpg.format`                 | `ssh`                    |
 | `gpg.ssh.allowedSignersFile` | `~/.ssh/allowed_signers` |
-| `user.signingkey`            | `~/.ssh/id_rsa.pub`      |
+
+The signing key itself (`user.signingkey`) is not in the tracked file: set it in
+`~/.gitconfig.local`.
 
 ### Credentials & connection
 
-| Setting             | Value                  | Description                  |
-| ------------------- | ---------------------- | ---------------------------- |
-| `credential.helper` | `cache --timeout=3600` | Cache credentials for 1 hour |
-| `rerere.enabled`    | `true`                 | Remember resolved conflicts  |
-| `color.ui`          | `true`                 | Color terminal output        |
+| Setting                                        | Value             | Description                                                        |
+| ---------------------------------------------- | ----------------- | ------------------------------------------------------------------ |
+| `credential.helper`                            | `manager`         | Git Credential Manager handles HTTPS auth¹                         |
+| `credential.https://dev.azure.com.useHttpPath` | `true`            | One credential per Azure DevOps repository path                    |
+| `url.https://github.com/.insteadOf`            | `git@github.com:` | GitHub SSH remotes are rewritten to HTTPS, so GCM handles them too |
+| `rerere.enabled`                               | `true`            | Remember resolved conflicts                                        |
+| `color.ui`                                     | `true`            | Color terminal output                                              |
+
+¹ Git Credential Manager (`git-credential-manager`) is installed by the `base`
+profile — see [macOS](../setup/macos.md) and [Debian](../setup/debian.md). The
+empty `helper =` line written before it clears any helper inherited from a
+system-level config.
 
 ### Defaults
 
@@ -55,16 +76,18 @@ Commits and tags are signed with an SSH key.
 | `init.defaultBranch`        | `main` |
 | `status.showUntrackedFiles` | `all`  |
 | `diff.wordRegex`            | `.`    |
+| `diff.tool`                 | `meld` |
 
 ## Machine-specific overrides
 
-Settings that differ per machine (email, signing key, corporate identity, etc.) go in `~/.gitconfig.local`, which is not tracked by git.
+Settings that differ per machine (identity, signing key, etc.) go in `~/.gitconfig.local`, which is not tracked by git.
 
 ```ini
 # ~/.gitconfig.local
 [user]
-  email = work@company.com
-  signingkey = ~/.ssh/work_key.pub
+  name = Your Name
+  email = you@example.com
+  signingkey = ~/.ssh/id_ed25519.pub
 ```
 
 This file is included at the bottom of `.gitconfig`:
@@ -73,25 +96,3 @@ This file is included at the bottom of `.gitconfig`:
 [include]
   path = ~/.gitconfig.local
 ```
-
-## Per-directory identity (perso / pro)
-
-`.gitconfig` switches identity based on **where the repo lives**, via two
-conditional includes (placed last so they override the default `[user]`):
-
-```ini
-[includeIf "gitdir:~/dev/"]
-  path = ~/.gitconfig-perso
-[includeIf "gitdir:~/pro/"]
-  path = ~/.gitconfig-pro
-```
-
-| Directory   | Include file        | Identity     |
-| ----------- | ------------------- | ------------ |
-| `~/dev/…`   | `~/.gitconfig-perso` | Personal     |
-| `~/pro/…`   | `~/.gitconfig-pro`   | Professional |
-
-Create both files (untracked, gitignored like `~/.gitconfig.local`) with their
-own `[user]` block. See
-[Guide — Git multi-account (perso / pro)](../guides/git-multi-account.md) for the full
-SSH + clone workflow.

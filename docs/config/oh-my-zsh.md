@@ -1,3 +1,7 @@
+---
+title: Oh My Zsh Theme
+---
+
 # Oh My Zsh Theme
 
 A minimal custom Oh My Zsh theme with git integration.

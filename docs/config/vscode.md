@@ -8,11 +8,16 @@ VS Code settings, recommended extensions, and MCP server configuration.
 
 ## Location
 
-| File                            | Symlinked to                          | Description            |
-| ------------------------------- | ------------------------------------- | ---------------------- |
-| `config/vscode/settings.json`   | `~/.config/Code/User/settings.json`   | Editor settings        |
-| `config/vscode/extensions.json` | `~/.config/Code/User/extensions.json` | Recommended extensions |
-| `config/vscode/mcp.json`        | `~/.config/Code/User/mcp.json`        | MCP servers            |
+| File                            | Installed to                   | Method                               |
+| ------------------------------- | ------------------------------ | ------------------------------------ |
+| `config/vscode/settings.json`   | `<VS Code User>/settings.json` | symlink¹                             |
+| `config/vscode/mcp.json`        | `<VS Code User>/mcp.json`      | symlink¹                             |
+| `config/vscode/extensions.json` | —                              | read to install each recommendation¹ |
+
+¹ Only when the `code` CLI is on `PATH`. `<VS Code User>` is
+`~/Library/Application Support/Code/User` on macOS and `~/.config/Code/User` on
+Debian. Each extension listed in `extensions.json` is installed with
+`code --install-extension` unless it already is.
 
 ## Settings
 
@@ -49,18 +54,36 @@ VS Code settings, recommended extensions, and MCP server configuration.
 | Markdown   | Markdown All in One |
 | YAML       | Red Hat YAML        |
 
+### Commit messages
+
+`github.copilot.chat.commitMessageGeneration.instructions` makes the
+**Generate commit message** button of the Source Control view write
+Conventional Commits only: a type from the release-please set (never
+`refactor`), a header of at most 100 characters, an imperative summary, a body
+of `- ` bullets, and `!` for a breaking change. The rules mirror the
+`commit-types` skill (see [Skills](./skills.md)); `tests/configs.bats` keeps the
+two in sync.
+
+### Security
+
+| Setting                                           | Value    | Effect                                                          |
+| ------------------------------------------------- | -------- | --------------------------------------------------------------- |
+| `security.workspace.trust.untrustedFiles`         | `prompt` | Ask before opening an untrusted file in a trusted window        |
+| `terminal.integrated.enableMultiLinePasteWarning` | `auto`   | Warn before a multi-line paste the shell would run line by line |
+| `chat.tools.global.autoApprove`                   | `false`  | No blanket auto-approval of agent tools                         |
+
 ### Copilot agent guardrails
 
 Copilot follows the same hard rules as Claude Code (`config/claude/settings.json`
 is the reference) and OpenCode (`config/opencode/opencode.json`):
 
-| Rule                                                   | Copilot mechanism                                       |
-| ------------------------------------------------------ | ------------------------------------------------------- |
-| `git commit` / `git push` / `gh repo delete` blocked   | `agent-guard` hook → `deny`                             |
-| `gh auth token`, `git credential`, `kubectl get secret` | `agent-guard` hook → `deny`                             |
-| `kubectl` read-only (mutating verbs blocked)           | `agent-guard` hook → `deny`; read verbs auto-approved   |
-| `terraform apply/destroy`, `gh pr merge` need approval | `agent-guard` hook → `ask` (also `gh api`, `config view`) |
-| Secrets never read/written (`.env.example` allowed)    | `agent-guard` hook → `deny` + edits never auto-approved |
+| Rule                                                                      | Copilot mechanism                                       |
+| ------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `git commit` / `git push` / `gh repo delete` blocked                      | `agent-guard` hook → `deny`                             |
+| `gh auth token`, `git credential`, `kubectl get secret`                   | `agent-guard` hook → `deny`                             |
+| `kubectl` read-only (mutating verbs blocked)                              | `agent-guard` hook → `deny`; read verbs auto-approved   |
+| `terraform apply/destroy`, `gh pr merge`, `gh api`, `kubectl config view` | `agent-guard` hook → `ask`                              |
+| Secrets never read/written (`.env.example` allowed)                       | `agent-guard` hook → `deny` + edits never auto-approved |
 
 Secrets = `.env`, `.env.*`, `*.env`, `*.pem`, `*.key`, everything under
 `~/.ssh` except `*.pub` / `config` / `config.d/` / `known_hosts`, `~/.aws`,

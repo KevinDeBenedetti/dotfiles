@@ -1,24 +1,23 @@
-# dotfiles
+# Dotfiles
 
-[![CI/CD](https://img.shields.io/github/actions/workflow/status/KevinDeBenedetti/dotfiles/ci-cd.yml?style=for-the-badge&label=CI%2FCD)](https://github.com/KevinDeBenedetti/dotfiles/actions/workflows/ci-cd.yml)
+[![CI/CD](https://img.shields.io/github/actions/workflow/status/KevinDeBenedetti/dotfiles/ci-cd.yml?style=for-the-badge&label=CI%2FCD)](https://github.com/KevinDeBenedetti/dotfiles/actions/workflows/ci-cd.yml) [![Release](https://img.shields.io/github/v/release/KevinDeBenedetti/dotfiles?style=for-the-badge)](https://github.com/KevinDeBenedetti/dotfiles/releases) [![License](https://img.shields.io/github/license/KevinDeBenedetti/dotfiles?style=for-the-badge)](LICENSE)
 
-> Personal macOS and Debian dotfiles and setup scripts.
+> Personal dotfiles and bootstrap scripts that provision macOS workstations and Debian servers, with shared guardrails for AI coding agents.
 
 ## Features
 
-- One-liner bootstrap for macOS and Debian — clones to `~/.dotfiles` automatically
-- Profile flags to install only what you need (`-a` for all)
-- Managed configs: Git, Zsh, SSH, VS Code, oh-my-zsh, shell aliases, proto
-- Shared agent skills (`config/skills/`) exposed to Claude Code, OpenCode and VS Code Copilot via `~/.claude/skills/`
-- proto installed via its official installer; all tool versions pinned in `config/proto/.prototools`
-- Bats unit tests covering init flags, functions, and security profile
-- Docker integration tests for full Debian install validation (no real machine required)
-- ShellCheck and YAML linting on every push
+- One-liner bootstrap for macOS and Debian, with profile flags to install only what you need (`-a` for everything)
+- Debian server hardening: key-only SSH, UFW, Fail2Ban, CrowdSec, sysctl and automatic security updates
+- Managed configs for Git (SSH signing, Git Credential Manager), Zsh, SSH, VS Code and a proto-pinned toolchain
+- AI agent guardrails shared by Claude Code, OpenCode and VS Code Copilot: sandbox, secret deny rules, read-only `kubectl` and `gh`, root-owned managed policy
+- Shared agent skills and commands (Conventional Commits, README, docs) linked into every tool from `config/skills/` and `config/commands/`
+- ShellCheck, yamllint and Bats in CI, plus Docker and Lima integration rigs for the Debian setup
 
 ## Prerequisites
 
-- `bash`, `curl`
-- Docker (for integration tests only)
+- `bash` and `curl`
+- macOS: the script offers to install the Xcode Command Line Tools and Homebrew; Debian: `root` or `sudo`
+- Docker, for the integration tests only
 
 ## Usage
 
@@ -30,30 +29,33 @@ bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/ma
 bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/debian/init.sh) -a
 ```
 
-→ Full guide: [docs](https://kevindebenedetti.github.io/dotfiles/getting-started)
+→ Full usage guide: [docs](https://kevindebenedetti.github.io/dotfiles/getting-started)
 
 ## Git hooks (prek)
 
-Git hooks are managed with [prek](https://prek.j178.dev) (a faster, dependency-free
-pre-commit alternative), configured in [`prek.toml`](prek.toml):
+Hooks are managed with [prek](https://prek.j178.dev) and configured in [`prek.toml`](prek.toml):
 
 ```sh
-brew install j178/tap/prek   # install prek
-prek install                 # install the hooks (run once after cloning)
-prek run --all-files         # run every hook manually
+brew install j178/tap/prek
+prek install           # pre-commit + pre-push hooks
+prek run --all-files   # run every hook once
 ```
 
-The configured hooks are the usual hygiene/lint set (whitespace, shellcheck,
-yamllint, actionlint), `check-docs-links` (consumed from
-[`KevinDeBenedetti/github-workflows`](https://github.com/KevinDeBenedetti/github-workflows)),
-and the `pre-push` Bats suite.
-
-Commit-message generation is handled by the local AI tooling in
-[`scripts/ai/`](scripts/ai/) (backed by Ollama over HTTP), not by git hooks.
-These are plain shell scripts usable straight from the terminal (`git aicommit`)
-— **no Claude Code required**. See [`scripts/ai/README.md`](scripts/ai/README.md).
+They cover file hygiene, gitleaks secret scanning, ShellCheck, yamllint,
+actionlint, docs link checks and the Bats suite. Commit messages follow
+Conventional Commits; `git aicommit` drafts one from the staged diff (a
+tool-less `claude -p` call by default, or a local Ollama model) — see
+[`config/ai-tools/README.md`](config/ai-tools/README.md).
 
 ## Documentation
 
 Full documentation is available at **https://kevindebenedetti.github.io/dotfiles/**.
-It is generated from the `docs/` directory and published automatically on push.
+It is generated from the `docs/` directory and published by the docs hub, which picks up pushed changes within 12 hours.
+
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).

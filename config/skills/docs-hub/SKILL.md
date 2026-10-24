@@ -13,19 +13,27 @@ between a repo's `docs/` and that hub. The `README.md` is handled by the
 
 ## How the hub consumes `docs/`
 
-- A scheduled job (every 12 h) sparse-clones `docs/` of each public repo and
-  copies it as-is to `synced/<repo-name>/`. There is **nothing to register**
-  and no config file to add: having a `docs/` folder is the opt-in.
+- Every public, non-archived repo of the owner with a root `docs/` folder is
+  included. There is **nothing to register** and no config file to add:
+  having a `docs/` folder is the opt-in. Repos never notify the hub.
+- A scheduled poll (`docs-poll.yml`, every 12 h) compares each repo's `docs/`
+  git tree SHA and description with what the live site was built from; on any
+  difference it re-runs the hub's CI/CD, which sparse-clones `docs/` as-is to
+  `synced/<repo-name>/` and redeploys. Changes therefore go live within 12 h
+  of being **pushed**; run the hub's *CI/CD* workflow by hand to publish sooner.
 - Nav entry, sidebar and homepage card are **generated** from the file tree.
   The repo description on GitHub becomes the card description.
 - A page's sidebar title is its frontmatter `title:`, else its first `# H1`,
   else the humanised filename.
 - Sidebar order is not configurable: `index.md` first (labelled *Overview*),
   then files alphabetically, then sub-directories (titled from the folder name,
-  `kebab-case` → `Title Case`, collapsed). Use file and folder names to steer
-  the order.
-- `docs/index.md` is optional. When absent the hub generates one listing every
-  page. Add one only when the landing page needs real content.
+  `kebab-case`/`snake_case` → `Title Case`, collapsed). Use file and folder
+  names to steer the order. A folder with no Markdown inside is not shown.
+- A `topic.md` next to a `topic/` folder merges into one collapsible entry
+  (titled from `topic.md`, linking to it, with the folder's pages nested).
+- `docs/index.md` is optional. When absent the hub generates one (link to the
+  repo, file tree, table of contents). Add one only when the landing page needs
+  real content.
 - Hidden files and non-Markdown files are not in the sidebar.
 - Each page gets an "edit on GitHub" link back to its file in the source repo.
 

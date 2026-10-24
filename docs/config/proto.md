@@ -1,3 +1,7 @@
+---
+title: Proto
+---
+
 # Proto
 
 Global [proto](https://moonrepo.dev/proto) toolchain configuration.

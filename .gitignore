@@ -3,7 +3,7 @@
 .gitconfig.local
 env.local.sh
 
-# Local, unversioned SSH host drop-ins (github accounts, infra IPs, …)
+# Local, unversioned SSH host drop-ins (infra IPs, internal servers, …)
 config/ssh/config.d/
 
 # Ollama: never version the local state. config/ollama/ records *which* models
@@ -26,6 +26,3 @@ id_ecdsa
 .DS_Store
 .claude/
 TODO.md
-
-config/git/gitconfig-perso
-config/git/gitconfig-pro
