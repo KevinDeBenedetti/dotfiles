@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.5.1...v0.6.0) (2026-10-24)
+
+
+### Features
+
+* **git:** add Git Credential Manager installation and configuration ([20f222f](https://github.com/KevinDeBenedetti/dotfiles/commit/20f222f2de6ea19fcc6c8b6b5b68e9540e736c93))
+
 ## [0.5.1](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.5.0...v0.5.1) (2026-10-19)
 
 
