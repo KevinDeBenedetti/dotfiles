@@ -117,17 +117,17 @@ RUN export SUDO="sudo" FULL_MODE_SETUP="false" \
     ' 2>&1 || true
 
 # Verify SSH hardening config was created with correct settings
-RUN sudo test -f /etc/ssh/sshd_config.d/99-hardening.conf \
-    && sudo grep -q "PermitRootLogin no" /etc/ssh/sshd_config.d/99-hardening.conf \
-    && sudo grep -q "PasswordAuthentication no" /etc/ssh/sshd_config.d/99-hardening.conf \
-    && sudo grep -q "MaxAuthTries 3" /etc/ssh/sshd_config.d/99-hardening.conf \
-    && sudo grep -q "X11Forwarding no" /etc/ssh/sshd_config.d/99-hardening.conf \
-    && sudo grep -q "AllowTcpForwarding no" /etc/ssh/sshd_config.d/99-hardening.conf \
-    && sudo grep -q "ClientAliveInterval 300" /etc/ssh/sshd_config.d/99-hardening.conf \
+RUN sudo test -f /etc/ssh/sshd_config.d/00-hardening.conf \
+    && sudo grep -q "PermitRootLogin no" /etc/ssh/sshd_config.d/00-hardening.conf \
+    && sudo grep -q "PasswordAuthentication no" /etc/ssh/sshd_config.d/00-hardening.conf \
+    && sudo grep -q "MaxAuthTries 3" /etc/ssh/sshd_config.d/00-hardening.conf \
+    && sudo grep -q "X11Forwarding no" /etc/ssh/sshd_config.d/00-hardening.conf \
+    && sudo grep -q "AllowTcpForwarding no" /etc/ssh/sshd_config.d/00-hardening.conf \
+    && sudo grep -q "ClientAliveInterval 300" /etc/ssh/sshd_config.d/00-hardening.conf \
     && echo "SSH hardening config verified"
 
 # Verify SSH hardening config has restrictive permissions
-RUN sudo stat -c '%a' /etc/ssh/sshd_config.d/99-hardening.conf | grep -q '600' \
+RUN sudo stat -c '%a' /etc/ssh/sshd_config.d/00-hardening.conf | grep -q '600' \
     && echo "SSH config permissions verified (600)"
 
 # Verify Fail2Ban jail.local was created with correct settings
@@ -200,7 +200,7 @@ RUN test -f "$HOME/.zshrc" \
     && echo "Dotfiles verified"
 
 # Verify security configs exist
-RUN sudo test -f /etc/ssh/sshd_config.d/99-hardening.conf \
+RUN sudo test -f /etc/ssh/sshd_config.d/00-hardening.conf \
     && sudo test -f /etc/fail2ban/jail.local \
     && test -f /etc/sysctl.d/99-security.conf \
     && test -f /etc/apt/apt.conf.d/20auto-upgrades \

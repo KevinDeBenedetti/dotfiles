@@ -23,12 +23,15 @@ setup() {
   # Stub curl: record every argv (so headers/payloads can be inspected) and
   # answer per endpoint, emulating `-w '\n%{http_code}'`.
   export AI_ARGS_FILE="$BATS_TEST_TMPDIR/curl_args"
+  export AI_HEADERS_FILE="$BATS_TEST_TMPDIR/curl_stdin_headers"
   export MODELS_CODE=200
   export MODELS_BODY='{"data":[{"id":"gpt-test-1"},{"id":"gpt-test-2"}]}'
   export CHAT_CODE=200
   export CHAT_BODY='{"choices":[{"message":{"content":"pong"}}],"usage":{"total_tokens":12}}'
   curl() {
     printf '%s\n' "$@" >> "$AI_ARGS_FILE"
+    # `-H @-` makes the real curl read headers from stdin; record them apart.
+    case " $* " in *" @- "*) cat >> "$AI_HEADERS_FILE" ;; esac
     local url="${*: -1}"
     case "$url" in
       */models)           printf '%s\n%s' "$MODELS_BODY" "$MODELS_CODE" ;;
@@ -63,9 +66,13 @@ setup() {
   refute_output --partial "sk-secret-value-1234"
   assert_output --partial "sk-s…1234"
 
-  # The key was sent as a Bearer header to the stubbed curl.
-  run grep -c "Bearer sk-secret-value-1234" "$AI_ARGS_FILE"
+  # The key was sent as a Bearer header to the stubbed curl…
+  run grep -c "Bearer sk-secret-value-1234" "$AI_HEADERS_FILE"
   assert_output "2"
+
+  # …on stdin only: never in curl's argv, which `ps` exposes to other users.
+  run grep -c "sk-secret-value-1234" "$AI_ARGS_FILE"
+  assert_failure
 }
 
 @test "ai-test-api --models-only skips the completion call" {
@@ -90,7 +97,7 @@ setup() {
   # No OPENAI_MODEL anywhere → first entry of the /models response is used.
   assert_output --partial "POST /chat/completions (gpt-test-1)"
   # Quotes were stripped before building the Authorization header.
-  run grep -c 'Bearer sk-quoted-key-5678' "$AI_ARGS_FILE"
+  run grep -c 'Bearer sk-quoted-key-5678' "$AI_HEADERS_FILE"
   assert_output "2"
 }
 
@@ -99,7 +106,7 @@ setup() {
 
   OPENAI_API_KEY="sk-from-env-9999" run bash "$SCRIPT" --file creds --models-only
   assert_success
-  run grep -c "Bearer sk-from-env-9999" "$AI_ARGS_FILE"
+  run grep -c "Bearer sk-from-env-9999" "$AI_HEADERS_FILE"
   assert_output "1"
 }
 

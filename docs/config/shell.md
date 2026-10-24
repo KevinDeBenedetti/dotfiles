@@ -1,3 +1,7 @@
+---
+title: Shell
+---
+
 # Shell
 
 Shell environment variables and utility functions sourced by `.zshrc`.
@@ -11,13 +15,19 @@ Shell environment variables and utility functions sourced by `.zshrc`.
 
 ## env.sh
 
-Defines environment variables for optional integrations. Secrets and machine-specific
-values go in `~/.config/dotfiles/env.local.sh`, which is not tracked by git.
+Defines environment variables for optional integrations. Machine-specific values
+go in `~/.config/dotfiles/env.local.sh`, which is not tracked by git.
 
-```sh
-# Example env.local.sh (not tracked)
-export CONTEXT7_API_KEY="your-real-key"
-```
+| Variable          | Set when                                        | Purpose                                                                                  |
+| ----------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `OPENCODE_CONFIG` | `~/.config/opencode/opencode.local.json` exists | Loads the untracked OpenCode provider override on top of the placeholder `opencode.json` |
+
+::: warning
+Do not export API keys or tokens from `env.local.sh`: every process started from
+the shell inherits them, AI agents included, which bypasses their file-level
+secret rules. Give each secret only to the tool that needs it (for example, VS
+Code prompts for the Context7 key, see [VS Code](./vscode.md)).
+:::
 
 ## functions.sh
 

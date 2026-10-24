@@ -158,11 +158,11 @@ vm-test: ## Verify the setup inside the VM
 			&& echo "  ✅ docker-ce package installed" \
 			|| echo "  ⚠️  docker-ce not found" ;\
 		echo "" ;\
-		echo "=== 🔒 SSH Config ===" ;\
-		sudo grep -rq "PermitRootLogin no" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null \
+		echo "=== 🔒 SSH Config (effective, sshd -T) ===" ;\
+		sudo sshd -T 2>/dev/null | grep -qx "permitrootlogin no" \
 			&& echo "  ✅ PermitRootLogin no" \
 			|| echo "  ⚠️  PermitRootLogin not hardened" ;\
-		sudo grep -rq "PasswordAuthentication no" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null \
+		sudo sshd -T 2>/dev/null | grep -qx "passwordauthentication no" \
 			&& echo "  ✅ PasswordAuthentication no" \
 			|| echo "  ⚠️  PasswordAuthentication not disabled" ;\
 		echo "" ;\

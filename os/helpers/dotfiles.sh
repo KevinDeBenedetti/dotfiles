@@ -60,9 +60,9 @@ EOF
 # Overrides / supplements env.sh values for this machine.
 # Sourced automatically at the end of .zshrc.
 
-# Set your Context7 API key — used by the VS Code MCP config (config/vscode/mcp.json)
-# Get your key at: https://context7.com
-# export CONTEXT7_API_KEY="your-real-key-here"
+# Do NOT export API keys here: every process started from the shell inherits
+# them, AI agents included, whatever their file-level secret rules say.
+# The Context7 key is prompted for once by VS Code (config/vscode/mcp.json).
 EOF
     printf '%b' "${red}[local]${no_color} Created stub: ~/.config/dotfiles/env.local.sh\n"
   fi

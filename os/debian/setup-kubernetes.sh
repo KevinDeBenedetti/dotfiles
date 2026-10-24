@@ -59,10 +59,16 @@ install_lite_setup() {
 }
 
 install_additional_setup() {
-  # Install helm via official apt repository
+  # Install helm via the official get-helm-3 script (it verifies the release
+  # tarball checksum). Downloaded to a file first so an HTTP error or a
+  # truncated download never runs a partial script.
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Install helm\n\n"
   if ! command -v helm &>/dev/null; then
-    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    local helm_installer
+    helm_installer=$(mktemp)
+    curl -fsSL -o "$helm_installer" https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    bash "$helm_installer"
+    rm -f "$helm_installer"
   else
     printf '%b' "${red}[kubernetes]${no_color} helm already installed — skipping.\n"
   fi
@@ -78,9 +84,20 @@ install_additional_setup() {
       printf "%b[error]%b Could not resolve latest k9s version from the GitHub API (got '%s') — skipping k9s install.\n" "$red" "$no_color" "$K9S_VERSION"
     else
       K9S_ARCH=$(dpkg --print-architecture)
-      curl -fsSL -o /tmp/k9s.deb "https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/k9s_linux_${K9S_ARCH}.deb"
-      $SUDO dpkg -i /tmp/k9s.deb
-      rm -f /tmp/k9s.deb
+      K9S_DEB="k9s_linux_${K9S_ARCH}.deb"
+      K9S_URL="https://github.com/derailed/k9s/releases/download/${K9S_VERSION}"
+      # Private temp dir (not a predictable /tmp path) and checksum verified
+      # against the release's checksums.sha256 before dpkg runs as root.
+      K9S_TMP=$(mktemp -d)
+      curl -fsSL -o "$K9S_TMP/$K9S_DEB" "$K9S_URL/$K9S_DEB"
+      curl -fsSL -o "$K9S_TMP/checksums.sha256" "$K9S_URL/checksums.sha256"
+      if (cd "$K9S_TMP" && awk -v f="$K9S_DEB" '$2 == f' checksums.sha256 | grep -q . \
+          && awk -v f="$K9S_DEB" '$2 == f' checksums.sha256 | sha256sum -c --quiet -); then
+        $SUDO dpkg -i "$K9S_TMP/$K9S_DEB"
+      else
+        printf "%b[error]%b k9s checksum verification failed — skipping k9s install.\n" "$red" "$no_color"
+      fi
+      rm -rf "$K9S_TMP"
     fi
   else
     printf '%b' "${red}[kubernetes]${no_color} k9s already installed — skipping.\n"

@@ -31,7 +31,7 @@
   // general
   "files.autoSave": "afterDelay",
   "editor.unicodeHighlight.invisibleCharacters": false,
-  "security.workspace.trust.untrustedFiles": "open",
+  "security.workspace.trust.untrustedFiles": "prompt",
   "workbench.startupEditor": "none",
   // python — disable VS Code auto-activating venvs in terminals (direnv handles this)
   "python.terminal.activateEnvironment": false,
@@ -128,7 +128,20 @@
     "**/*.{pem,key}": false,
     "~/.ssh/**": false,
     "~/.aws/**": false,
-    "~/.gnupg/**": false
+    "~/.gnupg/**": false,
+    "~/.kube/**": false,
+    "**/.config/dotfiles/env.local.sh": false,
+    // dotfiles: live (symlinked) configs/scripts and the agent guardrails
+    // themselves — Copilot has no sandbox, never let it rewrite them silently
+    "**/config/claude/**": false,
+    "**/config/copilot/**": false,
+    "**/config/opencode/**": false,
+    "**/config/vscode/**": false,
+    "**/config/shell/**": false,
+    "**/config/ollama/**": false,
+    "**/config/ssh/**": false,
+    "**/scripts/ai/**": false,
+    "**/scripts/ollama/**": false
   },
   "chat.tools.terminal.autoApprove": {
     "cd": true,
@@ -233,24 +246,40 @@
     "iex": false,
     "helm": true,
     "bun": true,
-    "npx": true,
-    "bunx": true,
     "timeout": true,
     "pnpm": true,
-    "docker": true,
+    // read-only docker only: `docker run -v /:/host` is root on the host
+    "docker ps": true,
+    "docker images": true,
+    "docker logs": true,
+    "docker compose ps": true,
+    "docker compose logs": true,
     // kubectl is read-only for agents (same verbs as config/claude/settings.json)
-    "/^kubectl\\s+(get|describe|logs|top|explain|api-resources|version|kustomize|diff|auth\\s+can-i|config\\s+(get-contexts|current-context|view))\\b/": true,
+    "/^kubectl\\s+(get|describe|logs|top|explain|api-resources|version|kustomize|diff|auth\\s+can-i|config\\s+(get-contexts|current-context))\\b/": true,
     "make": true,
     "diff": true,
     "task": true,
-    "go": true,
-    "command": true,
+    // not bare `go` (go run) nor `command` (prefixes ANY command, so it would
+    // slip past every deny rule above)
+    "go build": true,
+    "go test": true,
+    "go vet": true,
+    "go fmt": true,
+    "go version": true,
+    "command -v": true,
     "actionlint": true
   },
   "chat.tools.global.autoApprove": false,
   // agent hooks: loads ~/.copilot/hooks/agent-guard.json (linked by os/helpers/links.sh)
   "chat.useHooks": true,
   "chat.useAgentsMdFile": true,
+  // "Generate commit message" (sparkle button in Source Control): Conventional
+  // Commits only. Mirrors config/skills/commit-types — keep both in sync.
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "Write the commit message strictly in Conventional Commits format: '<type>(<optional scope>)<optional !>: <summary>'. <type> is exactly one of: feat, fix, perf, deps, revert, docs, style, chore, test, build, ci. Never use 'refactor' (use 'chore' for a refactor with no user-facing effect). Prefer the narrowest true type: fix over feat when repairing behavior. Summary: imperative mood, present tense, lowercase start, no trailing period; the whole header (type, scope and summary) is at most 100 characters. When the change is non-trivial or touches several files, add a body after one blank line explaining what changed and why, as '- ' bullets. For a breaking change add '!' immediately before the colon, plus a 'BREAKING CHANGE: <what broke>' footer (uppercase) when the summary alone does not say what breaks. Output only the message: no code fences, quotes, emojis or preamble."
+    }
+  ],
   "chat.mcp.autostart": "newAndOutdated",
   // extensions
   "database-client.autoSync": true,
@@ -287,7 +316,7 @@
       "approveResponse": false
     }
   },
-  "terminal.integrated.enableMultiLinePasteWarning": "never",
+  "terminal.integrated.enableMultiLinePasteWarning": "auto",
   "claudeCode.preferredLocation": "panel",
   "claudeCode.useTerminal": true,
   "extensions.ignoreRecommendations": true,

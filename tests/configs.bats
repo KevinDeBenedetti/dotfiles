@@ -167,6 +167,109 @@ setup() {
   done
 }
 
+@test "every private key under ~/.ssh is denied (keys are not all named id_*)" {
+  for f in settings managed-settings; do
+    run jq -e '.permissions.deny | index("Read(~/.ssh/**)")' "$CONFIG_DIR/claude/$f.json"
+    assert_success
+    run jq -e '.sandbox.filesystem.denyRead | index("~/.ssh/**")' "$CONFIG_DIR/claude/$f.json"
+    assert_success
+    run jq -e '.sandbox.filesystem.allowRead | index("~/.ssh/*.pub")' "$CONFIG_DIR/claude/$f.json"
+    assert_success
+    run jq -e '[.permissions.deny[], .sandbox.filesystem.denyRead[]] | map(select(test("id_\\*"))) | length == 0' \
+      "$CONFIG_DIR/claude/$f.json"
+    assert_success
+  done
+  run jq -r '.permission.read["~/.ssh/**"]' "$CONFIG_DIR/opencode/opencode.json"
+  assert_output "deny"
+}
+
+@test "kubeconfig and the env.local.sh secrets file are denied everywhere" {
+  local p
+  for p in "~/.kube/config" "~/.config/dotfiles/env.local.sh"; do
+    for f in settings managed-settings; do
+      run jq -e --arg r "Read($p)" '.permissions.deny | index($r)' "$CONFIG_DIR/claude/$f.json"
+      assert_success
+      run jq -e --arg r "$p" '.sandbox.filesystem.denyRead | index($r)' "$CONFIG_DIR/claude/$f.json"
+      assert_success
+    done
+    run jq -r --arg r "$p" '.permission.read[$r]' "$CONFIG_DIR/opencode/opencode.json"
+    assert_output "deny"
+  done
+}
+
+@test "gh is allowed read-only: no blanket gh *, gh api asks, token dumps denied" {
+  run jq -e '.permissions.allow | index("Bash(gh *)")' "$CONFIG_DIR/claude/settings.json"
+  assert_failure
+  run jq -e '.permissions.ask | index("Bash(gh api *)")' "$CONFIG_DIR/claude/settings.json"
+  assert_success
+  for r in "Bash(gh auth token*)" "Bash(git credential*)"; do
+    for f in settings managed-settings; do
+      run jq -e --arg r "$r" '.permissions.deny | index($r)' "$CONFIG_DIR/claude/$f.json"
+      assert_success
+    done
+  done
+  run jq -r '.permission.bash["gh *"]' "$CONFIG_DIR/opencode/opencode.json"
+  assert_output "null"
+  run jq -r '.permission.bash["gh auth token*"]' "$CONFIG_DIR/opencode/opencode.json"
+  assert_output "deny"
+}
+
+@test "kubectl get secret(s) is denied in claude and opencode" {
+  run jq -e '.permissions.deny | index("Bash(kubectl get secrets *)")' "$CONFIG_DIR/claude/settings.json"
+  assert_success
+  run jq -r '.permission.bash["kubectl get secrets *"]' "$CONFIG_DIR/opencode/opencode.json"
+  assert_output "deny"
+}
+
+@test "the live dotfiles checkout is write-denied to the sandbox" {
+  run jq -e '.sandbox.filesystem.denyWrite | index("~/.dotfiles/**")' "$CONFIG_DIR/claude/settings.json"
+  assert_success
+}
+
+@test "copilot terminal auto-approve has no universal prefixes" {
+  # `command` prefixes any command; npx/bunx run any package; docker is host root.
+  for k in '"command": true' '"npx": true' '"bunx": true' '"docker": true' '"go": true'; do
+    run grep -qF "$k" "$CONFIG_DIR/vscode/settings.json"
+    assert_failure
+  done
+  run grep -qE 'current-context\|view' "$CONFIG_DIR/vscode/settings.json"
+  assert_failure
+}
+
+@test "copilot never auto-applies edits to the agent guardrails" {
+  for g in '"**/config/copilot/**": false' '"**/config/claude/**": false' '"**/config/vscode/**": false'; do
+    run grep -qF "$g" "$CONFIG_DIR/vscode/settings.json"
+    assert_success
+  done
+}
+
+@test "env.sh exports OPENCODE_CONFIG only when the local override exists" {
+  local home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$home/.config/opencode"
+  run env -i HOME="$home" bash -c ". '$CONFIG_DIR/shell/env.sh' && printf '%s' \"\${OPENCODE_CONFIG-unset}\""
+  assert_success
+  assert_output "unset"
+  touch "$home/.config/opencode/opencode.local.json"
+  run env -i HOME="$home" bash -c ". '$CONFIG_DIR/shell/env.sh' && printf '%s' \"\$OPENCODE_CONFIG\""
+  assert_success
+  assert_output "$home/.config/opencode/opencode.local.json"
+}
+
+@test "VS Code commit message generation is pinned to Conventional Commits" {
+  local s="$CONFIG_DIR/vscode/settings.json"
+  run grep -q '"github.copilot.chat.commitMessageGeneration.instructions"' "$s"
+  assert_success
+  run grep -q "Conventional Commits format" "$s"
+  assert_success
+  # Same type list as the commit-types skill, and refactor is never emitted.
+  run grep -q "feat, fix, perf, deps, revert, docs, style, chore, test, build, ci" "$s"
+  assert_success
+  run grep -q "Never use 'refactor'" "$s"
+  assert_success
+  run grep -q '^## Format (always)' "$CONFIG_DIR/skills/commit-types/SKILL.md"
+  assert_success
+}
+
 # --- OS scripts ---
 
 @test "os/macos/init.sh exists and is executable" {
@@ -287,7 +390,14 @@ setup() {
   assert_failure
   run grep -cE 'github-workflows/\.github/workflows/[^@]+@[0-9a-f]{40}' \
     "$REPO_ROOT/.github/workflows/ci-cd.yml"
-  assert_output '5'
+  assert_output '4'
+}
+
+@test "no docs dispatch job: the docs hub polls on a cron schedule" {
+  # kevindebenedetti.github.io regenerates the docs from a scheduled poll
+  # (docs-poll.yml), so nothing listens for a repository_dispatch any more.
+  run grep -qE 'cd-docs\.yml|DOCS_APP_' "$REPO_ROOT/.github/workflows/ci-cd.yml"
+  assert_failure
 }
 
 @test "release job is gated on push to main" {
@@ -295,11 +405,15 @@ setup() {
   assert_success
 }
 
-@test "release job passes the GitHub App credentials (CI-on-PR, no approval gate)" {
-  run grep -q 'app-client-id: ${{ vars.DOCS_APP_CLIENT_ID }}' "$REPO_ROOT/.github/workflows/ci-cd.yml"
+@test "release job runs on GITHUB_TOKEN, and the bot guards expect its author" {
+  local wf="$REPO_ROOT/.github/workflows/ci-cd.yml"
+  # No App token for releases: release-please authors its PR as github-actions[bot].
+  run bash -c "sed -n '/^  release:/,\$p' '$wf' | grep -E 'app-client-id|APP_PRIVATE_KEY'"
+  assert_failure
+  run grep -q "allowed-bots: '\[\"github-actions\[bot\]\"\]'" "$wf"
   assert_success
-  run grep -q 'APP_PRIVATE_KEY: ${{ secrets.DOCS_APP_PRIVATE_KEY }}' "$REPO_ROOT/.github/workflows/ci-cd.yml"
-  assert_success
+  run grep -c "user.login == 'github-actions\[bot\]'" "$wf"
+  assert_output "2"
 }
 
 # --- commit/TODO automation moved to the /commit skill ---
@@ -345,4 +459,29 @@ setup() {
   revs=$(grep -c '^rev = ' "$REPO_ROOT/prek.toml")
   notes=$(grep -c '^# renovate:' "$REPO_ROOT/prek.toml")
   [ "$revs" -eq "$notes" ]
+}
+
+# --- Agent instructions (AGENTS.md / CLAUDE.md) ---
+
+@test "AGENTS.md exists and CLAUDE.md imports it" {
+  assert_file_exists "$REPO_ROOT/AGENTS.md"
+  run grep -qx '@AGENTS.md' "$REPO_ROOT/CLAUDE.md"
+  assert_success
+}
+
+@test "AGENTS.md documents every shared skill" {
+  local skill
+  for skill in "$CONFIG_DIR"/skills/*/; do
+    [ -d "$skill" ] || continue
+    run grep -q "\`$(basename "$skill")\`" "$REPO_ROOT/AGENTS.md"
+    assert_success
+  done
+}
+
+@test "AGENTS.md make targets exist in the Makefile" {
+  local target
+  for target in test lint validate ci submodules; do
+    run grep -q "^$target:" "$REPO_ROOT/Makefile"
+    assert_success
+  done
 }

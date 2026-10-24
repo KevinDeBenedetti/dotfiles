@@ -125,6 +125,37 @@ setup() {
   assert_success
 }
 
+@test "SSH drop-in sorts first so earlier drop-ins cannot override it" {
+  # sshd keeps the first value read; a 99-* file loses to 50-cloud-init.conf.
+  run grep -F 'sshd_config.d/00-hardening.conf' "$SECURITY_SCRIPT"
+  assert_success
+  run grep -E 'hardening_conf=.*99-hardening' "$SECURITY_SCRIPT"
+  assert_failure
+}
+
+@test "SSH hardening checks the effective config with sshd -T" {
+  run grep -F 'sshd -T' "$SECURITY_SCRIPT"
+  assert_success
+}
+
+# --- Docker vs UFW ---
+
+@test "Docker published ports default to loopback (UFW does not filter them)" {
+  run grep -F '.ip = "127.0.0.1"' "$SECURITY_SCRIPT"
+  assert_success
+  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$SECURITY_SCRIPT'"
+  assert_output --partial "configure_docker_default_bind"
+}
+
+# --- Remote installers ---
+
+@test "CrowdSec installer is never piped from curl into a root shell" {
+  run grep -E 'curl[^|]*install\.crowdsec\.net[^|]*\|' "$SECURITY_SCRIPT"
+  assert_failure
+  run grep -E 'curl -fsSL -o "\$installer" https://install\.crowdsec\.net' "$SECURITY_SCRIPT"
+  assert_success
+}
+
 # --- Fail2Ban config content ---
 
 @test "Fail2Ban config uses systemd backend" {

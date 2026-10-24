@@ -8,9 +8,12 @@ has nothing real to say; never omit a `[required]` one.
 <!-- [required] Exact name from the project manifest (package.json "name",
      Cargo.toml [package] name, …), human-cased. -->
 
-[![CI/CD](https://img.shields.io/github/actions/workflow/status/KevinDeBenedetti/<repo>/<workflow>.yml?style=for-the-badge&label=CI%2FCD)](https://github.com/KevinDeBenedetti/<repo>/actions/workflows/<workflow>.yml)
-<!-- Only if a workflow file exists. Copy the filename from
-     .github/workflows/ — never invent one. -->
+[![CI/CD](https://img.shields.io/github/actions/workflow/status/KevinDeBenedetti/<repo>/<workflow>.yml?style=for-the-badge&label=CI%2FCD)](https://github.com/KevinDeBenedetti/<repo>/actions/workflows/<workflow>.yml) [![Release](https://img.shields.io/github/v/release/KevinDeBenedetti/<repo>?style=for-the-badge)](https://github.com/KevinDeBenedetti/<repo>/releases) [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/KevinDeBenedetti/<repo>?style=for-the-badge&label=Scorecard)](https://scorecard.dev/viewer/?uri=github.com/KevinDeBenedetti/<repo>) [![License](https://img.shields.io/github/license/KevinDeBenedetti/<repo>?style=for-the-badge)](LICENSE)
+<!-- One line, this order, each badge only when its condition holds (see
+     SKILL.md "Badges"): CI/CD = a workflow file exists (copy its filename);
+     Release = the repo publishes GitHub Releases; OpenSSF Scorecard = a
+     workflow runs ossf/scorecard-action with `publish_results: true`;
+     License = a LICENSE file exists. Never invent one. -->
 
 > One sentence: what this project does and who it is for.
 <!-- [required] No marketing fluff. Subject + verb + audience. -->
@@ -55,7 +58,13 @@ It is generated from the `docs/` directory and published automatically on push.
 <!-- Only if CONTRIBUTING.md exists. One line linking it. -->
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Security
+<!-- Only if SECURITY.md exists (root, docs/ or .github/ — link the real
+     path). One line: where to report a vulnerability. -->
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
 ## License
-<!-- Only if a LICENSE file exists. Identifier + link. -->
-<License identifier> — see [LICENSE](LICENSE).
+<!-- Only if a LICENSE file exists — [required] for a public repository
+     (see SKILL.md "Public repositories"). SPDX identifier + link. -->
+<SPDX identifier> — see [LICENSE](LICENSE).
 ```

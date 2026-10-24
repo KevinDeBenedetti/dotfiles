@@ -4,7 +4,7 @@
       "type": "http",
       "url": "https://mcp.context7.com/mcp",
       "headers": {
-        "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}"
+        "CONTEXT7_API_KEY": "${input:context7-api-key}"
       }
     },
     "shadcn": {
@@ -12,5 +12,12 @@
       "args": ["shadcn@4.11.0", "mcp"]
     }
 	},
-	"inputs": []
+	"inputs": [
+    {
+      "type": "promptString",
+      "id": "context7-api-key",
+      "description": "Context7 API key (https://context7.com)",
+      "password": true
+    }
+  ]
 }

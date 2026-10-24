@@ -7,7 +7,22 @@
       "Bash(curl *)",
       "Bash(dig *)",
       "Bash(git *)",
-      "Bash(gh *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)",
+      "Bash(gh run watch *)",
+      "Bash(gh repo view *)",
+      "Bash(gh release view *)",
+      "Bash(gh release list *)",
+      "Bash(gh workflow view *)",
+      "Bash(gh workflow list *)",
+      "Bash(gh search *)",
+      "Bash(gh auth status*)",
       "Bash(kubectl get *)",
       "Bash(kubectl describe *)",
       "Bash(kubectl logs *)",
@@ -181,7 +196,24 @@
       "Read(.claude/skills/**)",
       "Edit(.claude/skills/**)",
       "Read(~/.claude/skills/**)",
-      "Edit(~/.claude/skills/**)"
+      "Edit(~/.claude/skills/**)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(rtk shellcheck *)",
+      "Bash(PATH=__TRACKED_VAR__/venv-audit/bin:__TRACKED_VAR__ python3 scripts/check-chart-values.py --local-only)",
+      "Bash(command -v ansible-inventory)",
+      "Bash(ANSIBLE_CONFIG=ansible/ansible.cfg ansible-inventory --list)",
+      "Bash(rtk git *)",
+      "Bash(command -v gitleaks)",
+      "WebFetch(domain:get.k3s.io)",
+      "Bash(DOCS_DIR=docs bash .github/actions/check-docs-links/check-docs-links.sh)",
+      "Bash(DOCS_DIR=docs bash .github/actions/check-vitepress-md/check-vitepress-md.sh)",
+      "Bash(PREK_HOME=__TRACKED_VAR__/prek prek run --files .github/workflows/ci-cd.yml SECURITY.md docs/workflows/cd-buildkit.md)",
+      "Bash(SKIP=actionlint PREK_HOME=__TRACKED_VAR__/prek prek run --files .github/workflows/ci-cd.yml SECURITY.md docs/workflows/cd-buildkit.md)",
+      "WebSearch",
+      "WebFetch(domain:github.blog)",
+      "WebFetch(domain:api.scorecard.dev)",
+      "WebFetch(domain:galaxy.ansible.com)"
     ],
     "deny": [
       "Bash(git commit)",
@@ -226,7 +258,11 @@
       "Edit(**/.env.test)",
       "Read(**/*.env)",
       "Edit(**/*.env)",
-      "Read(~/.ssh/id_*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.kube/config)",
+      "Read(~/.config/dotfiles/env.local.sh)",
+      "Read(~/.config/opencode/llm-api-key)",
+      "Edit(~/.config/dotfiles/env.local.sh)",
       "Edit(~/.ssh/**)",
       "Read(~/.aws/**)",
       "Edit(~/.aws/**)",
@@ -237,17 +273,25 @@
       "Read(~/.claude/.credentials.json)",
       "Edit(~/.claude/.credentials.json)",
       "Read(**/*.pem)",
-      "Read(**/*.key)"
+      "Read(**/*.key)",
+      "Bash(gh auth token*)",
+      "Bash(git credential*)",
+      "Bash(kubectl get secret)",
+      "Bash(kubectl get secret *)",
+      "Bash(kubectl get secret/*)",
+      "Bash(kubectl get secrets)",
+      "Bash(kubectl get secrets *)"
     ],
     "ask": [
       "Bash(terraform apply*)",
       "Bash(terraform destroy*)",
       "Bash(gh pr merge*)",
-      "Bash(kubectl config view*)"
+      "Bash(kubectl config view*)",
+      "Bash(gh api *)"
     ],
     "additionalDirectories": []
   },
-  "model": "sonnet",
+  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
@@ -312,7 +356,8 @@
     "filesystem": {
       "allowWrite": [
         "~/Library/Application Support/rtk/**",
-        "~/dev/infra"
+        "~/dev/infra",
+        "~/dev/github-workflows"
       ],
       "denyWrite": [
         "**/.env",
@@ -322,14 +367,19 @@
         "~/.ssh/**",
         "~/.aws/**",
         "~/.gnupg/**",
-        "~/.claude/.credentials.json"
+        "~/.claude/.credentials.json",
+        "~/.config/dotfiles/env.local.sh",
+        "~/.dotfiles/**"
       ],
       "denyRead": [
         "**/.env",
         "**/.env.local",
         "**/.env.production",
         "**/*.env",
-        "~/.ssh/id_*",
+        "~/.ssh/**",
+        "~/.kube/config",
+        "~/.config/dotfiles/env.local.sh",
+        "~/.config/opencode/llm-api-key",
         "~/.aws/**",
         "~/.gnupg/**",
         "~/.netrc",
@@ -340,6 +390,9 @@
       ],
       "allowRead": [
         "~/.ssh/*.pub",
+        "~/.ssh/config",
+        "~/.ssh/config.d/**",
+        "~/.ssh/known_hosts",
         "/**/.env.example"
       ]
     }
@@ -347,21 +400,21 @@
   "effortLevel": "high",
   "modelSettings": {
     "claude-opus-5-5": {
-      "effortLevel": "medium"
+      "effortLevel": "low"
     },
     "claude-sonnet-5-5": {
       "effortLevel": "medium"
     }
   },
-  "theme": "dark",
-  "switchModelsOnFlag": true,
-  "remoteControlAtStartup": true,
-  "agentPushNotifEnabled": true,
   "pluginConfigs": {
     "ecc@ecc": {
       "options": {
         "hooks_enabled": true
       }
     }
-  }
+  },
+  "theme": "dark",
+  "switchModelsOnFlag": true,
+  "remoteControlAtStartup": true,
+  "agentPushNotifEnabled": true
 }

@@ -2,8 +2,11 @@
 # VS Code Copilot PreToolUse guard — mirrors the hard rules of
 # config/claude/settings.json (the reference config):
 #   - git commit / git push / gh repo delete      → deny
+#   - gh auth token / git credential              → deny (print stored tokens)
 #   - mutating kubectl verbs (kubectl is read-only) → deny
-#   - terraform apply|destroy, gh pr merge        → ask
+#   - kubectl get secret(s)                       → deny (dumps Secret values)
+#   - terraform apply|destroy, gh pr merge,
+#     gh api, kubectl config view                 → ask
 #   - reading/writing secrets (.env*, keys, …)    → deny (.env.example allowed)
 #
 # Copilot has no OS sandbox and its tool names differ from Claude Code's, so
@@ -35,10 +38,13 @@ is_sensitive_path() {
   case "$base" in
     .env.example) return 1 ;;
     .env | .env.* | *.env | *.pem | *.key | .netrc | .npmrc) return 0 ;;
-    id_*.pub) return 1 ;;
   esac
   case "$p" in
-    *.ssh/id_* | *.aws/* | *.aws | *.gnupg/* | *.gnupg | *.claude/.credentials.json) return 0 ;;
+    # Everything under ~/.ssh is private (keys are not all named id_*), except
+    # public keys and the client config.
+    *.ssh/*.pub | *.ssh/config | *.ssh/config.d/* | *.ssh/known_hosts) return 1 ;;
+    *.ssh/* | *.aws/* | *.aws | *.gnupg/* | *.gnupg | *.claude/.credentials.json) return 0 ;;
+    *.kube/config | *.config/dotfiles/env.local.sh | *.config/opencode/llm-api-key) return 0 ;;
   esac
   return 1
 }
@@ -55,6 +61,12 @@ if [ -n "$cmd" ]; then
   if printf '%s' "$cmd" | grep -qE '(^|[;&|[:space:]])gh[[:space:]]+repo[[:space:]]+delete'; then
     decide deny "gh repo delete is blocked by agent-guard"
   fi
+  if printf '%s' "$cmd" | grep -qE '(^|[^[:alnum:]_.-])(gh[[:space:]]+auth[[:space:]]+token|git[[:space:]]+credential)([^[:alnum:]_-]|$)'; then
+    decide deny "printing stored credentials is blocked by agent-guard"
+  fi
+  if printf '%s' "$cmd" | grep -qE '(^|[^[:alnum:]_.-])kubectl[[:space:]]([^;&|]*[[:space:]])?get[[:space:]]([^;&|]*[[:space:],])?secrets?([[:space:]/,]|$)'; then
+    decide deny "reading Kubernetes Secrets is blocked by agent-guard"
+  fi
   if printf '%s' "$cmd" | grep -qE '(^|[^[:alnum:]_.-])kubectl[[:space:]]([^;&|]*[[:space:]])?(apply|delete|patch|rollout|create|annotate|edit|scale|exec|debug|run|replace|set|label|taint|cordon|uncordon|drain|cp|expose|autoscale)([^[:alnum:]_-]|$)'; then
     decide deny "kubectl is read-only for the agent — mutating verbs are blocked by agent-guard"
   fi
@@ -66,8 +78,8 @@ if [ -n "$cmd" ]; then
     fi
   done
   set +f
-  if printf '%s' "$cmd" | grep -qE '(^|[;&|[:space:]])(terraform[[:space:]]+(apply|destroy)|gh[[:space:]]+pr[[:space:]]+merge)'; then
-    decide ask "terraform apply/destroy and gh pr merge require confirmation"
+  if printf '%s' "$cmd" | grep -qE '(^|[;&|[:space:]])(terraform[[:space:]]+(apply|destroy)|gh[[:space:]]+pr[[:space:]]+merge|gh[[:space:]]+api|kubectl[[:space:]]+config[[:space:]]+view)'; then
+    decide ask "terraform apply/destroy, gh pr merge, gh api and kubectl config view require confirmation"
   fi
 fi
 

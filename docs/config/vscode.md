@@ -1,3 +1,7 @@
+---
+title: VS Code
+---
+
 # VS Code
 
 VS Code settings, recommended extensions, and MCP server configuration.
@@ -53,12 +57,20 @@ is the reference) and OpenCode (`config/opencode/opencode.json`):
 | Rule                                                   | Copilot mechanism                                       |
 | ------------------------------------------------------ | ------------------------------------------------------- |
 | `git commit` / `git push` / `gh repo delete` blocked   | `agent-guard` hook → `deny`                             |
+| `gh auth token`, `git credential`, `kubectl get secret` | `agent-guard` hook → `deny`                             |
 | `kubectl` read-only (mutating verbs blocked)           | `agent-guard` hook → `deny`; read verbs auto-approved   |
-| `terraform apply/destroy`, `gh pr merge` need approval | `agent-guard` hook → `ask`                              |
+| `terraform apply/destroy`, `gh pr merge` need approval | `agent-guard` hook → `ask` (also `gh api`, `config view`) |
 | Secrets never read/written (`.env.example` allowed)    | `agent-guard` hook → `deny` + edits never auto-approved |
 
-Secrets = `.env`, `.env.*`, `*.env`, `*.pem`, `*.key`, `~/.ssh/id_*`,
-`~/.aws`, `~/.gnupg`, `~/.netrc`, `~/.npmrc`, `~/.claude/.credentials.json`.
+Secrets = `.env`, `.env.*`, `*.env`, `*.pem`, `*.key`, everything under
+`~/.ssh` except `*.pub` / `config` / `config.d/` / `known_hosts`, `~/.aws`,
+`~/.gnupg`, `~/.kube/config`, `~/.config/dotfiles/env.local.sh`, `~/.netrc`,
+`~/.npmrc`, `~/.claude/.credentials.json`.
+
+Terminal auto-approval never covers universal prefixes (`command`, `npx`,
+`bunx`, bare `docker` or `go`), and edits to the guardrail and live config
+folders (`config/claude`, `config/copilot`, `config/vscode`, `config/shell`, …)
+always ask, since Copilot has no sandbox.
 
 | File                                    | Installed to                        | Method  |
 | --------------------------------------- | ----------------------------------- | ------- |
@@ -101,4 +113,6 @@ argument. It needs `jq` and fails closed without it. Hooks are enabled by
 | `context7` | HTTP  | Context7 documentation API (`https://mcp.context7.com/mcp`) |
 | `shadcn`   | stdio | shadcn/ui component registry (`npx shadcn@4.11.0 mcp`)      |
 
-The `CONTEXT7_API_KEY` for the Context7 server is read from the environment variable set in `env.sh` / `env.local.sh`.
+The `CONTEXT7_API_KEY` header comes from the `context7-api-key` input (`password: true`):
+VS Code prompts for it once and keeps it in its secret storage, so it is never
+exported to the shell environment.

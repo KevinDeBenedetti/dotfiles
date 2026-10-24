@@ -6,7 +6,7 @@
       "name": "Custom OpenAI-compatible",
       "options": {
         "baseURL": "https://llm.example.com/v1",
-        "apiKey": "{env:LLM_API_KEY}"
+        "apiKey": "{file:~/.config/opencode/llm-api-key}"
       },
       "models": {
         "example-model": {
@@ -21,7 +21,23 @@
       "curl *": "allow",
       "dig *": "allow",
       "git *": "allow",
-      "gh *": "allow",
+      "gh pr view *": "allow",
+      "gh pr list *": "allow",
+      "gh pr diff *": "allow",
+      "gh pr checks *": "allow",
+      "gh issue view *": "allow",
+      "gh issue list *": "allow",
+      "gh run view *": "allow",
+      "gh run list *": "allow",
+      "gh run watch *": "allow",
+      "gh repo view *": "allow",
+      "gh release view *": "allow",
+      "gh release list *": "allow",
+      "gh workflow view *": "allow",
+      "gh workflow list *": "allow",
+      "gh search *": "allow",
+      "gh auth status*": "allow",
+      "gh api *": "ask",
       "kubectl get *": "allow",
       "kubectl describe *": "allow",
       "kubectl logs *": "allow",
@@ -208,7 +224,14 @@
       "kubectl drain*": "deny",
       "kubectl cp*": "deny",
       "kubectl expose*": "deny",
-      "kubectl autoscale*": "deny"
+      "kubectl autoscale*": "deny",
+      "gh auth token*": "deny",
+      "git credential*": "deny",
+      "kubectl get secret": "deny",
+      "kubectl get secret *": "deny",
+      "kubectl get secret/*": "deny",
+      "kubectl get secrets": "deny",
+      "kubectl get secrets *": "deny"
     },
     "read": {
       "*": "allow",
@@ -217,13 +240,19 @@
       "*.env.example": "allow",
       "*.pem": "deny",
       "*.key": "deny",
-      "~/.ssh/id_*": "deny",
+      "~/.ssh/**": "deny",
       "~/.ssh/*.pub": "allow",
+      "~/.ssh/config": "allow",
+      "~/.ssh/config.d/**": "allow",
+      "~/.ssh/known_hosts": "allow",
       "~/.aws/**": "deny",
       "~/.gnupg/**": "deny",
       "~/.netrc": "deny",
       "~/.npmrc": "deny",
-      "~/.claude/.credentials.json": "deny"
+      "~/.claude/.credentials.json": "deny",
+      "~/.kube/config": "deny",
+      "~/.config/dotfiles/env.local.sh": "deny",
+      "~/.config/opencode/llm-api-key": "deny"
     },
     "edit": {
       "*": "allow",
@@ -235,7 +264,9 @@
       "~/.ssh/**": "deny",
       "~/.aws/**": "deny",
       "~/.gnupg/**": "deny",
-      "~/.claude/.credentials.json": "deny"
+      "~/.claude/.credentials.json": "deny",
+      "~/.config/dotfiles/env.local.sh": "deny",
+      "~/.dotfiles/**": "deny"
     }
   },
   "share": "disabled",

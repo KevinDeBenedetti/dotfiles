@@ -90,14 +90,18 @@ setup() {
   assert [ -f "$AI_PAYLOAD_FILE" ]
 
   # Guard the prompt against regressions: the release-relevant Conventional
-  # Commits types must be presented to the model, and 'refactor' (not surfaced by
-  # the release-please config) must be explicitly forbidden.
+  # Commits types must be presented to the model, and 'refactor' (house rule:
+  # chore is used instead) must be explicitly forbidden.
   run jq -r '.prompt' "$AI_PAYLOAD_FILE"
   assert_success
   assert_output --partial 'feat'
   assert_output --partial 'fix'
   assert_output --partial 'perf'
   assert_output --partial "NEVER use 'refactor'"
+  # revert is shown in the changelog (Reverts), not grouped with hidden types.
+  assert_output --partial 'revert → reverts an earlier commit (shown under Reverts)'
+  # The spec makes the BREAKING CHANGE footer optional once '!' is used.
+  refute_output --partial "MUST include a 'BREAKING CHANGE"
 }
 
 @test "git-aicommit claude backend pipes the prompt to a tool-less haiku call" {

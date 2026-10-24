@@ -81,19 +81,22 @@ Format (must satisfy release-please's default Conventional Commits parser):
   - <type> is exactly one of these release-please-recognized types — never invent
     another: feat, fix, perf, deps, revert, docs, style, chore, test, build, ci.
     Pick it from the dominant intent of the change.
-    - feat  → a new feature        (triggers a minor release)
-    - fix   → a bug fix            (triggers a patch release)
-    - perf  → a performance change (triggers a patch release)
-    - deps, revert, docs, style, chore, test, build, ci → no release; use them
-      only when none of feat/fix/perf fits the dominant intent.
-    - NEVER use 'refactor': this release-please config does not surface it. When
-      the change is a pure code refactor with no user-facing effect, use 'chore'.
+    - feat   → a new feature  (minor release; shown under Features)
+    - fix    → a bug fix      (patch release; shown under Bug Fixes)
+    - perf   → a performance change (shown under Performance Improvements)
+    - revert → reverts an earlier commit (shown under Reverts)
+    - deps, docs, style, chore, test, build, ci → hidden from the changelog; use
+      them only when none of feat/fix/perf/revert fits the dominant intent.
+    - NEVER use 'refactor' (house rule: release-please would hide it like
+      'chore'; this repo uses 'chore' for a refactor with no user-facing effect).
   - <scope> is optional: the most relevant module/area touched. Omit it when the
     change spans many unrelated areas.
-  - Append '!' before the colon (e.g. 'feat(api)!:') ONLY for a breaking change;
-    when you do, the body MUST include a 'BREAKING CHANGE: <what broke>' line.
-    This is what release-please reads to cut a major release.
-  - <summary> is imperative, present tense, <= 72 characters, no trailing period.
+  - Append '!' immediately before the colon (e.g. 'feat(api)!:') ONLY for a
+    breaking change; it is what release-please reads to cut a breaking release.
+    Add a 'BREAKING CHANGE: <what broke>' footer (uppercase) when the summary
+    alone does not say what breaks.
+  - <summary> is imperative, present tense, no trailing period; the whole header
+    (type, scope and summary) is <= 100 characters.
 - Body (after one blank line) — REQUIRED whenever the change is non-trivial or
   touches more than one file:
   - Explain WHAT changed and especially WHY, not the literal how.

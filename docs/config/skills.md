@@ -52,6 +52,7 @@ Rules to stay portable:
 | ------------------- | --------------------------------------------------------------------------- |
 | [`commit-types`](#) | Conventional Commits type selection, aligned with the release-please config |
 | [`readme`](#)       | Generate or restructure a `README.md` to the canonical repo architecture     |
+| [`docs-hub`](#)     | Edit `docs/` following the kevindebenedetti.github.io hub contract           |
 
 ## Shared commands
 

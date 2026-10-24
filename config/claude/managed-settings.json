@@ -22,7 +22,11 @@
       "Edit(**/.env.test)",
       "Read(**/*.env)",
       "Edit(**/*.env)",
-      "Read(~/.ssh/id_*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.kube/config)",
+      "Read(~/.config/dotfiles/env.local.sh)",
+      "Read(~/.config/opencode/llm-api-key)",
+      "Edit(~/.config/dotfiles/env.local.sh)",
       "Edit(~/.ssh/**)",
       "Read(~/.aws/**)",
       "Edit(~/.aws/**)",
@@ -33,7 +37,9 @@
       "Read(~/.claude/.credentials.json)",
       "Edit(~/.claude/.credentials.json)",
       "Read(**/*.pem)",
-      "Read(**/*.key)"
+      "Read(**/*.key)",
+      "Bash(gh auth token*)",
+      "Bash(git credential*)"
     ],
     "ask": [
       "Bash(terraform apply*)",
@@ -68,7 +74,10 @@
         "**/.env",
         "**/.env.*",
         "**/*.env",
-        "~/.ssh/id_*",
+        "~/.ssh/**",
+        "~/.kube/config",
+        "~/.config/dotfiles/env.local.sh",
+        "~/.config/opencode/llm-api-key",
         "~/.aws/**",
         "~/.gnupg/**",
         "~/.netrc",
@@ -79,6 +88,9 @@
       ],
       "allowRead": [
         "~/.ssh/*.pub",
+        "~/.ssh/config",
+        "~/.ssh/config.d/**",
+        "~/.ssh/known_hosts",
         "/**/.env.example"
       ],
       "denyWrite": [
@@ -88,7 +100,8 @@
         "~/.ssh/**",
         "~/.aws/**",
         "~/.gnupg/**",
-        "~/.claude/.credentials.json"
+        "~/.claude/.credentials.json",
+        "~/.config/dotfiles/env.local.sh"
       ]
     }
   },

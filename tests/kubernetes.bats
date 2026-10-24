@@ -89,6 +89,20 @@ setup() {
   assert_success
 }
 
+@test "k9s .deb is checksum-verified and not staged at a predictable /tmp path" {
+  run grep -q 'checksums.sha256' "$K8S_SCRIPT"
+  assert_success
+  run grep -q 'sha256sum -c' "$K8S_SCRIPT"
+  assert_success
+  run grep -q '/tmp/k9s' "$K8S_SCRIPT"
+  assert_failure
+}
+
+@test "helm installer is never piped from curl into a shell" {
+  run grep -E 'curl[^|]*get-helm-3[^|]*\|' "$K8S_SCRIPT"
+  assert_failure
+}
+
 @test "kernel module + sysctl calls are best-effort (container-safe)" {
   run grep -q 'modprobe overlay || true' "$K8S_SCRIPT"
   assert_success

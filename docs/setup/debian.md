@@ -1,3 +1,7 @@
+---
+title: Debian Setup
+---
+
 # Debian Setup
 
 Personal Debian VPS dotfiles and setup scripts powered by `apt`, [proto](https://moonrepo.dev/proto), and [Oh My Zsh](https://ohmyz.sh).
@@ -110,7 +114,7 @@ Set these before invoking the script to customize security behaviour:
 SSH_PORT=2222 SSH_ALLOWED_USERS="deploy" bash <(curl -fsSL ...) -a
 ```
 
-#### SSH hardening (`/etc/ssh/sshd_config.d/99-hardening.conf`)
+#### SSH hardening (`/etc/ssh/sshd_config.d/00-hardening.conf`)
 
 | Setting                  | Value                | Effect                                   |
 | ------------------------ | -------------------- | ---------------------------------------- |
@@ -123,6 +127,12 @@ SSH_PORT=2222 SSH_ALLOWED_USERS="deploy" bash <(curl -fsSL ...) -a
 | `ClientAliveInterval`    | `300`                | Disconnect after 5 min idle              |
 | `AllowUsers`             | `$SSH_ALLOWED_USERS` | Restrict login to named users (optional) |
 
+sshd keeps the **first** value it reads and loads drop-ins in lexical order, so
+the file is named `00-` to win over others such as cloud-init's
+`50-cloud-init.conf`. After writing it, the script checks the effective
+configuration (`sshd -T`) and warns if `PermitRootLogin` or
+`PasswordAuthentication` is still overridden.
+
 #### UFW firewall
 
 Default policy: deny all incoming, allow all outgoing. Rules added:
@@ -132,6 +142,14 @@ Default policy: deny all incoming, allow all outgoing. Rules added:
 | `$SSH_PORT/tcp` | TCP      | SSH (respects custom port) |
 | `80/tcp`        | TCP      | HTTP                       |
 | `443/tcp`       | TCP      | HTTPS                      |
+
+::: warning
+Docker writes its own iptables rules ahead of UFW's, so UFW does **not** filter
+ports published by containers. When Docker is installed, the script sets
+`"ip": "127.0.0.1"` in `/etc/docker/daemon.json`: `-p 5432:5432` then binds to
+loopback only. Publish a service on purpose with an explicit address
+(`-p 0.0.0.0:443:443`).
+:::
 
 #### Fail2Ban (`/etc/fail2ban/jail.local`)
 
@@ -190,7 +208,7 @@ Installs `apparmor` and `apparmor-utils`, adds GRUB boot parameters (`apparmor=1
 
 #### CrowdSec *(full mode only)*
 
-Collaborative threat-intelligence IPS. Installs from `install.crowdsec.net` and adds:
+Collaborative threat-intelligence IPS. Downloads the `install.crowdsec.net` repository script to a file (aborting on HTTP errors), runs it, and adds:
 - `crowdsec-firewall-bouncer-iptables` — automatic firewall banning
 - Collections: `crowdsecurity/linux`, `crowdsecurity/sshd`
 
@@ -221,8 +239,8 @@ Tools for Kubernetes cluster management.
 
 | Tool                       | Description                                                               |
 | -------------------------- | ------------------------------------------------------------------------- |
-| [`helm`](https://helm.sh)  | Kubernetes package manager (installed via the official get-helm-3 script) |
-| [`k9s`](https://k9scli.io) | Terminal UI for Kubernetes clusters (latest release fetched from GitHub)  |
+| [`helm`](https://helm.sh)  | Kubernetes package manager (official get-helm-3 script, downloaded first) |
+| [`k9s`](https://k9scli.io) | Terminal UI for Kubernetes clusters (latest release, SHA-256 verified)    |
 
 ## Dotfiles Linking
 

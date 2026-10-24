@@ -8,19 +8,23 @@ on:
     branches: [main]
 
 # Least-privilege default for every job (notably `ci`, which declares none).
-# Jobs needing more (security, dispatch, release, …) widen this themselves.
+# Jobs needing more (security, release, …) widen this themselves.
 permissions:
   contents: read
 
 jobs:
   ci:
-    # Skip on the release-please PR (head_ref guard) and on the merged
+    # Skip on the release-please PR (bot-authored branch of THIS repo — a branch
+    # name alone is not enough: any fork could name one release-please-*, and a
+    # skipped job counts as passed for required checks) and on the merged
     # "chore(main): release x.y.z" commit — the `release` job gates on these
     # results via always(), so a skipped run is not a failure and the tag is
     # still minted without re-running the full suite on the release commit.
     if: >-
       ${{ !startsWith(github.event.head_commit.message, 'chore(main): release')
-      && !startsWith(github.head_ref, 'release-please') }}
+      && !(startsWith(github.head_ref, 'release-please')
+           && github.event.pull_request.head.repo.full_name == github.repository
+           && github.event.pull_request.user.login == 'github-actions[bot]') }}
     uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
     with:
       run-shellcheck: true
@@ -35,7 +39,9 @@ jobs:
     # Same guard as `ci`: skip on the release-please PR and the release commit.
     if: >-
       ${{ !startsWith(github.event.head_commit.message, 'chore(main): release')
-      && !startsWith(github.head_ref, 'release-please') }}
+      && !(startsWith(github.head_ref, 'release-please')
+           && github.event.pull_request.head.repo.full_name == github.repository
+           && github.event.pull_request.user.login == 'github-actions[bot]') }}
     uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
     permissions:
       contents: read
@@ -57,19 +63,9 @@ jobs:
       contents: read
       pull-requests: read
     with:
-      # release-please opens its release PRs as this bot; allow it so the
-      # auto-generated "chore(main): release x.y.z" PR passes the bot guard.
-      allowed-bots: '["release-please-global[bot]"]'
-
-  # ── Dispatch docs rebuild ──────────────────────────────────────────────────
-  dispatch:
-    name: Dispatch docs rebuild
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/cd-docs.yml@b2ecd282bb7500dc4de1268e93eef0c57b8d7ce3 # v0.17.0
-    with:
-      client-id: ${{ vars.DOCS_APP_CLIENT_ID }}
-    secrets:
-      APP_PRIVATE_KEY: ${{ secrets.DOCS_APP_PRIVATE_KEY }}
+      # release-please opens its release PRs with GITHUB_TOKEN, i.e. as this
+      # bot; allow it so the "chore(main): release x.y.z" PR passes the guard.
+      allowed-bots: '["github-actions[bot]"]'
 
   # ── Release (release-please) ───────────────────────────────────────────────
   # Config & manifest live in .github/release/. v0.1.0 has shipped, so the
@@ -94,11 +90,8 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+    # No token secret: release-please runs on GITHUB_TOKEN (needs "Allow GitHub
+    # Actions to create and approve pull requests"; CI on the release PR waits
+    # for "Approve workflows to run").
     with:
       initial-version: '0.1.0'
-      # Mint a GitHub App token so the release PR is attributed to the App, not
-      # github-actions[bot]: this triggers CI on the PR and avoids the manual
-      # workflow-approval gate that GITHUB_TOKEN-authored PRs hit.
-      app-client-id: ${{ vars.DOCS_APP_CLIENT_ID }}
-    secrets:
-      APP_PRIVATE_KEY: ${{ secrets.DOCS_APP_PRIVATE_KEY }}

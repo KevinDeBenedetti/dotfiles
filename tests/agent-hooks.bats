@@ -84,3 +84,44 @@ assert_hook_denies_git() {
     refute_output --partial '"deny"'
   done
 }
+
+# run_path_hook <path> — feed the guard a read tool call on <path>.
+run_path_hook() {
+  jq -n --arg p "$1" '{tool_name: "read_file", tool_input: {filePath: $p}}' \
+    | bash "$CONFIG_DIR/copilot/hooks/agent-guard.sh"
+}
+
+@test "agent-guard protects every private key under ~/.ssh, not only id_*" {
+  local p
+  for p in /home/u/.ssh/id_rsa /home/u/.ssh/github_pro /home/u/.ssh/argocd_deploy_key \
+    /home/u/.kube/config /home/u/.config/dotfiles/env.local.sh; do
+    run run_path_hook "$p"
+    assert_output --partial '"deny"' || { echo "not denied: $p" >&2; return 1; }
+  done
+  for p in /home/u/.ssh/github_pro.pub /home/u/.ssh/config /home/u/.ssh/config.d/x.conf \
+    /home/u/.ssh/known_hosts; do
+    run run_path_hook "$p"
+    refute_output --partial '"deny"' || { echo "wrongly denied: $p" >&2; return 1; }
+  done
+}
+
+@test "agent-guard blocks credential dumps and Kubernetes Secret reads" {
+  local guard="bash '$CONFIG_DIR/copilot/hooks/agent-guard.sh'" GH=gh c
+  for c in "$GH auth token" "$G credential fill" "$K get secrets -A -o yaml" \
+    "$K -n x get secret db" "$K get secret/db -o json" "$K get all,secrets"; do
+    run run_hook "$guard" "$c"
+    assert_output --partial '"deny"' || { echo "not denied: $c" >&2; return 1; }
+  done
+  for c in "$GH auth status" "$K get secretstores" "$K describe secret db"; do
+    run run_hook "$guard" "$c"
+    refute_output --partial '"deny"' || { echo "wrongly denied: $c" >&2; return 1; }
+  done
+}
+
+@test "agent-guard asks before gh api and kubectl config view" {
+  local guard="bash '$CONFIG_DIR/copilot/hooks/agent-guard.sh'" GH=gh
+  run run_hook "$guard" "$GH api repos/o/r"
+  assert_output --partial '"ask"'
+  run run_hook "$guard" "$K config view"
+  assert_output --partial '"ask"'
+}

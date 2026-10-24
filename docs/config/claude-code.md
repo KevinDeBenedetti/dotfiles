@@ -1,3 +1,7 @@
+---
+title: Claude Code
+---
+
 # Claude Code
 
 User-level Claude Code settings and the system-wide managed policy.
@@ -18,6 +22,15 @@ User-level Claude Code settings and the system-wide managed policy.
 > (`config/copilot/hooks/agent-guard.sh`, see [VS Code](./vscode.md)) mirror
 > its denies (commit/push, mutating kubectl, secrets) and asks — update all
 > three together.
+
+## Project instructions (`AGENTS.md` / `CLAUDE.md`)
+
+The repo root carries its own agent instructions: `AGENTS.md` is the
+tool-neutral source (read natively by OpenCode and Copilot), and `CLAUDE.md`
+only imports it with `@AGENTS.md` (Claude Code does not read `AGENTS.md` on its
+own) and adds Claude-specific notes, including when to invoke the shared
+skills. Edit `AGENTS.md`, not `CLAUDE.md`, for anything that applies to every
+tool.
 
 ## Managed settings — why a copy, not a symlink
 
@@ -51,11 +64,35 @@ does not prompt for them, and hard denies:
 
 - `git commit` / `git push` — commits and pushes are always done manually
 - read/write/edit on any `.env` file
+- reading anything under `~/.ssh` except `*.pub`, `config`, `config.d/` and
+  `known_hosts` (private keys are not all named `id_*`), `~/.kube/config` and
+  `~/.config/dotfiles/env.local.sh`
+- `gh auth token`, `git credential …` (print stored tokens) and
+  `kubectl get secret(s)`
+
+`gh` is pre-approved for read-only subcommands only (`gh pr view`,
+`gh run list`, …); `gh api` asks first, since it can push, merge or delete
+through the REST API.
 
 ### Sandbox
 
-Filesystem sandbox enabled, with `.env` files excluded from both read and write,
+Filesystem sandbox enabled, with `.env` files and the secrets above excluded,
 plus a `network.allowedDomains` allowlist (see precedence below).
+
+::: warning
+Configs linked into `$HOME` are executed outside the sandbox (shell rc files,
+LaunchAgent, Copilot hook, scripts on `PATH`). Link them from a clean checkout
+that agents cannot write — `~/.dotfiles`, denied in `sandbox.filesystem.denyWrite`
+— not from the working copy agents edit:
+
+```sh
+git clone https://github.com/KevinDeBenedetti/dotfiles.git ~/.dotfiles
+~/.dotfiles/os/macos/init.sh -d
+```
+
+Changes made in the working copy go live only after review, commit and
+`git -C ~/.dotfiles pull`.
+:::
 
 ### Hooks
 

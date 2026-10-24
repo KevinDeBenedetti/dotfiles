@@ -29,7 +29,13 @@ HARDEN_TMP="${HARDEN_TMP:-false}"
 configure_ssh() {
   printf '%b' "\n\n${red}[security] =>${no_color} Harden SSH configuration (port: $SSH_PORT)\n\n"
 
-  local hardening_conf="/etc/ssh/sshd_config.d/99-hardening.conf"
+  # sshd keeps the FIRST value it reads for each keyword and includes the
+  # drop-ins in lexical order, so a late 99-* file loses to any earlier one
+  # (e.g. cloud-init's 50-cloud-init.conf with "PasswordAuthentication yes").
+  # 00- makes these settings win.
+  local hardening_conf="/etc/ssh/sshd_config.d/00-hardening.conf"
+  # Drop the file written under the old name by previous runs.
+  $SUDO rm -f /etc/ssh/sshd_config.d/99-hardening.conf
 
   # Build AllowUsers directive if env var is set
   local allow_users_line=""
@@ -90,6 +96,17 @@ EOF
   else
     printf '%b' "${red}[error]${no_color} SSH config validation failed — not restarting sshd.\n"
     printf '%b' "${red}[error]${no_color} Review $hardening_conf and fix errors.\n"
+  fi
+
+  # Check the effective configuration, not just the file written above: another
+  # drop-in can still override it. Best-effort (sshd -T needs host keys).
+  local effective directive
+  if effective=$($SUDO sshd -T 2>/dev/null); then
+    for directive in "permitrootlogin no" "passwordauthentication no"; do
+      if ! grep -qx "$directive" <<<"$effective"; then
+        printf '%b' "${red}[warning]${no_color} Effective sshd config lacks '$directive' — another file in /etc/ssh/sshd_config.d/ overrides it.\n"
+      fi
+    done
   fi
 }
 
@@ -174,8 +191,14 @@ install_configure_crowdsec() {
   printf '%b' "\n\n${red}[security] =>${no_color} Install and configure CrowdSec\n\n"
 
   if ! command -v cscli &>/dev/null; then
-    # Install CrowdSec repository and package
-    curl -s https://install.crowdsec.net | $SUDO bash
+    # Install CrowdSec repository and package. Downloaded to a file first (-f:
+    # an HTTP error aborts instead of piping an error page into a root shell,
+    # and a truncated download never runs half a script).
+    local installer
+    installer=$(mktemp)
+    curl -fsSL -o "$installer" https://install.crowdsec.net
+    $SUDO bash "$installer"
+    rm -f "$installer"
     $SUDO apt-get install -y --no-install-recommends crowdsec
 
     # Install the firewall bouncer (works with iptables/nftables)
@@ -399,11 +422,35 @@ install_audit_tools() {
 }
 
 # ──────────────────────────────────────────────
+# Docker published ports vs UFW
+# ──────────────────────────────────────────────
+# Docker inserts its own iptables rules ahead of UFW's, so `-p 5432:5432` would
+# be reachable from the Internet despite `ufw default deny incoming`. Make
+# published ports bind to loopback unless an address is given explicitly
+# (`-p 0.0.0.0:80:80` for a service meant to be public).
+configure_docker_default_bind() {
+  command -v dockerd &>/dev/null || return 0
+  printf '%b' "\n\n${red}[security] =>${no_color} Bind Docker published ports to 127.0.0.1 by default\n\n"
+
+  local conf=/etc/docker/daemon.json current='{}' updated
+  [ -f "$conf" ] && current=$($SUDO cat "$conf")
+  updated=$(jq '.ip = "127.0.0.1"' <<<"$current")
+  if [ "$updated" != "$current" ]; then
+    $SUDO mkdir -p /etc/docker
+    printf '%s\n' "$updated" | $SUDO tee "$conf" > /dev/null
+    # Best-effort: systemd may be unavailable (e.g. containers).
+    $SUDO systemctl restart docker || true
+  fi
+  printf '%b' "${red}[security]${no_color} Docker ports publish on 127.0.0.1 unless an address is given.\n"
+}
+
+# ──────────────────────────────────────────────
 # Main
 # ──────────────────────────────────────────────
 install_lite_setup() {
   configure_ssh
   install_configure_ufw
+  configure_docker_default_bind
   install_configure_fail2ban
   install_configure_unattended_upgrades
   configure_sysctl_hardening
