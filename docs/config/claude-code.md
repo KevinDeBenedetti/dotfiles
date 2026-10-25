@@ -118,6 +118,18 @@ Hook scripts live in `config/claude/hooks/` and are linked into
 the end of the turn with a reason naming the skills, and lets the next stop
 through (`stop_hook_active`), so it never loops.
 
+### Plugins
+
+The `ecc` plugin (marketplace `affaan-m/ECC`) is enabled with its hooks on.
+Individual ECC hooks are turned off through the `env` block, which applies to
+every session and its subprocesses:
+
+| Variable             | Value                 | Effect                                                                                          |
+| -------------------- | --------------------- | ----------------------------------------------------------------------------------------------- |
+| `ECC_DISABLED_HOOKS` | `stop:desktop-notify` | No macOS notification (via `osascript`, owned by Script Editor) each time Claude stops replying |
+
+`ECC_DISABLED_HOOKS` takes a comma-separated list of ECC hook IDs.
+
 ## Settings precedence and the sandbox allowlist
 
 Claude Code resolves a setting from highest to lowest precedence:
