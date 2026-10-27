@@ -63,8 +63,16 @@ domain allowlist, no unsandboxed commands, and bypass-permissions mode disabled.
 
 ### Permissions
 
+`permissions.defaultMode` is `auto`: a classifier reviews routine actions
+(shell commands, web fetches, file edits) instead of prompting, and blocks what
+strays from the request. It only takes effect from user settings, never from a
+project's `.claude/settings.json`. Deny rules, `ask` rules and the sandbox
+apply unchanged, and `AskUserQuestion` still waits for an answer. `Shift+Tab`
+switches mode for one session; `/permissions` → *Recently denied* retries an
+action the classifier refused.
+
 Pre-approved commands (`curl`, `git`, `docker`, read-only `gh` and `kubectl`, …)
-so Claude Code does not prompt for them, and hard denies:
+so neither the classifier nor a prompt is involved, and hard denies:
 
 - `git commit` / `git push` — commits and pushes are always done manually
 - mutating `kubectl` verbs (`apply`, `delete`, `exec`, …) — kubectl is read-only
@@ -80,10 +88,22 @@ so Claude Code does not prompt for them, and hard denies:
 through the REST API), `gh pr merge`, `terraform apply` / `destroy` and
 `kubectl config view`.
 
+The `rtk hook claude` hook rewrites many commands before the rules are matched
+(`git status` → `rtk git status`, `cat f` → `rtk read f`, `gh api …` →
+`rtk gh api …`), so every Bash rule has an `rtk` twin in the same list
+(`Bash(rtk git *)`, `Bash(rtk gh api *)` in ask, `Bash(rtk git push *)` in
+deny, …); `tests/configs.bats` enforces it. `kubectl` read verbs are also
+allowed with leading flags (`Bash(kubectl * get *)` matches `kubectl -n vault
+get pods`): mutating verbs and Secret reads stay denied by the hooks whatever
+precedes them.
+
 ### Sandbox
 
 Filesystem sandbox enabled, with `.env` files and the secrets above excluded,
-plus a `network.allowedDomains` allowlist (see precedence below).
+plus a `network.allowedDomains` allowlist (see precedence below). Tool caches
+(`~/.cache`, Go's build and module caches, bun's install cache) are writable,
+so tools use their normal caches instead of Claude redirecting them through
+`PATH=` / `*_CACHE=` prefixes, which no allow rule can match.
 
 ::: warning
 Configs linked into `$HOME` are executed outside the sandbox (shell rc files,
@@ -102,16 +122,17 @@ Changes made in the working copy go live only after review, commit and
 
 ### Hooks
 
-| Event        | Command              | Purpose                                                                                                         |
-| ------------ | -------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `PreToolUse` | inline `jq` + `grep` | Blocks `git commit` / `git push`, including wrapped (`bash -c`, `$(…)`) and `-c`/`-C` forms                     |
-| `PreToolUse` | inline `jq` + `grep` | Blocks mutating `kubectl` verbs — kubectl is read-only for agents                                               |
-| `PreToolUse` | `rtk hook claude`    | Rewrites Bash commands through `rtk` for token-optimized output                                                 |
-| `Stop`       | `docs-sync-check.sh` | Code changed but neither `docs/` nor `README.md` did → asks for the `docs-hub` / `readme` skills, once per turn |
+| Event        | Command              | Purpose                                                                                                            |
+| ------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `PreToolUse` | inline `jq` + `grep` | Blocks `git commit` / `git push`, including wrapped (`bash -c`, `$(…)`) and `-c`/`-C` forms                        |
+| `PreToolUse` | inline `jq` + `grep` | Blocks mutating `kubectl` verbs — kubectl is read-only for agents                                                  |
+| `PreToolUse` | inline `jq` + `grep` | Blocks `kubectl … get secret(s)` whatever the flags, namespace or `rtk` prefix — deny rules only match plain forms |
+| `PreToolUse` | `rtk hook claude`    | Rewrites Bash commands through `rtk` for token-optimized output                                                    |
+| `Stop`       | `docs-sync-check.sh` | Code changed but neither `docs/` nor `README.md` did → asks for the `docs-hub` / `readme` skills, once per turn    |
 
-The `git commit` / `git push` hook is also in `managed-settings.json`. These
-regex hooks catch mistakes, not a determined bypass: the sandbox and the secret
-deny rules are the actual security boundary.
+The `git commit` / `git push` and `kubectl … get secret(s)` hooks are also in
+`managed-settings.json`. These regex hooks catch mistakes, not a determined
+bypass: the sandbox and the secret deny rules are the actual security boundary.
 
 Hook scripts live in `config/claude/hooks/` and are linked into
 `~/.claude/hooks/`. A hook cannot invoke a skill itself: the `Stop` hook blocks
@@ -127,8 +148,10 @@ every session and its subprocesses:
 | Variable             | Value                 | Effect                                                                                          |
 | -------------------- | --------------------- | ----------------------------------------------------------------------------------------------- |
 | `ECC_DISABLED_HOOKS` | `stop:desktop-notify` | No macOS notification (via `osascript`, owned by Script Editor) each time Claude stops replying |
+| `ECC_GATEGUARD`      | `off`                 | No GateGuard fact-forcing denials (first Bash/Edit, destructive commands); retry always passed  |
 
-`ECC_DISABLED_HOOKS` takes a comma-separated list of ECC hook IDs.
+`ECC_DISABLED_HOOKS` takes a comma-separated list of ECC hook IDs;
+`ECC_GATEGUARD=off` is GateGuard's own global switch.
 
 ## Settings precedence and the sandbox allowlist
 

@@ -56,7 +56,9 @@ between a repo's `docs/` and that hub. The `README.md` is handled by the
 
 - Links between pages are **relative and end in `.md`** (`./skills.md`,
   `../setup/macos.md`). They must never escape `docs/` (the `check-docs-links`
-  hook enforces it). External links are absolute URLs.
+  hook enforces it). External links are absolute URLs to a page that exists:
+  never written from memory, and never to a private repository (a 404 for
+  every reader).
 - Tables: padded/aligned pipes. Callouts: VitePress containers
   (`::: tip`, `::: warning`, `::: danger`) with a closing `:::`.
 - Fenced code blocks always carry a language (`sh`, `json`, `yaml`, …).
@@ -90,6 +92,13 @@ between a repo's `docs/` and that hub. The `README.md` is handled by the
 - Frontmatter `title:` and H1 present and identical on every touched page.
 - Every relative link resolves to an existing file inside `docs/`
   (`prek run check-docs-links --all-files` when prek is installed).
+- Every external URL added or changed answers 2xx
+  (`curl -sSL -o /dev/null -w '%{http_code}\n' <url>`). Replace a dead one with
+  the page's current address, found on the site itself. A 403 from a site that
+  blocks non-browser clients (medium.com) proves nothing either way. CI checks
+  again after the push: lychee on the changed pages (`cd-docs.yml`, or
+  `ci-shell.yml` with `run-docs-external-link-check`), and the hub's weekly
+  *Site audit* crawls the live site.
 - Every command, path, and key quoted was read from the repo or run.
 - README links still valid (`https://kevindebenedetti.github.io/<repo-name>/…`
   matches the page paths; no `.md` suffix in published URLs).

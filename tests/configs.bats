@@ -283,6 +283,76 @@ setup() {
   assert_file_exists "$REPO_ROOT/SECURITY.md"
 }
 
+@test "claude permissions default to auto mode (user scope only; the managed floor pins no mode)" {
+  run jq -r '.permissions.defaultMode' "$CONFIG_DIR/claude/settings.json"
+  assert_output "auto"
+  run jq -r '.permissions.defaultMode // "unset"' "$CONFIG_DIR/claude/managed-settings.json"
+  assert_output "unset"
+}
+
+@test "every Bash rule has its rtk mirror in the same list (allow, ask and deny)" {
+  # The `rtk hook claude` PreToolUse hook rewrites commands (git status → rtk
+  # git status, cat f → rtk read f, gh api → rtk gh api, …) BEFORE the rules are
+  # matched, so a rule without its rtk twin silently stops applying.
+  local f list rule cmd rest mirror
+  local re='^Bash\(([^[:space:])]+)(.*)\)$'
+  for f in settings managed-settings; do
+    for list in allow ask deny; do
+      while IFS= read -r rule; do
+        [[ "$rule" =~ $re ]] || continue
+        cmd="${BASH_REMATCH[1]}"; rest="${BASH_REMATCH[2]}"
+        case "$cmd" in
+          rtk*|*=*|command) continue ;;
+          cat|head|tail) mirror='Bash(rtk read *)' ;;
+          *) mirror="Bash(rtk ${cmd}${rest})" ;;
+        esac
+        run jq -e --arg r "$mirror" --arg l "$list" '.permissions[$l] | index($r)' "$CONFIG_DIR/claude/$f.json"
+        assert_success || { echo "missing in $f.json $list: $mirror" >&2; return 1; }
+      done < <(jq -r --arg l "$list" '.permissions[$l] // [] | .[]' "$CONFIG_DIR/claude/$f.json")
+    done
+  done
+}
+
+@test "kubectl read verbs are allowed with leading flags, mutating verbs never" {
+  local v
+  for v in get describe logs top explain; do
+    run jq -e --arg r "Bash(kubectl * $v *)" '.permissions.allow | index($r)' "$CONFIG_DIR/claude/settings.json"
+    assert_success
+  done
+  # No flag-tolerant allow may name a mutating verb (the hook denies them anyway).
+  run jq -e '[.permissions.allow[] | select(test("^Bash\\((rtk )?kubectl \\* (apply|delete|patch|rollout|create|annotate|edit|scale|exec|debug|run|replace|set|label|taint|cordon|uncordon|drain|cp|expose|autoscale)"))] | length == 0' \
+    "$CONFIG_DIR/claude/settings.json"
+  assert_success
+  # Secrets stay denied in the namespaced form too.
+  run jq -e '.permissions.deny | index("Bash(kubectl * get secrets *)")' "$CONFIG_DIR/claude/settings.json"
+  assert_success
+}
+
+@test "WebFetch allows the documentation hubs by wildcard" {
+  local d
+  for d in '*.github.io' 'github.com' '*.githubusercontent.com' 'ghcr.io'; do
+    run jq -e --arg r "WebFetch(domain:$d)" '.permissions.allow | index($r)' "$CONFIG_DIR/claude/settings.json"
+    assert_success
+  done
+  run jq -e '.permissions.allow | index("WebFetch(domain:*)")' "$CONFIG_DIR/claude/settings.json"
+  assert_failure
+}
+
+@test "sandbox lets tools use their caches (no PATH=/… prefixes needed)" {
+  local c
+  for c in '~/.cache/**' '~/go/pkg/mod/**' '~/.bun/install/cache/**'; do
+    run jq -e --arg r "$c" '.sandbox.filesystem.allowWrite | index($r)' "$CONFIG_DIR/claude/settings.json"
+    assert_success
+  done
+}
+
+@test "ECC: GateGuard off and desktop notifications disabled through env" {
+  run jq -r '.env.ECC_GATEGUARD' "$CONFIG_DIR/claude/settings.json"
+  assert_output "off"
+  run jq -r '.env.ECC_DISABLED_HOOKS' "$CONFIG_DIR/claude/settings.json"
+  assert_output --partial "stop:desktop-notify"
+}
+
 # --- OS scripts ---
 
 @test "os/macos/init.sh exists and is executable" {

@@ -118,6 +118,22 @@ run_path_hook() {
   done
 }
 
+@test "kubectl Secret reads are denied by the settings and managed hooks, whatever the flags" {
+  # The deny rules only match the plain `kubectl get secret…` form; the hook
+  # covers namespaced, rtk-rewritten and comma-list forms too.
+  local hook c
+  for hook in "$(hook_cmd settings.json 2)" "$(hook_cmd managed-settings.json 1)"; do
+    for c in "$K get secrets -A -o yaml" "$K -n x get secret db" "rtk $K get secret/db -o json" "$K get all,secrets"; do
+      run run_hook "$hook" "$c"
+      assert_output --partial '"deny"' || { echo "not denied: $c" >&2; return 1; }
+    done
+    for c in "$K get secretstores" "$K describe secret db" "$K -n x get pods"; do
+      run run_hook "$hook" "$c"
+      refute_output --partial '"deny"' || { echo "wrongly denied: $c" >&2; return 1; }
+    done
+  done
+}
+
 @test "agent-guard asks before gh api and kubectl config view" {
   local guard="bash '$CONFIG_DIR/copilot/hooks/agent-guard.sh'" GH=gh
   run run_hook "$guard" "$GH api repos/o/r"

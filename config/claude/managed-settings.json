@@ -39,13 +39,24 @@
       "Read(**/*.pem)",
       "Read(**/*.key)",
       "Bash(gh auth token*)",
-      "Bash(git credential*)"
+      "Bash(git credential*)",
+      "Bash(rtk git commit)",
+      "Bash(rtk git commit *)",
+      "Bash(rtk git push)",
+      "Bash(rtk git push *)",
+      "Bash(rtk gh repo delete*)",
+      "Bash(rtk gh auth token*)",
+      "Bash(rtk git credential*)"
     ],
     "ask": [
       "Bash(terraform apply*)",
       "Bash(terraform destroy*)",
       "Bash(kubectl delete*)",
-      "Bash(gh pr merge*)"
+      "Bash(gh pr merge*)",
+      "Bash(rtk terraform apply*)",
+      "Bash(rtk terraform destroy*)",
+      "Bash(rtk kubectl delete*)",
+      "Bash(rtk gh pr merge*)"
     ]
   },
   "disableBypassPermissionsMode": "disable",
@@ -113,6 +124,10 @@
           {
             "type": "command",
             "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[^[:alnum:]_.-])git([[:space:]]+(-[Cc]|--git-dir|--work-tree|--namespace|--exec-path|--config-env)[[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+(commit|push)([^[:alnum:]_-]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git commit/push sont bloqués par la politique managée (managed-settings.json)\"}}'; fi"
+          },
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[^[:alnum:]_.-])kubectl[[:space:]]([^;&|]*[[:space:]])?get[[:space:]]([^;&|]*[[:space:],])?secrets?([[:space:]/,]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"la lecture des Secrets Kubernetes est bloquée par la politique managée (managed-settings.json)\"}}'; fi"
           }
         ]
       }
