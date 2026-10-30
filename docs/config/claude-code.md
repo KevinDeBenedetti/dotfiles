@@ -153,6 +153,18 @@ every session and its subprocesses:
 `ECC_DISABLED_HOOKS` takes a comma-separated list of ECC hook IDs;
 `ECC_GATEGUARD=off` is GateGuard's own global switch.
 
+Unused skills are hidden from the model through `skillOverrides` (value
+`user-invocable-only`): they leave the skill listing Claude reads at the start
+of every session but stay available by hand as `/<name>`. ECC's ~400 skills and
+commands overflow that listing's budget on their own, which truncates every
+description, so only the ECC ones in use stay visible (`code-review`,
+`agent-security-hardening`, `skill-health`, `skill-stocktake`,
+`nextjs-turbopack`); the claude.ai-synced skills, `langfuse` and `context7-mcp`
+are hidden the same way. Delete an entry to make the skill visible again.
+
+`disableClaudeAiConnectors: true` keeps the claude.ai connectors (Gmail, Google
+Calendar, …) out of Claude Code; they stay available on claude.ai.
+
 ## Settings precedence and the sandbox allowlist
 
 Claude Code resolves a setting from highest to lowest precedence:

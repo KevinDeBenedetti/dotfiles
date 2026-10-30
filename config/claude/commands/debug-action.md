@@ -1,3 +1,7 @@
+---
+description: Debug a failing GitHub Actions run from a run/job URL, a run ID or a pasted error log (defaults to the most recent failed run of the current repo).
+---
+
 Debug a failing GitHub Actions run. The argument is a run/job URL, a run ID, or
 a pasted error log. If nothing is given, find the most recent failed run for the
 current repo.

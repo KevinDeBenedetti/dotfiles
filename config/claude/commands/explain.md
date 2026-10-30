@@ -1,3 +1,7 @@
+---
+description: Explain the file, command or code given as argument (or the current selection / open file) in plain, concise terms.
+---
+
 Explain the file, command, or code referenced in the argument (or the current
 selection / open file if none is given) in plain, concise terms.
 

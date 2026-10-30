@@ -54,6 +54,22 @@ Debian. Each extension listed in `extensions.json` is installed with
 | Markdown   | Markdown All in One |
 | YAML       | Red Hat YAML        |
 
+### Shell environment and toolchain
+
+| Setting                                         | Value                             | Why                                                                                                                                                                |
+| ----------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `application.shellEnvironmentResolutionTimeout` | `30`                              | Launched from the Dock, VS Code reads PATH from a login zsh; past the 10 s default it gives up, and every proto shim (`node`, `python`) then fails to find `proto` |
+| `python.defaultInterpreterPath`                 | `${userHome}/.proto/shims/python` | The Python extension expands `${userHome}`, not `~`                                                                                                                |
+
+proto is installed with Homebrew (`/opt/homebrew/bin/proto`). When the shell
+environment is not resolved, `PATH` lacks `/opt/homebrew/bin` and the shims fail
+with `proto-shim: Failed to execute proto`. A `proto` link in `~/.proto/bin`
+makes them independent of `PATH` (the shim also looks in `$PROTO_HOME/bin`):
+
+```sh
+ln -s /opt/homebrew/bin/proto ~/.proto/bin/proto
+```
+
 ### Commit messages
 
 `github.copilot.chat.commitMessageGeneration.instructions` makes the

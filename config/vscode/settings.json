@@ -33,10 +33,16 @@
   "editor.unicodeHighlight.invisibleCharacters": false,
   "security.workspace.trust.untrustedFiles": "prompt",
   "workbench.startupEditor": "none",
+  // Launched from the Dock, VS Code runs a login zsh to get PATH. The 10 s default
+  // is exceeded on a busy startup, and then every proto shim (node, python) fails:
+  // proto-shim must find the proto binary on PATH.
+  "application.shellEnvironmentResolutionTimeout": 30,
   // python — disable VS Code auto-activating venvs in terminals (direnv handles this)
   "python.terminal.activateEnvironment": false,
   "python-envs.terminal.autoActivationType": "off",
-  "python.defaultInterpreterPath": "~/.proto/shims/python",
+  // ${userHome}, not ~: the Python extension does not expand ~ (it looked for
+  // <workspace>/~/.proto/shims/python)
+  "python.defaultInterpreterPath": "${userHome}/.proto/shims/python",
   // git
   "git.autofetch": true,
   "git.untrackedChanges": "separate",

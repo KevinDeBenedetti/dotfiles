@@ -4,30 +4,10 @@ Personal macOS / Debian dotfiles and bootstrap scripts. Tool-neutral guide for
 AI coding agents (Claude Code, OpenCode, VS Code Copilot). Claude Code reaches
 it through [`CLAUDE.md`](CLAUDE.md).
 
-## Layout
-
-| Path                  | Content                                                                    |
-| --------------------- | -------------------------------------------------------------------------- |
-| `os/macos/`, `os/debian/` | `init.sh` entrypoints and per-OS setup scripts                         |
-| `os/helpers/`         | Shared shell helpers; `links.sh` symlinks `config/` into `$HOME`           |
-| `config/`             | Versioned configs (git, zsh, ssh, vscode, claude, opencode, copilot, …)    |
-| `config/skills/`      | Shared agent skills, one folder each, linked into `~/.claude/skills/`      |
-| `config/commands/`    | Shared slash commands (Claude Code, OpenCode, Copilot)                     |
-| `config/claude/`      | Claude Code `settings.json`, `managed-settings.json`, Claude-only commands |
-| `scripts/`            | Tooling linked to `~/.local/bin/` (`scripts/ai/`, `scripts/ollama/`)       |
-| `tests/`              | Bats suites (`tests/ai/`, `tests/ollama/` in subdirs) and Docker/Lima rigs |
-| `docs/`               | Documentation site sources                                                 |
-
 ## Commands
 
-```sh
-make test      # all Bats tests (run `make submodules` first on a fresh clone)
-make lint      # ShellCheck (severity=warning) on every shell script
-make validate  # yamllint on .github/workflows/
-make ci        # lint + validate + test
-```
-
-Run `make ci` before declaring a change done. Docker/Lima targets
+Run `make ci` before declaring a change done (`make submodules` first on a
+fresh clone; `make help` lists every target). Docker/Lima targets
 (`docker-test-*`, `vm-*`) are slow integration runs: only on request.
 
 ## Conventions
@@ -49,22 +29,13 @@ Run `make ci` before declaring a change done. Docker/Lima targets
 
 ## Skills
 
-Shared skills in `config/skills/` load automatically in every tool. Use them
-instead of improvising:
-
-| Skill          | Use it when                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------------ |
-| `commit-types` | Writing or reviewing a commit message, or choosing a Conventional Commits type. `refactor` is never emitted by the release config: use `chore`. |
-| `readme`       | Creating, rewriting or auditing a `README.md`.                                                   |
-| `docs-hub`     | Adding, editing or auditing anything under `docs/` (published on the kevindebenedetti.github.io hub), or updating docs after a code/config change. |
+Shared skills in `config/skills/` (`commit-types`, `readme`, `docs-hub`) load
+automatically in every tool. Use them instead of improvising.
 
 Rules for editing skills: edit them in `config/skills/<name>/` only (never in
 `~/.claude/skills/`), keep frontmatter to `name` + `description`, no
 tool-specific syntax, `SKILL.md` under ~500 lines. See `docs/config/skills.md`;
 update its "Existing skills" table when adding one.
-
-Shared commands (`config/commands/`): `/next-task` works the project's
-`TODO.md`; `/next-task all` drains it.
 
 ## Guardrails (hard rules)
 

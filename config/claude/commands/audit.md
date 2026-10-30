@@ -1,3 +1,7 @@
+---
+description: Audit a complete infrastructure repository (Terraform, Ansible, Kubernetes/Helm, Docker, CI/CD and runner configuration) and report only actionable findings.
+---
+
 Audit a complete infrastructure repository (e.g. an `infra` repo holding
 Terraform, Ansible, Kubernetes/Helm, Docker, CI/CD and runner configuration).
 Be thorough but report only actionable findings.
