@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.6.0...v0.7.0) (2026-10-30)
+
+
+### Features
+
+* **settings:** add ECC_DISABLED_HOOKS env variable and update permissions for rtk commands ([061af68](https://github.com/KevinDeBenedetti/dotfiles/commit/061af68a37668043ee6c40a59d70977cdb1d023b))
+* **settings:** update model to opus and add ECC_DISABLED_HOOKS env variable ([9d6ec2a](https://github.com/KevinDeBenedetti/dotfiles/commit/9d6ec2ad8a2aff2b280f9e11e546a455f9a232b7))
+* **settings:** update settings and commands with new skill overrides and environment variables ([cf6df58](https://github.com/KevinDeBenedetti/dotfiles/commit/cf6df587dc47d55837511f7552fe18d1703919be))
+
 ## [0.6.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.5.1...v0.6.0) (2026-10-24)
 
 
