@@ -27,6 +27,21 @@ HARDEN_TMP="${HARDEN_TMP:-false}"
 # SSH Hardening
 # ──────────────────────────────────────────────
 configure_ssh() {
+  # A node managed by the infra repo (Ansible role `common`) owns sshd: it
+  # writes /etc/ssh/sshd_config.d/00-infra-hardening.conf with the port the
+  # Hetzner firewall and UFW open. 00-hardening.conf sorts BEFORE it, and sshd
+  # keeps the FIRST value it reads for each keyword, so on an `init.sh` re-run
+  # this step would move sshd to $SSH_PORT — off the only reachable port. Leave
+  # sshd to Ansible there, and drop this script's own drop-ins so they stop
+  # shadowing the infra one at the next sshd restart (the `common` role removes
+  # them too, common_sshd_foreign_dropins, but only while it can still log in).
+  local infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"
+  if [[ -f "$infra_conf" ]]; then
+    printf '%b' "\n\n${red}[security] =>${no_color} sshd is managed by the infra repo ($infra_conf): skipping SSH hardening.\n\n"
+    $SUDO rm -f /etc/ssh/sshd_config.d/00-hardening.conf /etc/ssh/sshd_config.d/99-hardening.conf
+    return 0
+  fi
+
   printf '%b' "\n\n${red}[security] =>${no_color} Harden SSH configuration (port: $SSH_PORT)\n\n"
 
   # sshd keeps the FIRST value it reads for each keyword and includes the

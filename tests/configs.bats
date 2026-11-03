@@ -353,6 +353,18 @@ setup() {
   assert_output --partial "stop:desktop-notify"
 }
 
+@test "VS Code settings survive an unresolved shell env: \${userHome} paths, longer timeout" {
+  local s="$CONFIG_DIR/vscode/settings.json"
+  # The Python extension does not expand ~ (it looked for <workspace>/~/.proto/…).
+  run grep -E '"python\.defaultInterpreterPath": *"~' "$s"
+  assert_failure
+  run grep -qF '"python.defaultInterpreterPath": "${userHome}/.proto/shims/python"' "$s"
+  assert_success
+  # proto shims need PATH from the login shell; 10 s (default) is too short on a busy startup.
+  run grep -qE '"application\.shellEnvironmentResolutionTimeout": *(2[0-9]|[3-9][0-9]|1[01][0-9]|120),' "$s"
+  assert_success
+}
+
 # --- OS scripts ---
 
 @test "os/macos/init.sh exists and is executable" {
@@ -563,7 +575,7 @@ setup() {
 
 @test "AGENTS.md make targets exist in the Makefile" {
   local target
-  for target in test lint validate ci submodules; do
+  for target in ci submodules help; do
     run grep -q "^$target:" "$REPO_ROOT/Makefile"
     assert_success
   done

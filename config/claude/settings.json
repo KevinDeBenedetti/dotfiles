@@ -549,153 +549,8 @@
     "defaultMode": "auto",
     "additionalDirectories": []
   },
-  "model": "opus",
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[^[:alnum:]_.-])git([[:space:]]+(-[Cc]|--git-dir|--work-tree|--namespace|--exec-path|--config-env)[[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+(commit|push)([^[:alnum:]_-]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git commit/push sont bloqués par la configuration (settings.json)\"}}'; fi"
-          },
-          {
-            "type": "command",
-            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[^[:alnum:]_.-])kubectl[[:space:]]([^;&|]*[[:space:]])?(apply|delete|patch|rollout|create|annotate|edit|scale|exec|debug|run|replace|set|label|taint|cordon|uncordon|drain|cp|expose|autoscale)([^[:alnum:]_-]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"kubectl est en lecture seule pour l agent : les verbes mutants sont bloqués par la configuration (settings.json)\"}}'; fi"
-          },
-          {
-            "type": "command",
-            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[^[:alnum:]_.-])kubectl[[:space:]]([^;&|]*[[:space:]])?get[[:space:]]([^;&|]*[[:space:],])?secrets?([[:space:]/,]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"la lecture des Secrets Kubernetes est bloquée par la configuration (settings.json)\"}}'; fi"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "rtk hook claude"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$HOME/.claude/hooks/docs-sync-check.sh\""
-          }
-        ]
-      }
-    ]
-  },
-  "enabledPlugins": {
-    "ecc@ecc": true
-  },
-  "extraKnownMarketplaces": {
-    "ecc": {
-      "source": {
-        "source": "git",
-        "url": "https://github.com/affaan-m/ECC.git"
-      }
-    }
-  },
-  "sandbox": {
-    "enabled": true,
-    "failIfUnavailable": true,
-    "allowUnsandboxedCommands": false,
-    "network": {
-      "allowedDomains": [
-        "github.com",
-        "*.github.com",
-        "*.githubusercontent.com",
-        "registry.npmjs.org",
-        "releases.hashicorp.com",
-        "registry.terraform.io",
-        "ghcr.io",
-        "quay.io",
-        "gcr.io",
-        "registry-1.docker.io",
-        "auth.docker.io",
-        "index.docker.io",
-        "production.cloudflare.docker.com",
-        "localhost",
-        "127.0.0.1"
-      ],
-      "allowLocalBinding": true
-    },
-    "filesystem": {
-      "allowWrite": [
-        "~/Library/Application Support/rtk/**",
-        "~/dev/infra",
-        "~/dev/github-workflows",
-        "~/.cache/**",
-        "~/Library/Caches/go-build/**",
-        "~/go/pkg/mod/**",
-        "~/.bun/install/cache/**"
-      ],
-      "denyWrite": [
-        "**/.env",
-        "**/.env.local",
-        "**/.env.production",
-        "**/*.env",
-        "~/.ssh/**",
-        "~/.aws/**",
-        "~/.gnupg/**",
-        "~/.claude/.credentials.json",
-        "~/.config/dotfiles/env.local.sh",
-        "~/.dotfiles/**"
-      ],
-      "denyRead": [
-        "**/.env",
-        "**/.env.local",
-        "**/.env.production",
-        "**/*.env",
-        "~/.ssh/**",
-        "~/.kube/config",
-        "~/.config/dotfiles/env.local.sh",
-        "~/.config/opencode/llm-api-key",
-        "~/.aws/**",
-        "~/.gnupg/**",
-        "~/.netrc",
-        "~/.npmrc",
-        "~/.claude/.credentials.json",
-        "**/*.pem",
-        "**/*.key"
-      ],
-      "allowRead": [
-        "~/.ssh/*.pub",
-        "~/.ssh/config",
-        "~/.ssh/config.d/**",
-        "~/.ssh/known_hosts",
-        "/**/.env.example"
-      ]
-    }
-  },
-  "effortLevel": "high",
-  "modelSettings": {
-    "claude-opus-5-5": {
-      "effortLevel": "xhigh"
-    },
-    "claude-sonnet-5-5": {
-      "effortLevel": "medium"
-    },
-    "claude-fable-5-1": {
-      "effortLevel": "xhigh"
-    }
-  },
-  "pluginConfigs": {
-    "ecc@ecc": {
-      "options": {
-        "hooks_enabled": true
-      }
-    }
-  },
-  "theme": "dark",
-  "switchModelsOnFlag": true,
-  "remoteControlAtStartup": true,
-  "agentPushNotifEnabled": true,
+  "model": "claude-fable-5-1[1m]",
+  "disableClaudeAiConnectors": true,
   "skillOverrides": {
     "anthropic-skills:built-in-browser": "user-invocable-only",
     "anthropic-skills:canvas-design": "user-invocable-only",
@@ -1109,5 +964,150 @@
     "ecc:x-api": "user-invocable-only",
     "langfuse": "user-invocable-only"
   },
-  "disableClaudeAiConnectors": true
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[^[:alnum:]_.-])git([[:space:]]+(-[Cc]|--git-dir|--work-tree|--namespace|--exec-path|--config-env)[[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+(commit|push)([^[:alnum:]_-]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git commit/push sont bloqués par la configuration (settings.json)\"}}'; fi"
+          },
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[^[:alnum:]_.-])kubectl[[:space:]]([^;&|]*[[:space:]])?(apply|delete|patch|rollout|create|annotate|edit|scale|exec|debug|run|replace|set|label|taint|cordon|uncordon|drain|cp|expose|autoscale)([^[:alnum:]_-]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"kubectl est en lecture seule pour l agent : les verbes mutants sont bloqués par la configuration (settings.json)\"}}'; fi"
+          },
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if printf '%s' \"$cmd\" | grep -qE '(^|[^[:alnum:]_.-])kubectl[[:space:]]([^;&|]*[[:space:]])?get[[:space:]]([^;&|]*[[:space:],])?secrets?([[:space:]/,]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"la lecture des Secrets Kubernetes est bloquée par la configuration (settings.json)\"}}'; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.claude/hooks/docs-sync-check.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "ecc@ecc": true
+  },
+  "extraKnownMarketplaces": {
+    "ecc": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/affaan-m/ECC.git"
+      }
+    }
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "*.github.com",
+        "*.githubusercontent.com",
+        "registry.npmjs.org",
+        "releases.hashicorp.com",
+        "registry.terraform.io",
+        "ghcr.io",
+        "quay.io",
+        "gcr.io",
+        "registry-1.docker.io",
+        "auth.docker.io",
+        "index.docker.io",
+        "production.cloudflare.docker.com",
+        "localhost",
+        "127.0.0.1"
+      ],
+      "allowLocalBinding": true
+    },
+    "filesystem": {
+      "allowWrite": [
+        "~/Library/Application Support/rtk/**",
+        "~/dev/infra",
+        "~/dev/github-workflows",
+        "~/.cache/**",
+        "~/Library/Caches/go-build/**",
+        "~/go/pkg/mod/**",
+        "~/.bun/install/cache/**"
+      ],
+      "denyWrite": [
+        "**/.env",
+        "**/.env.local",
+        "**/.env.production",
+        "**/*.env",
+        "~/.ssh/**",
+        "~/.aws/**",
+        "~/.gnupg/**",
+        "~/.claude/.credentials.json",
+        "~/.config/dotfiles/env.local.sh",
+        "~/.dotfiles/**"
+      ],
+      "denyRead": [
+        "**/.env",
+        "**/.env.local",
+        "**/.env.production",
+        "**/*.env",
+        "~/.ssh/**",
+        "~/.kube/config",
+        "~/.config/dotfiles/env.local.sh",
+        "~/.config/opencode/llm-api-key",
+        "~/.aws/**",
+        "~/.gnupg/**",
+        "~/.netrc",
+        "~/.npmrc",
+        "~/.claude/.credentials.json",
+        "**/*.pem",
+        "**/*.key"
+      ],
+      "allowRead": [
+        "~/.ssh/*.pub",
+        "~/.ssh/config",
+        "~/.ssh/config.d/**",
+        "~/.ssh/known_hosts",
+        "/**/.env.example"
+      ]
+    }
+  },
+  "effortLevel": "high",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "xhigh"
+    },
+    "claude-sonnet-5-5": {
+      "effortLevel": "medium"
+    },
+    "claude-fable-5-1": {
+      "effortLevel": "xhigh"
+    }
+  },
+  "pluginConfigs": {
+    "ecc@ecc": {
+      "options": {
+        "hooks_enabled": true
+      }
+    }
+  },
+  "theme": "dark",
+  "switchModelsOnFlag": true,
+  "remoteControlAtStartup": true,
+  "agentPushNotifEnabled": true
 }

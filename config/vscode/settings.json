@@ -328,5 +328,6 @@
   "extensions.ignoreRecommendations": true,
   "sonarlint.automaticAnalysis": false,
   "makefile.configureOnOpen": false,
-  "claudeCode.hideOnboarding": true
+  "claudeCode.hideOnboarding": true,
+  "python.languageServer": "Default"
 }
