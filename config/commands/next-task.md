@@ -1,152 +1,180 @@
 ---
-description: Work the next task (or all tasks) in the project's TODO.md, following a strict format.
-argument-hint: "[all]"
+description: Work the next task of the project's TODO.md (or all of them, the next N, or the one matching some words), verify it, record it and propose a commit.
+argument-hint: "[all | N | task words]"
 ---
 
-Work tasks in the current project's TODO.md, following a strict format.
+Work tasks from the current project's `TODO.md`.
 
 <!-- Single source shared by Claude Code, OpenCode and VS Code Copilot
      (linked by os/helpers/links.sh). Keep it tool-neutral. -->
 
-## 0. Mode
+The `todo-md` skill (`~/.claude/skills/todo-md/SKILL.md`) defines the file:
+sections, line syntax, the English-only rule and the migration of legacy files.
+Load it before the first edit and follow it for every change to `TODO.md`.
+Everything you write into the project — `TODO.md`, code, comments, docs, the
+proposed commit message — is in English, whatever the conversation language.
+
+## 1. Mode
+
 The argument is `$ARGUMENTS`. If that placeholder was left as-is (the tool did
 not substitute it), the argument is whatever the user typed after the
 `/next-task` command instead.
-- **No argument** (or anything other than `all`) → **single mode**: do exactly ONE
-  task, then stop. This is the default.
-- **`all`** → **batch mode**: repeat the per-task procedure (steps 3→6b) for every
-  unchecked task in `🔴 En cours` then `🟡 À faire`, one at a time in priority
-  order, until BOTH sections are empty. See §8 for the loop rules.
 
-State which mode you are in before starting.
+| Argument        | Mode                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------ |
+| none            | **single**: the next task, then stop                                                 |
+| `all`           | **batch**: every open task of `🔴 In progress` and `🟡 To do`, one at a time (§10)   |
+| a number `N`    | **batch**, limited to the next `N` tasks                                             |
+| any other words | **single**, on the open item whose line matches them (§3); ask if none or several do |
 
-## 1. Locate TODO.md
-Read `TODO.md` at the root of the current project. If none exists, say so and
-stop — do not create one.
+State the mode — and in batch mode the tasks in scope — before starting.
 
-## 2. Expected structure (enforce it)
-TODO.md must use these exact section headings, in this order. If a section is
-missing, create it (empty) in the right place; never rename or reorder them:
+## 2. Prepare
 
-```
-# TODO
+1. Read `TODO.md` at the project root. If there is none, say so and stop — do
+   not create one.
+2. If it does not follow the `todo-md` layout, or is not in English, migrate it
+   first, in one pass, as the skill says, and report the migration as its own
+   change.
+3. Run `git status --short` and note the changes already there: they belong to
+   no task and stay out of the commit plan.
+4. Find how the project verifies a change: its `AGENTS.md` / `CLAUDE.md`, then
+   the `Makefile`, package scripts and CI workflows.
 
-## 🔴 En cours
-## 🟡 À faire
-## 🟢 Idées / backlog
-## 🤖 Claude — recommandations
-## 🔒 Security audit
-## ✅ Fait
-```
+## 3. Pick
 
-**Task line syntax** (every item is a checkbox):
-`- [ ] <TYPE>: <description>`
-where `<TYPE>` is one of `FEAT` | `FIX` | `CHORE` | `DOCS` | `REFACTOR` | `TEST`
-(add `(URGENT)` right after the type when critical, e.g. `FEAT(URGENT):`).
-Priority comes from the section, not the line. If an existing line doesn't match
-this syntax, normalize it as you touch it.
+- With words (§1): the open item whose line matches them, in any section but
+  `🖐 Manual`. Naming it is the owner's approval, even for an idea, a
+  recommendation, a finding or a `BLOCKED` task — for the latter, ask how the
+  blocker was resolved unless the owner said so, then remove the marker.
+- Otherwise, the candidates are the open `[ ]` tasks of `🔴 In progress`, then
+  `🟡 To do`, except those marked `BLOCKED`. Within a section, `(URGENT)`
+  first, then the top-most. Never pick from another section: `🖐 Manual` is the
+  owner's, and ideas, recommendations and security findings are not approved
+  until the owner moves them to `🟡 To do`.
+- Move the task, unchanged, to `🔴 In progress` (an interrupted run then leaves
+  a trace) and say which task you picked.
+- No candidate: say so, with the number of `BLOCKED` tasks and of items waiting
+  for triage, and stop.
 
-## 3. Pick the task
-Choose the highest-priority unchecked `[ ]` task: everything in `🔴 En cours`
-first, then `🟡 À faire`. Within a section, `(URGENT)` wins, otherwise top-most.
-Ignore `🟢 Idées / backlog`, `🤖 Claude — recommandations`, `🔒 Security audit`,
-and `✅ Fait`.
-State which task you picked before starting.
+## 4. Understand
 
-## 4. Implement
-1. Implement the feature or fix.
-2. Write or update tests if relevant; run them.
-3. Keep the change consistent with the surrounding code and conventions.
+- Read the code the task touches before changing anything.
+- Already done, or made moot by other changes? Verify it, then record it as
+  done (§7) with the evidence — no code change.
+- Ambiguous, or it needs a decision only the owner can make? Ask before
+  changing anything.
+- Too big for one reviewable change? Split it into ordered sub-tasks: the first
+  replaces it in `🔴 In progress`, the others go to the top of `🟡 To do`. Say
+  so, then work the first.
 
-## 5. Mark it done
-Remove the task from its current section and add it to the TOP of `## ✅ Fait`
-(newest first), using this exact syntax with today's date in ISO format:
-`- [x] YYYY-MM-DD — <TYPE>: <description>`
-Use the real current date (`YYYY-MM-DD`); never invent or reuse an old one. Do
-not commit — leave staging/committing to the user.
+## 5. Implement
 
-## 6. Suggest backlog (Claude recommandations)
-Goal: propose changes that genuinely **improve the product**, grounded in
-evidence already in the project — not generic advice. Do NOT implement them.
+- Make the smallest change that completes the task, in the style of the
+  surrounding code.
+- Add or update tests for the behavior you changed.
+- Update what the change makes stale: `docs/` (`docs-hub` skill), `README.md`
+  (`readme` skill), comments and examples.
+- Follow the project's guardrails. Never stage, commit or push, and never read
+  or write secrets.
 
-**Ground every suggestion in existing information.** Before suggesting, use what
-you already have: the task you just did, the code you touched, `README`/`docs/`,
-open/closed items in `TODO.md` (especially `✅ Fait` and `🟢 Idées / backlog` to
-spot patterns and gaps), test coverage and failing/skipped tests, `git log`
-history (recurring fixes, hot files), and repeated friction you hit. If you
-can't point to a concrete file, behavior, or observed gap, don't suggest it.
+## 6. Verify
 
-**What counts as relevant** (pick the highest user/maintainer value first):
-- Missing or weak user-facing capability, UX/DX friction, or an incomplete flow
-  next to what you just changed.
-- Reliability gaps: untested paths, silent failures, missing error handling,
-  fragile scripts, flaky or skipped tests.
-- Maintainability that unblocks future work: duplication, dead code, outdated or
-  missing docs, inconsistent conventions.
-- Quick wins with clear payoff over speculative rewrites.
+- Run the project's checks that cover the change (§2). The task is done only
+  when they pass; report what you ran and the result.
+- A check that cannot run here (sandbox, no Docker, missing credentials,
+  production or cluster access) is not a pass: add a `🖐 Manual` step with the
+  exact command and its success signal, and say so.
+- A failure you cannot fix within the task's scope is a blocker (§8).
 
-**Quality bar.** Max ~5 items per run, ranked by impact (best first). Each must
-be specific, actionable, and small enough to become a task. Name the target
-(file/module/command) and the benefit. Skip vague items ("improve
-performance", "add more tests"), anything already done, and duplicates already
-present anywhere in TODO.md (including `🔒 Security audit`).
+## 7. Record
 
-Append as unchecked items to `## 🤖 Claude — recommandations`, one line each:
-`- [ ] <TYPE>: <suggestion> (<file/area>) — <evidence + expected benefit>`
-If you have nothing genuinely useful to add, leave the section untouched.
+- Move the task from `🔴 In progress` to the top of `✅ Done`, as a done entry
+  with today's real date (`date +%F`): what changed and how it was verified.
+- Whatever only the owner can do — push, deploy, apply, a UI setting, a secret
+  — becomes `🖐 Manual` steps, referenced from the done entry.
+- Propose one Conventional Commit message for the task (`commit-types` skill)
+  and list the files it changed. Do not commit.
 
-## 6b. Security audit
-Separate from §6. Briefly audit the code you touched **and its immediate
-surroundings** (read-only; do not fix here) for security improvements, and
-append findings to `## 🔒 Security audit`. Do NOT implement them.
+## 8. Blocked
 
-**Look for**, as relevant to the project type:
-- Secrets & credentials: hardcoded tokens/keys, secrets in config, logs, shell
-  history, or committed files; missing `.gitignore`/gitleaks coverage.
-- Injection & unsafe execution: unquoted shell variables, `eval`, `curl | sh`,
-  unvalidated input passed to commands, paths, SQL, or templates.
-- Supply chain: unpinned or unverified dependencies, actions, installers,
-  Homebrew taps, or downloaded scripts without checksum/signature.
-- Permissions & exposure: overly broad file modes, wildcard allowlists
-  (e.g. Claude `permissions`), world-readable secrets, services bound to
-  `0.0.0.0`, risky default ports.
-- Hardening: missing input validation, weak/outdated crypto or TLS settings,
-  insecure defaults, missing least-privilege, missing audit/CI security checks.
+When a task cannot be finished — a failing check you cannot fix, a missing
+decision or access, out of scope, too risky:
 
-**Rules.** Only report issues you can tie to a concrete file/line or config
-(never speculative). Rank by severity (highest first), max ~5 per run. Skip
-duplicates already in TODO.md. Never write actual secret values into TODO.md —
-reference the location only. If nothing real is found, leave the section
-untouched.
+- Do not force it. Never delete, or mark done, a task you did not finish.
+- Leave it in `🔴 In progress`, ending with
+  ` — BLOCKED YYYY-MM-DD: <what is needed>`.
+- Leave your partial changes in place, and list them.
+- Stop and ask the owner: what went wrong, what you tried, the options you see.
+  Once they decide, remove the marker and carry on.
 
-One line each:
-`- [ ] <TYPE>: [SEVERITY] <fix> (<file:line>) — <risk and why it matters>`
-where `SEVERITY` is `CRITICAL` | `HIGH` | `MEDIUM` | `LOW` (usually
-`FIX`/`CHORE`; use `(URGENT)` after the type for CRITICAL).
+## 9. Recommendations and security audit
 
-## 7. Summary
-Give a short summary: the task completed, what changed (files/tests), and any
-recommendations and security findings you added.
+Single mode: after the task. Batch mode: once, at the end, over every task of
+the run. Do NOT implement them. Use the skill's line formats, and leave a
+section untouched when you have nothing genuinely useful to add.
 
-## 8. Batch mode (`all`) loop rules
-Only when invoked as `next-task all`:
-- Process tasks **one at a time**, fully completing the per-task procedure
-  (steps 3→6b) for the current task before picking the next one. Re-pick from the
-  live state of TODO.md each iteration (a finished task is now in `✅ Fait`, so
-  the next highest-priority `[ ]` becomes current).
-- **Scope is frozen at the items present in `🔴 En cours` / `🟡 À faire` when you
-  start.** Items you add to `🤖 Claude — recommandations` or `🔒 Security audit`
-  while working are NOT promoted or executed in this run — that keeps the loop
-  finite.
-- **Stop** when no unchecked `[ ]` task remains in `🔴 En cours` or `🟡 À faire`.
-- **Stop at the first failure.** If a task can't be completed (a test fails, the
-  change breaks something, it needs a user decision, is too risky, is blocked, or
-  depends on something out of scope), do NOT force it and do NOT move on to the
-  next task. Leave the task in place (never delete a task you didn't do), then
-  **halt the loop and ask the user for guidance** — explain what went wrong, what
-  you tried, and the options you see. Resume the remaining tasks only once the
-  user has decided.
-- Give a brief per-task line as you go, then a **final consolidated summary**:
-  tasks done, the task that halted the run (if any, with reason), all files/tests
-  touched, and any recommendations and security findings added.
-- Still do not commit — leave staging/committing to the user.
+**🤖 Agent recommendations** — changes that genuinely improve the product,
+grounded in evidence already in the project, not generic advice:
+
+- Ground every suggestion in what you have: the task you just did, the code you
+  touched, `README` / `docs/`, the rest of `TODO.md` (patterns in `✅ Done`,
+  gaps in `🟢 Ideas / backlog`), test coverage and skipped or flaky tests,
+  `git log` (recurring fixes, hot files), friction you hit. No concrete file,
+  behavior or observed gap: no suggestion.
+- Highest user or maintainer value first: a missing or weak capability, UX/DX
+  friction or an incomplete flow next to your change; reliability gaps
+  (untested paths, silent failures, missing error handling, fragile scripts);
+  maintainability that unblocks future work (duplication, dead code, stale
+  docs); quick wins over speculative rewrites.
+- At most ~5 per run, ranked by impact, each specific and small enough to
+  become a task, naming its target and benefit. Skip vague items ("improve
+  performance", "add more tests"), anything already done, and duplicates
+  anywhere in `TODO.md`. When the section already holds ~10 open items, add
+  only what clearly outranks them.
+
+**🔒 Security audit** — a brief, read-only review of the code you touched and
+its immediate surroundings, separate from the recommendations:
+
+- Secrets and credentials: hardcoded tokens or keys, secrets in config, logs or
+  committed files, missing `.gitignore` / gitleaks coverage.
+- Injection and unsafe execution: unquoted shell variables, `eval`,
+  `curl | sh`, unvalidated input reaching commands, paths, SQL or templates.
+- Supply chain: unpinned or unverified dependencies, actions, images,
+  installers or downloaded scripts without checksum or signature.
+- Permissions and exposure: broad file modes, wildcard allowlists (agent
+  `permissions` included), world-readable secrets, services bound to `0.0.0.0`.
+- Hardening: missing input validation, weak crypto or TLS settings, insecure
+  defaults, missing least privilege or CI security checks.
+
+Only issues tied to a concrete file and line, never speculative; highest
+severity first; at most ~5 per run; no duplicates of anything in `TODO.md`.
+Never write a secret value into `TODO.md` — its location only.
+
+## 10. Batch mode
+
+- One task at a time: §3 to §8 for each, re-reading `TODO.md` before every
+  pick. Give one line per task as you go.
+- The scope is frozen at the start: the candidate tasks (§3), or the first `N`
+  of them. Sub-tasks from a split replace their task; what you add to other
+  sections during the run is not worked.
+- Stop when the scope is done, or at the first blocker (§8): ask, and resume
+  the remaining tasks only once the owner has decided.
+- If the per-task checks were targeted, run the project's full check once at
+  the end. When it fails, find the task that broke it and treat it as a
+  blocker.
+- Then §9, once, and the summary.
+
+## 11. Summary
+
+- **Single mode**: the task (done or blocked), files changed, checks run and
+  their result, `🖐 Manual` steps added, recommendations and findings added,
+  and the proposed commit (message and files).
+- **Batch mode**: tasks done, the task that halted the run and why, `BLOCKED`
+  tasks skipped, checks, manual steps, recommendations and findings, then a
+  **commit plan**: one commit per task, in order, each with its message and
+  files. Flag the files several tasks changed — `TODO.md` always is, unless
+  git ignores it — and those that already had changes, so the owner stages
+  them hunk by hunk (`git add -p`).
+- In both, list the changes that were there before the run (§2) apart: they
+  are in no commit.

@@ -68,7 +68,7 @@ cd ~/.dotfiles
 - **Git config** — SSH commit signing, rebase-by-default, HTTPS auth through Git Credential Manager (see [Git](./config/git.md))
 - **SSH config** — host aliases and key references
 - **VS Code** — settings and extension list
-- **Agent skills** — shared AI assistant skills (see [Skills](./config/skills.md))
+- **Agent skills** — shared AI assistant skills (see [Skills](./config/skills.md)), and `/next-task` to work a project's `TODO.md` (see [TODO Workflow](./config/todo-workflow.md))
 - **AI agent guardrails** — Claude Code settings and managed policy, OpenCode permissions, Copilot guard hook (see [Claude Code](./config/claude-code.md))
 
 ## Local overrides

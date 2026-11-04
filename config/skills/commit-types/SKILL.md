@@ -21,6 +21,7 @@ Every commit message is a Conventional Commit — never free-form text:
 <optional footer, e.g. BREAKING CHANGE: <what broke>>
 ```
 
+- English, whatever the language of the conversation, the code or the diff.
 - `<type>` is one of the types in the table below; `<scope>` is the main
   module/area touched, omitted when the change spans unrelated areas.
 - Summary: imperative mood, present tense, lowercase start, no trailing period;

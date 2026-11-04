@@ -74,7 +74,8 @@ generate() {
 
   prompt="$(cat <<EOF
 You are a senior engineer writing ONE git commit message in Conventional Commits
-format that describes a set of staged changes.
+format that describes a set of staged changes. Write it in English, even when
+the diff, its comments or its strings are in another language.
 
 Format (must satisfy release-please's default Conventional Commits parser):
 - Header: <type>(<scope>)<!>: <summary>

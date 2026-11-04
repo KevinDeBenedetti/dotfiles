@@ -29,8 +29,10 @@ fresh clone; `make help` lists every target). Docker/Lima targets
 
 ## Skills
 
-Shared skills in `config/skills/` (`commit-types`, `readme`, `docs-hub`) load
-automatically in every tool. Use them instead of improvising.
+Shared skills in `config/skills/` (`commit-types`, `readme`, `docs-hub`,
+`todo-md`) load automatically in every tool. Use them instead of improvising.
+The shared `/next-task` command (`config/commands/`) works a project's
+`TODO.md` with `todo-md`.
 
 Rules for editing skills: edit them in `config/skills/<name>/` only (never in
 `~/.claude/skills/`), keep frontmatter to `name` + `description`, no

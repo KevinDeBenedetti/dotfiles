@@ -40,7 +40,8 @@ A skill is a folder with a `SKILL.md` whose YAML frontmatter follows the
 Rules to stay portable:
 
 - Only `name` and `description` are required; unknown fields are silently
-  ignored by some tools, so avoid tool-specific extras in shared skills.
+  ignored by some tools, so avoid tool-specific extras in shared skills
+  (`tests/configs.bats` fails on any other field).
 - No Claude-only placeholders (`${CLAUDE_SKILL_DIR}`, `!`command`` injection
   syntax) — reference bundled files with relative paths (`./`).
 - Keep `SKILL.md` under ~500 lines; move bulk content to adjacent files in the
@@ -48,11 +49,12 @@ Rules to stay portable:
 
 ## Existing skills
 
-| Skill               | Purpose                                                                     |
-| ------------------- | --------------------------------------------------------------------------- |
-| [`commit-types`](#) | Conventional Commits format and type for every commit message               |
-| [`readme`](#)       | Generate or restructure a `README.md` to the canonical repo architecture    |
-| [`docs-hub`](#)     | Edit `docs/` following the kevindebenedetti.github.io hub contract          |
+| Skill                           | Purpose                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------- |
+| [`commit-types`](#)             | Conventional Commits format and type for every commit message, in English |
+| [`readme`](#)                   | Generate or restructure a `README.md` to the canonical repo architecture  |
+| [`docs-hub`](#)                 | Edit `docs/` following the kevindebenedetti.github.io hub contract        |
+| [`todo-md`](./todo-workflow.md) | English-only format of a project's `TODO.md`, used by `/next-task`        |
 
 They also run without being asked:
 
@@ -74,10 +76,14 @@ tool's command directory:
 | VS Code Copilot | `<VS Code User>/prompts/<name>.prompt.md` | `/next-task`, `/next-task all` |
 
 Portability rules: frontmatter limited to `description` and `argument-hint`
-(no `agent`: its values differ per tool), and `$ARGUMENTS` is written so the
-model falls back to the text typed after the command (Copilot does not
-substitute it). Run edit-capable modes (OpenCode **Build**, Copilot **Agent**),
-not plan/ask. Claude-only commands stay in `config/claude/commands/`.
+(no `agent`: its values differ per tool; `tests/configs.bats` checks it), and
+`$ARGUMENTS` is written so the model falls back to the text typed after the
+command (Copilot does not substitute it). Run edit-capable modes (OpenCode
+**Build**, Copilot **Agent**), not plan/ask. Claude-only commands stay in
+`config/claude/commands/`.
+
+`/next-task` works a project's `TODO.md` in the format of the `todo-md` skill:
+see [TODO Workflow](./todo-workflow.md).
 
 ## Global rules fallback
 

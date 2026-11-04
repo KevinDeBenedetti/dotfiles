@@ -174,8 +174,9 @@ while the version is `0.x` — `feat` bumps minor and `fix` bumps patch.
 `refactor` is **never suggested** by `git-aicommit`: release-please would accept it
 (hidden, like `chore`), but this repo uses `chore` for a refactor with no
 user-facing effect. The prompt in `scripts/ai/git-aicommit` implements this policy
-and `tests/ai/git-aicommit.bats` guards it against regression. The shared
-`commit-types` skill and VS Code's commit-message instructions
+and `tests/ai/git-aicommit.bats` guards it against regression. The prompt also
+asks for an English message, even when the diff is in another language. The
+shared `commit-types` skill and VS Code's commit-message instructions
 (`config/vscode/settings.json`) carry the same rules.
 
 When the release-please config changes (e.g. a custom `changelog-sections` block

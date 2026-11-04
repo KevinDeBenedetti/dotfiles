@@ -268,6 +268,11 @@ setup() {
   assert_success
   run grep -q '^## Format (always)' "$CONFIG_DIR/skills/commit-types/SKILL.md"
   assert_success
+  # Commit messages are English in every project, in both sources.
+  run grep -q "Write the commit message in English" "$s"
+  assert_success
+  run grep -q '^- English, whatever the language' "$CONFIG_DIR/skills/commit-types/SKILL.md"
+  assert_success
 }
 
 @test "claude Stop hook runs the docs/README sync check" {
@@ -562,6 +567,61 @@ setup() {
   assert_file_exists "$REPO_ROOT/AGENTS.md"
   run grep -qx '@AGENTS.md' "$REPO_ROOT/CLAUDE.md"
   assert_success
+}
+
+# --- Shared skills and commands (Claude Code, OpenCode, VS Code Copilot) ---
+
+# Frontmatter keys of a Markdown file, sorted, on one line.
+frontmatter_keys() {
+  awk 'NR == 1 && $0 != "---" { exit }
+       NR > 1 && $0 == "---" { exit }
+       NR > 1 && /^[A-Za-z_-]+:/ { sub(/:.*/, ""); print }' "$1" | sort | tr '\n' ' '
+}
+
+# Headings of the layout block in the todo-md skill (the canonical TODO.md).
+todo_layout() {
+  awk '/^# TODO$/ { on = 1; next }
+       on && /^```/ { exit }
+       on && /^## / { print }' "$CONFIG_DIR/skills/todo-md/SKILL.md"
+}
+
+@test "shared skills keep a portable frontmatter: name (= folder) and description" {
+  local skill name
+  for skill in "$CONFIG_DIR"/skills/*/; do
+    [ -f "$skill/SKILL.md" ] || continue
+    run frontmatter_keys "$skill/SKILL.md"
+    assert_output "description name "
+    name=$(sed -n 's/^name: *//p' "$skill/SKILL.md" | head -n 1)
+    [ "$name" = "$(basename "$skill")" ]
+  done
+}
+
+@test "shared commands keep a portable frontmatter: description and argument-hint" {
+  local cmd
+  for cmd in "$CONFIG_DIR"/commands/*.md; do
+    run frontmatter_keys "$cmd"
+    assert_output --regexp '^(argument-hint )?description $'
+  done
+}
+
+@test "the todo-md skill defines the English TODO.md layout" {
+  run todo_layout
+  assert_output "## 🔴 In progress
+## 🟡 To do
+## 🖐 Manual — do it yourself, in order
+## 🟢 Ideas / backlog
+## 🤖 Agent recommendations
+## 🔒 Security audit
+## ✅ Done"
+}
+
+@test "next-task defers the TODO.md format to the todo-md skill" {
+  local cmd="$CONFIG_DIR/commands/next-task.md"
+  run grep -q '`todo-md` skill' "$cmd"
+  assert_success
+  # The former French headings live only in the skill's migration table.
+  run grep -E 'En cours|À faire|Fait|recommandations' "$cmd"
+  assert_failure
 }
 
 @test "AGENTS.md documents every shared skill" {

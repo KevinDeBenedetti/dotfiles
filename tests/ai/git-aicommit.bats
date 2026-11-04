@@ -98,6 +98,8 @@ setup() {
   assert_output --partial 'fix'
   assert_output --partial 'perf'
   assert_output --partial "NEVER use 'refactor'"
+  # Commit messages are English in every project, like the commit-types skill.
+  assert_output --partial 'Write it in English'
   # revert is shown in the changelog (Reverts), not grouped with hidden types.
   assert_output --partial 'revert → reverts an earlier commit (shown under Reverts)'
   # The spec makes the BREAKING CHANGE footer optional once '!' is used.

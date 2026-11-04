@@ -74,7 +74,7 @@ ln -s /opt/homebrew/bin/proto ~/.proto/bin/proto
 
 `github.copilot.chat.commitMessageGeneration.instructions` makes the
 **Generate commit message** button of the Source Control view write
-Conventional Commits only: a type from the release-please set (never
+Conventional Commits only, in English: a type from the release-please set (never
 `refactor`), a header of at most 100 characters, an imperative summary, a body
 of `- ` bullets, and `!` for a breaking change. The rules mirror the
 `commit-types` skill (see [Skills](./skills.md)); `tests/configs.bats` keeps the
