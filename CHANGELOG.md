@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.6.0...v0.7.0) (2026-11-04)
+
+
+### Features
+
+* **ci:** allow release-please-global bot for GitHub workflows updates ([2ac3d16](https://github.com/KevinDeBenedetti/dotfiles/commit/2ac3d16ff34f64400c24be257720f6b4e9016fc0))
+* **settings:** add ECC_DISABLED_HOOKS env variable and update permissions for rtk commands ([061af68](https://github.com/KevinDeBenedetti/dotfiles/commit/061af68a37668043ee6c40a59d70977cdb1d023b))
+* **settings:** update model to opus and add ECC_DISABLED_HOOKS env variable ([9d6ec2a](https://github.com/KevinDeBenedetti/dotfiles/commit/9d6ec2ad8a2aff2b280f9e11e546a455f9a232b7))
+* **settings:** update settings and commands with new skill overrides and environment variables ([cf6df58](https://github.com/KevinDeBenedetti/dotfiles/commit/cf6df587dc47d55837511f7552fe18d1703919be))
+* **settings:** update settings for VS Code and enhance SSH hardening script ([e70807c](https://github.com/KevinDeBenedetti/dotfiles/commit/e70807cc1e114d7521e49b0ccee475c041314344))
+* **skills:** add todo-md skill and English-only next-task workflow ([97136b8](https://github.com/KevinDeBenedetti/dotfiles/commit/97136b8b29c8984761f0cf9a1260609416e766b9))
+
 ## [0.6.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.5.1...v0.6.0) (2026-10-24)
 
 
