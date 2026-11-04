@@ -18,5 +18,12 @@
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\S+ = \"(?<currentValue>[^\"]+)\""
       ]
     }
+  ],
+  "packageRules": [
+    {
+      "description": "github-workflows pins move with each of its releases: its propagate-release job opens the pull request, merged once its checks pass, so Renovate would only duplicate it.",
+      "matchPackageNames": ["KevinDeBenedetti/github-workflows"],
+      "enabled": false
+    }
   ]
 }

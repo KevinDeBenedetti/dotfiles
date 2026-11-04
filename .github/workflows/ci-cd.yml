@@ -65,7 +65,9 @@ jobs:
     with:
       # release-please opens its release PRs with GITHUB_TOKEN, i.e. as this
       # bot; allow it so the "chore(main): release x.y.z" PR passes the guard.
-      allowed-bots: '["github-actions[bot]"]'
+      # release-please-global[bot] opens the github-workflows bumps, on each
+      # of its releases (its propagate-release job).
+      allowed-bots: '["github-actions[bot]", "release-please-global[bot]"]'
 
   # ── Release (release-please) ───────────────────────────────────────────────
   # Config & manifest live in .github/release/. v0.1.0 has shipped, so the
