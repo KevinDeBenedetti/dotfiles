@@ -50,6 +50,16 @@ Exactly these headings, in this order:
 - Only the owner approves an item: by moving it to `🟡 To do`, or by naming it
   to `next-task`. An agent adds a task to `🟡 To do` only when asked to, or
   when it splits an approved task.
+- Reminders (such as the dotfiles' Claude Code `Stop` hook) find sections by
+  these headings and show only the first line of each item: keep the headings
+  exact and make every first line understandable on its own.
+
+## Size
+
+The whole file is read on every `next-task` run: keep it under ~20 KB (about
+5k tokens). Hence the limits below — a line holds what to do and why, while
+history, measurements and procedures go to the commit message, `docs/` or the
+code. Long lines already in the file stay as they are unless the owner asks.
 
 ## Lines
 
@@ -64,17 +74,20 @@ Exactly these headings, in this order:
   `BUILD`, `CI`. Never `REFACTOR`: a refactor is a `CHORE`.
 - `(URGENT)` right after the type marks a critical task: `FIX(URGENT): …`.
   Otherwise priority comes from the section and the order.
-- One line: what, where (file or area) and why, in a few sentences at most.
-  Procedures and measurements belong in the code, the docs or the commit.
+- One line of at most ~300 characters: what, where (file or area) and why.
 - A task an agent could not finish ends with
-  ` — BLOCKED YYYY-MM-DD: <what is needed>`. `next-task` skips it until the
-  marker is removed, once the owner has decided.
+  ` — BLOCKED YYYY-MM-DD: <what is needed>`, the need in a few words that name
+  what it waits for (`🖐 2.1`, `2026-11-16`, a decision on the retry budget).
+  `next-task` skips the task until the owner removes the marker.
 
 ### Recommendation — `🤖`
 
 ```markdown
 - [ ] <TYPE>: <change> (<file or area>) — <evidence and expected benefit>
 ```
+
+At most ~300 characters, and at most 10 open recommendations: when the section
+is full, add none and tell the owner that triage is due.
 
 ### Security finding — `🔒`
 
@@ -83,21 +96,28 @@ Exactly these headings, in this order:
 ```
 
 `<SEVERITY>` is `CRITICAL`, `HIGH`, `MEDIUM` or `LOW`; a `CRITICAL` finding also
-takes `(URGENT)`. The tag stays when the owner promotes the finding. Never write
-a secret value, only where it is.
+takes `(URGENT)`. At most ~300 characters. The tag stays when the owner
+promotes the finding. Never write a secret value, only where it is.
 
 ### Manual step — `🖐`
 
 ````markdown
 ### 1. Today — publish the release
 
-- [ ] 1.1 Run the Docker-backed tests: `make test` — Success: `0 failed`.
+- [ ] 1.1 Run the Docker-backed tests — Success: `0 failed`.
+  ```sh
+  make test
+  ```
 - [ ] 1.2 Check the deployed version — Success: it prints `v1.4.0`.
+  Wait for the release job to finish first.
   ```sh
   curl -s https://example.com/version
   ```
 ````
 
+- The first line — number, action, success signal — stays under ~100
+  characters: reminders show nothing else. The exact command goes in an
+  indented block below it, with at most two lines of context (why, when).
 - Each step says exactly what to run or click and what success looks like, so
   the owner can take it without the agent.
 - Group steps under numbered `###` headings when the order matters, and number
@@ -112,9 +132,13 @@ a secret value, only where it is.
 ```
 
 - Today's real date (`date +%F`); never invent or reuse one.
+- At most ~300 characters: the details belong in the commit message.
 - A manual step moves here once the owner confirms it, or once its success
   signal was checked read-only:
   `- [x] YYYY-MM-DD — CHORE: 🖐 1.1 <what was done> — <what was observed>`.
+- Keep the 10 most recent entries. When you add one, delete older entries, but
+  only those already in the committed file (`git show HEAD:TODO.md`), so git
+  history keeps them. Nothing is deleted when git does not track `TODO.md`.
 
 ## Editing
 

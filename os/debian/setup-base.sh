@@ -23,7 +23,16 @@ install_lite_setup() {
 
   # Install Docker CE from official upstream repository
   printf '%b' "\n\n${red}[base] =>${no_color} Install Docker CE\n\n"
-  if ! command -v docker &>/dev/null; then
+  # Not on a node managed by the infra repo: k3s brings its own containerd,
+  # the infra `common` role removes Docker on every run (since 2026-11-04),
+  # and Docker's iptables rules forward published ports around the host
+  # firewall's input chain. A re-run here would put Docker back, with those
+  # rules, until the next Ansible run. Same marker as configure_ssh: the infra
+  # sshd drop-in means the node is theirs.
+  local infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"
+  if [[ -f "$infra_conf" ]]; then
+    printf '%b' "${red}[base]${no_color} Node managed by the infra repo ($infra_conf) — skipping Docker.\n"
+  elif ! command -v docker &>/dev/null; then
     $SUDO apt-get install -y --no-install-recommends \
       ca-certificates \
       gnupg

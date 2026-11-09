@@ -129,6 +129,19 @@ EOF
 # UFW (Uncomplicated Firewall)
 # ──────────────────────────────────────────────
 install_configure_ufw() {
+  # A node managed by the infra repo has no UFW any more (removed there on
+  # 2026-08-17: it rewrites the netfilter tables k3s owns) and its ports come
+  # from the Hetzner firewall or the `host_firewall` role. This step would
+  # `ufw --force reset` and re-enable UFW with 22/80/443 only: the WireGuard
+  # port, 6443, 8472 and infra's SSH port gone, kubectl and SSH over the VPN
+  # with them, until an Ansible run that could no longer connect. Same marker
+  # as configure_ssh: the infra sshd drop-in means the node is theirs.
+  local infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"
+  if [[ -f "$infra_conf" ]]; then
+    printf '%b' "\n\n${red}[security] =>${no_color} firewall managed by the infra repo ($infra_conf): skipping UFW.\n\n"
+    return 0
+  fi
+
   printf '%b' "\n\n${red}[security] =>${no_color} Install and configure UFW\n\n"
 
   $SUDO apt-get install -y --no-install-recommends ufw

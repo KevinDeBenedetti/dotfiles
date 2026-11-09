@@ -329,5 +329,6 @@
   "sonarlint.automaticAnalysis": false,
   "makefile.configureOnOpen": false,
   "claudeCode.hideOnboarding": true,
-  "python.languageServer": "Default"
+  "python.languageServer": "Default",
+  "explorer.confirmPasteNative": false
 }

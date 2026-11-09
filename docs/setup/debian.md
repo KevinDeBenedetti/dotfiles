@@ -91,6 +91,8 @@ Core CLI tools installed via `apt`. Split into lite (always) and additional (ful
 
 > Docker CE is installed from `https://download.docker.com/linux/debian` using the official GPG key. The calling user is automatically added to the `docker` group.
 >
+> On a node managed by the infra repository, the script leaves Docker out. It recognises such a node by the sshd drop-in that repository writes, `/etc/ssh/sshd_config.d/00-infra-hardening.conf`, the same marker that makes it skip SSH hardening. Those nodes run k3s with its own containerd, and their Ansible removes Docker, whose iptables rules forward published ports around the host firewall.
+>
 > Git Credential Manager comes from its latest GitHub release (`.deb`, amd64 or arm64), checked against the SHA-256 digest GitHub publishes for the file. Linux has no default credential store, so when none is configured the script sets `credential.credentialStore cache` in the system config (`/etc/gitconfig`): credentials stay in memory (15 minutes by default), never on disk.
 
 **Additional (full mode):**

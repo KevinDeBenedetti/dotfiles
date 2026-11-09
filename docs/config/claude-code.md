@@ -129,15 +129,28 @@ Changes made in the working copy go live only after review, commit and
 | `PreToolUse` | inline `jq` + `grep` | Blocks `kubectl … get secret(s)` whatever the flags, namespace or `rtk` prefix — deny rules only match plain forms |
 | `PreToolUse` | `rtk hook claude`    | Rewrites Bash commands through `rtk` for token-optimized output                                                    |
 | `Stop`       | `docs-sync-check.sh` | Code changed but neither `docs/` nor `README.md` did → asks for the `docs-hub` / `readme` skills, once per turn    |
+| `Stop`       | `next-steps.sh`      | Shows you the next steps (re-stage, commit, push, blocked or next task, triage) and the open `🖐 Manual` steps     |
 
 The `git commit` / `git push` and `kubectl … get secret(s)` hooks are also in
 `managed-settings.json`. These regex hooks catch mistakes, not a determined
 bypass: the sandbox and the secret deny rules are the actual security boundary.
 
 Hook scripts live in `config/claude/hooks/` and are linked into
-`~/.claude/hooks/`. A hook cannot invoke a skill itself: the `Stop` hook blocks
-the end of the turn with a reason naming the skills, and lets the next stop
-through (`stop_hook_active`), so it never loops.
+`~/.claude/hooks/`. A hook cannot invoke a skill itself: `docs-sync-check.sh`
+blocks the end of the turn with a reason naming the skills, and lets the next
+stop through (`stop_hook_active`), so it never loops.
+
+`next-steps.sh` never blocks. It reads the git state and the project's
+`TODO.md` ([TODO Workflow](./todo-workflow.md)) and returns a `systemMessage`,
+which Claude Code shows to you and does not send to Claude, so it costs no
+extra turn; it must stay synchronous, since an async hook hands its message to
+Claude instead. A message shows once per session, then again only when it
+changes. Two variables, set in the `env` block, tune it:
+
+| Variable                     | Default   | Effect                                                    |
+| ---------------------------- | --------- | --------------------------------------------------------- |
+| `DOTFILES_NEXT_STEPS`        | `changed` | `always` shows the message after every turn, `off` never  |
+| `DOTFILES_NEXT_STEPS_MANUAL` | `10`      | Manual steps listed before "… N more"; `0` lists them all |
 
 ### Plugins
 

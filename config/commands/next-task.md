@@ -90,7 +90,9 @@ State the mode — and in batch mode the tasks in scope — before starting.
 ## 7. Record
 
 - Move the task from `🔴 In progress` to the top of `✅ Done`, as a done entry
-  with today's real date (`date +%F`): what changed and how it was verified.
+  with today's real date (`date +%F`): what changed and how it was verified,
+  in at most ~300 characters — the detail goes in the commit message. Prune
+  `✅ Done` as the skill says.
 - Whatever only the owner can do — push, deploy, apply, a UI setting, a secret
   — becomes `🖐 Manual` steps, referenced from the done entry.
 - Propose one Conventional Commit message for the task (`commit-types` skill)
@@ -130,8 +132,8 @@ grounded in evidence already in the project, not generic advice:
 - At most ~5 per run, ranked by impact, each specific and small enough to
   become a task, naming its target and benefit. Skip vague items ("improve
   performance", "add more tests"), anything already done, and duplicates
-  anywhere in `TODO.md`. When the section already holds ~10 open items, add
-  only what clearly outranks them.
+  anywhere in `TODO.md`. When the section already holds 10 open items, add
+  none and say that triage is due.
 
 **🔒 Security audit** — a brief, read-only review of the code you touched and
 its immediate surroundings, separate from the recommendations:

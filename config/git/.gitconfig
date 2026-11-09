@@ -44,3 +44,5 @@
 # Overrides propres à la machine (non versionnés)
 [include]
 	path = ~/.gitconfig.local
+[rebase]
+	autoStash = true

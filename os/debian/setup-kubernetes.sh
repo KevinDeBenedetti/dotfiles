@@ -25,8 +25,12 @@ EOF
   $SUDO modprobe overlay || true
   $SUDO modprobe br_netfilter || true
 
-  # CRI sysctl requirements — use priority 100 to override 99-security.conf for ip_forward
-  $SUDO tee /etc/sysctl.d/100-kubernetes-cri.conf > /dev/null <<'EOF'
+  # CRI sysctl requirements. The file must sort AFTER 99-security.conf, which
+  # sets ip_forward = 0: systemd-sysctl orders names as text, so the former
+  # 100-kubernetes-cri.conf came BEFORE 99-… and lost at every boot (found on
+  # an infra-managed node on 2026-11-04). 99-zz-… sorts after it.
+  $SUDO rm -f /etc/sysctl.d/100-kubernetes-cri.conf
+  $SUDO tee /etc/sysctl.d/99-zz-kubernetes-cri.conf > /dev/null <<'EOF'
 net.bridge.bridge-nf-call-iptables  = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward                 = 1

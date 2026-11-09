@@ -59,6 +59,31 @@ After the task — once at the end of a batch — the agent adds at most about f
 grounded recommendations and five security findings for triage. A batch ends
 with a commit plan: one commit per task, in order.
 
+## Reminders
+
+In Claude Code, the `next-steps.sh` `Stop` hook (see
+[Claude Code](./claude-code.md)) closes each turn with what is left for you:
+the files to re-stage, commit or push, the `BLOCKED` tasks and what they wait
+for, the task `/next-task` would take, the items waiting for triage, and the
+open `🖐 Manual` steps. It finds sections by their emoji or their English or
+French words, so it also reads a `TODO.md` not migrated yet.
+
+## Size
+
+`/next-task` reads the whole file on every run, so the skill keeps it under
+about 20 KB:
+
+| Item                          | Limit                                                             |
+| ----------------------------- | ----------------------------------------------------------------- |
+| Task, recommendation, finding | ~300 characters                                                   |
+| Manual step                   | ~100 characters on its first line, the command in a block below   |
+| `BLOCKED` marker              | a few words naming what the task waits for                        |
+| `🤖 Agent recommendations`    | 10 open items: past that, the agent adds none and asks for triage |
+| `✅ Done`                     | ~300 characters per entry, the 10 most recent entries             |
+
+Older done entries are pruned only once git holds them (`git show HEAD:TODO.md`),
+so their history stays in the repository.
+
 ## English only
 
 Everything written to `TODO.md` is in English, whatever the language of the

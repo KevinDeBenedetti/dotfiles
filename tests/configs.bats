@@ -281,6 +281,16 @@ setup() {
   assert_file_exists "$CONFIG_DIR/claude/hooks/docs-sync-check.sh"
 }
 
+@test "claude Stop hook shows the next steps, synchronously" {
+  local s="$CONFIG_DIR/claude/settings.json"
+  run jq -r '[.hooks.Stop[].hooks[] | select(.command | contains(".claude/hooks/next-steps.sh"))] | length' "$s"
+  assert_output "1"
+  # An async hook would hand its systemMessage to Claude instead of the owner.
+  run jq -r '[.hooks.Stop[].hooks[] | select(.command | contains("next-steps.sh")) | .async // false] | any' "$s"
+  assert_output "false"
+  assert_file_exists "$CONFIG_DIR/claude/hooks/next-steps.sh"
+}
+
 @test "the public repo stays reusable: MIT LICENSE and a SECURITY.md exist" {
   assert_file_exists "$REPO_ROOT/LICENSE"
   run head -1 "$REPO_ROOT/LICENSE"
