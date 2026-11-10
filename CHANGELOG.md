@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.7.0...v0.8.0) (2026-11-10)
+
+
+### Features
+
+* **skills:** add a guided /next-task manual mode with the manual-steps skill ([785d355](https://github.com/KevinDeBenedetti/dotfiles/commit/785d35598fe4961019fd4527b68566fa4d0897b9))
+
 ## [0.7.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.6.0...v0.7.0) (2026-11-10)
 
 
