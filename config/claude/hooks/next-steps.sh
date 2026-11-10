@@ -16,12 +16,15 @@
 
 set -uo pipefail
 
+# Read the payload before any exit: input left unread makes the caller write
+# into a closed pipe (EPIPE, not a silent SIGPIPE, where SIGPIPE is ignored).
+input=$(cat)
+
 mode=${DOTFILES_NEXT_STEPS:-changed}
 [ "$mode" = off ] && exit 0
 max_manual=${DOTFILES_NEXT_STEPS_MANUAL:-10}
 [[ $max_manual =~ ^[0-9]+$ ]] || max_manual=10
 command -v jq >/dev/null 2>&1 || exit 0
-input=$(cat)
 
 dir=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
 [ -n "$dir" ] || dir=$PWD

@@ -2,6 +2,7 @@
 	useConfigOnly = true
 [push]
 	default = simple
+	autoSetupRemote = true
 [status]
 	showUntrackedFiles = all
 [diff]
@@ -9,6 +10,7 @@
 	tool = meld
 [branch]
 	autosetuprebase = always
+	autoSetupMerge = simple
 [color]
 	ui = true
 [rerere]

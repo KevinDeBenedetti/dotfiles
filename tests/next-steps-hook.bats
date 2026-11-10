@@ -180,3 +180,15 @@ EOF
   assert_success
   assert_output ""
 }
+
+@test "reads its whole input before exiting, so the caller never writes into a closed pipe" {
+  # SIGPIPE is ignored, as on GitHub Actions runners, so a writer reports EPIPE;
+  # the payload outgrows the pipe buffer, so an early exit always breaks it.
+  stop_big() {
+    trap '' PIPE
+    head -c 300000 /dev/zero | tr '\0' x | jq -Rs '{hook_event_name: "Stop", pad: .}' | bash "$HOOK"
+  }
+  DOTFILES_NEXT_STEPS=off run stop_big
+  assert_success
+  assert_output ""
+}
