@@ -1,9 +1,10 @@
 ---
-description: Work the next task of the project's TODO.md (or all of them, the next N, or the one matching some words), verify it, record it and propose a commit.
-argument-hint: "[all | N | task words]"
+description: Work the next task of the project's TODO.md (or all of them, the next N, or the one matching some words), verify it, record it and propose a commit; `manual` guides you step by step through its manual steps instead.
+argument-hint: "[all | N | manual [step | group] | task words]"
 ---
 
-Work tasks from the current project's `TODO.md`.
+Work tasks from the current project's `TODO.md`, or guide the owner through
+its manual steps (`manual`).
 
 <!-- Single source shared by Claude Code, OpenCode and VS Code Copilot
      (linked by os/helpers/links.sh). Keep it tool-neutral. -->
@@ -20,14 +21,17 @@ The argument is `$ARGUMENTS`. If that placeholder was left as-is (the tool did
 not substitute it), the argument is whatever the user typed after the
 `/next-task` command instead.
 
-| Argument        | Mode                                                                                 |
-| --------------- | ------------------------------------------------------------------------------------ |
-| none            | **single**: the next task, then stop                                                 |
-| `all`           | **batch**: every open task of `🔴 In progress` and `🟡 To do`, one at a time (§10)   |
-| a number `N`    | **batch**, limited to the next `N` tasks                                             |
-| any other words | **single**, on the open item whose line matches them (§3); ask if none or several do |
+| Argument                        | Mode                                                                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------ |
+| none                            | **single**: the next task, then stop                                                 |
+| `all`                           | **batch**: every open task of `🔴 In progress` and `🟡 To do`, one at a time (§10)   |
+| a number `N`                    | **batch**, limited to the next `N` tasks                                             |
+| `manual` or `manual all`        | **manual**: a guided chat through the open steps of `🖐 Manual`, one at a time (§11) |
+| `manual <step, group or words>` | **manual**, limited to that step (`1.2`), group (`3`) or the steps the words match   |
+| any other words                 | **single**, on the open item whose line matches them (§3); ask if none or several do |
 
-State the mode — and in batch mode the tasks in scope — before starting.
+State the mode — and in batch mode the tasks in scope — before starting. In
+manual mode, the skill's opening plan does it.
 
 ## 2. Prepare
 
@@ -54,8 +58,9 @@ State the mode — and in batch mode the tasks in scope — before starting.
   until the owner moves them to `🟡 To do`.
 - Move the task, unchanged, to `🔴 In progress` (an interrupted run then leaves
   a trace) and say which task you picked.
-- No candidate: say so, with the number of `BLOCKED` tasks and of items waiting
-  for triage, and stop.
+- No candidate: say so, with the number of `BLOCKED` tasks, of items waiting
+  for triage and of open `🖐 Manual` steps (`/next-task manual` takes those),
+  and stop.
 
 ## 4. Understand
 
@@ -105,7 +110,9 @@ decision or access, out of scope, too risky:
 
 - Do not force it. Never delete, or mark done, a task you did not finish.
 - Leave it in `🔴 In progress`, ending with
-  ` — BLOCKED YYYY-MM-DD: <what is needed>`.
+  ` — BLOCKED YYYY-MM-DD: <what is needed>`. When it waits for a manual step,
+  name the step (`🖐 2.1`): `/next-task manual` lifts the marker once the
+  owner has done it.
 - Leave your partial changes in place, and list them.
 - Stop and ask the owner: what went wrong, what you tried, the options you see.
   Once they decide, remove the marker and carry on.
@@ -167,7 +174,14 @@ Never write a secret value into `TODO.md` — its location only.
   blocker.
 - Then §9, once, and the summary.
 
-## 11. Summary
+## 11. Manual mode
+
+The `🖐 Manual` steps are the owner's: they act, you guide. Load the
+`manual-steps` skill (`~/.claude/skills/manual-steps/SKILL.md`) and follow it
+from its start to its close, in place of §2 to §10 and §12: no task is
+picked, and nothing outside `TODO.md` changes unless the owner asks for it.
+
+## 12. Summary
 
 - **Single mode**: the task (done or blocked), files changed, checks run and
   their result, `🖐 Manual` steps added, recommendations and findings added,
@@ -180,3 +194,4 @@ Never write a secret value into `TODO.md` — its location only.
   them hunk by hunk (`git add -p`).
 - In both, list the changes that were there before the run (§2) apart: they
   are in no commit.
+- When `🖐 Manual` has open steps, end with `/next-task manual` to take them.

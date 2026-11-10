@@ -637,6 +637,22 @@ todo_layout() {
   assert_failure
 }
 
+@test "next-task manual hands the guided session to the manual-steps skill" {
+  local cmd="$CONFIG_DIR/commands/next-task.md" skill="$CONFIG_DIR/skills/manual-steps/SKILL.md"
+  assert_file_exists "$skill"
+  run grep -q '^| `manual` or `manual all` ' "$cmd"
+  assert_success
+  run grep -q '`manual-steps` skill' "$cmd"
+  assert_success
+  # The skill keeps the TODO.md format in todo-md and never asks for a secret.
+  run grep -q '`todo-md` skill defines the file' "$skill"
+  assert_success
+  run grep -q '^- Never ask for a secret value' "$skill"
+  assert_success
+  run grep -E 'En cours|À faire|Fait|recommandations' "$skill"
+  assert_failure
+}
+
 @test "AGENTS.md documents every shared skill" {
   local skill
   for skill in "$CONFIG_DIR"/skills/*/; do

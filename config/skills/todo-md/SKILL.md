@@ -7,8 +7,9 @@ description: Format and editing rules for a project's TODO.md - English-only sec
 
 `TODO.md`, at the root of a project, is the task list its owner shares with
 coding agents (Claude Code, OpenCode, VS Code Copilot). The `next-task` command
-works it; this skill is the format every edit follows, whichever tool or
-command makes it.
+works its tasks and, in its `manual` mode, guides the owner through the manual
+steps (`manual-steps` skill); this skill is the format every edit follows,
+whichever tool or command makes it.
 
 ## Language
 
@@ -78,7 +79,8 @@ code. Long lines already in the file stay as they are unless the owner asks.
 - A task an agent could not finish ends with
   ` — BLOCKED YYYY-MM-DD: <what is needed>`, the need in a few words that name
   what it waits for (`🖐 2.1`, `2026-11-16`, a decision on the retry budget).
-  `next-task` skips the task until the owner removes the marker.
+  `next-task` skips the task until the owner removes the marker, or confirms
+  in a guided session (`next-task manual`) the manual step it waits for.
 
 ### Recommendation — `🤖`
 
@@ -121,7 +123,9 @@ promotes the finding. Never write a secret value, only where it is.
 - Each step says exactly what to run or click and what success looks like, so
   the owner can take it without the agent.
 - Group steps under numbered `###` headings when the order matters, and number
-  them `<group>.<n>`. Never renumber: done entries refer to `🖐 1.1`.
+  them `<group>.<n>`. Never renumber: done entries refer to `🖐 1.1`. A new
+  step takes the next free number of its group, and a group left with no open
+  step loses its heading.
 - When only part of a step is done, record that part in `✅ Done` and keep the
   rest, marked `(remaining)` after its number.
 
@@ -136,6 +140,8 @@ promotes the finding. Never write a secret value, only where it is.
 - A manual step moves here once the owner confirms it, or once its success
   signal was checked read-only:
   `- [x] YYYY-MM-DD — CHORE: 🖐 1.1 <what was done> — <what was observed>`.
+  A step the owner drops moves here too, never deleted silently:
+  `- [x] YYYY-MM-DD — CHORE: 🖐 1.1 dropped: <what it was> — <the owner's reason>`.
 - Keep the 10 most recent entries. When you add one, delete older entries, but
   only those already in the committed file (`git show HEAD:TODO.md`), so git
   history keeps them. Nothing is deleted when git does not track `TODO.md`.

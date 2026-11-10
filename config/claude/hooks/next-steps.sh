@@ -2,8 +2,9 @@
 # Claude Code Stop hook — after each turn, show the owner what is left to do:
 # the next actions read from the repository (resolve conflicts, re-stage,
 # commit, push, unblock, resume or start the next task, triage, slim TODO.md)
-# and the open steps of the `🖐 Manual` section of the project's TODO.md. It
-# reads the English layout of the todo-md skill and the former French one.
+# and the open steps of the `🖐 Manual` section of the project's TODO.md, which
+# `/next-task manual` walks through. It reads the English layout of the todo-md
+# skill and the former French one.
 #
 # It only returns a `systemMessage`: shown to the owner, never sent to Claude
 # and never blocking the stop, so it costs no extra turn. It must stay
@@ -141,7 +142,7 @@ if [ "${#steps[@]}" -gt 0 ]; then
 fi
 if [ "${#manual[@]}" -gt 0 ]; then
   [ -n "$msg" ] && msg+=$'\n'
-  msg+="🖐 Manual steps ($(plural "${#manual[@]}" open\ step)):"
+  msg+="🖐 Manual steps ($(plural "${#manual[@]}" open\ step)) — guided: /next-task manual"
   shown=${#manual[@]}
   [ "$max_manual" -gt 0 ] && [ "$shown" -gt "$max_manual" ] && shown=$max_manual
   for item in "${manual[@]:0:$shown}"; do msg+=$'\n'"  ◦ $item"; done

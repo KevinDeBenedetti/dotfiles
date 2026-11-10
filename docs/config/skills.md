@@ -49,12 +49,13 @@ Rules to stay portable:
 
 ## Existing skills
 
-| Skill                           | Purpose                                                                   |
-| ------------------------------- | ------------------------------------------------------------------------- |
-| [`commit-types`](#)             | Conventional Commits format and type for every commit message, in English |
-| [`readme`](#)                   | Generate or restructure a `README.md` to the canonical repo architecture  |
-| [`docs-hub`](#)                 | Edit `docs/` following the kevindebenedetti.github.io hub contract        |
-| [`todo-md`](./todo-workflow.md) | English-only format of a project's `TODO.md`, used by `/next-task`        |
+| Skill                                             | Purpose                                                                    |
+| ------------------------------------------------- | -------------------------------------------------------------------------- |
+| [`commit-types`](#)                               | Conventional Commits format and type for every commit message, in English  |
+| [`readme`](#)                                     | Generate or restructure a `README.md` to the canonical repo architecture   |
+| [`docs-hub`](#)                                   | Edit `docs/` following the kevindebenedetti.github.io hub contract         |
+| [`todo-md`](./todo-workflow.md)                   | English-only format of a project's `TODO.md`, used by `/next-task`         |
+| [`manual-steps`](./todo-workflow.md#manual-steps) | Guided chat through a `TODO.md`'s manual steps, run by `/next-task manual` |
 
 They also run without being asked:
 
@@ -82,8 +83,9 @@ command (Copilot does not substitute it). Run edit-capable modes (OpenCode
 **Build**, Copilot **Agent**), not plan/ask. Claude-only commands stay in
 `config/claude/commands/`.
 
-`/next-task` works a project's `TODO.md` in the format of the `todo-md` skill:
-see [TODO Workflow](./todo-workflow.md).
+`/next-task` works a project's `TODO.md` in the format of the `todo-md` skill,
+and `/next-task manual` guides you through its manual steps with the
+`manual-steps` skill: see [TODO Workflow](./todo-workflow.md).
 
 ## Global rules fallback
 

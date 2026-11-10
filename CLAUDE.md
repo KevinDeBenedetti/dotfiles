@@ -2,7 +2,7 @@
 
 ## Claude Code
 
-- Skills `commit-types`, `readme`, `docs-hub` and `todo-md` (from `config/skills/`, installed in
+- Skills `commit-types`, `readme`, `docs-hub`, `todo-md` and `manual-steps` (from `config/skills/`, installed in
   `~/.claude/skills/`) apply here: invoke them through the Skill tool when the
   task matches, rather than reproducing their rules from memory.
 - `config/claude/settings.json` is the guardrail reference and is write-denied

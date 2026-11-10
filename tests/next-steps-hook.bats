@@ -64,7 +64,7 @@ EOF
   run stop
   assert_success
   run jq -r '.systemMessage' <<<"$output"
-  assert_output --partial '🖐 Manual steps (2 open steps):'
+  assert_output --partial '🖐 Manual steps (2 open steps) — guided: /next-task manual'
   assert_output --partial '1.1 Run the Docker-backed tests'
   assert_output --partial '1.2 Enable the Dependency graph'
   refute_output --partial 'Rotate the deploy key'
@@ -94,7 +94,7 @@ EOF
 EOF
   run stop
   run jq -r '.systemMessage' <<<"$output"
-  assert_output --partial '🖐 Manual steps (1 open step):'
+  assert_output --partial '🖐 Manual steps (1 open step) — guided: /next-task manual'
   assert_output --partial 'Créer le secret dans Vault'
   assert_output --partial '/next-task → FEAT: export CSV'
   assert_output --partial 'Triage: 1 recommendation, 0 security findings'
