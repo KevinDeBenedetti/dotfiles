@@ -26,6 +26,24 @@ HARDEN_TMP="${HARDEN_TMP:-false}"
 # ──────────────────────────────────────────────
 # SSH Hardening
 # ──────────────────────────────────────────────
+
+# Succeeds when a non-root member of the sudo group has a non-empty
+# authorized_keys and, when SSH_ALLOWED_USERS is set, is listed in it.
+has_admin_ssh_login() {
+  local members user home
+  members=$(getent group sudo 2>/dev/null | cut -d: -f4 | tr ',' ' ')
+  for user in $members; do
+    [[ "$user" = root ]] && continue
+    if [[ -n "$SSH_ALLOWED_USERS" && " $SSH_ALLOWED_USERS " != *" $user "* ]]; then
+      continue
+    fi
+    home=$(getent passwd "$user" | cut -d: -f6)
+    [[ -n "$home" ]] || continue
+    $SUDO test -s "$home/.ssh/authorized_keys" && return 0
+  done
+  return 1
+}
+
 configure_ssh() {
   # A node managed by the infra repo (Ansible role `common`) owns sshd: it
   # writes /etc/ssh/sshd_config.d/00-infra-hardening.conf with the port the
@@ -58,6 +76,23 @@ configure_ssh() {
     allow_users_line="AllowUsers $SSH_ALLOWED_USERS"
   fi
 
+  # Root login is only turned off when another way in exists: a member of the
+  # sudo group with a non-empty authorized_keys, allowed by AllowUsers when it
+  # is set. Otherwise root keeps key-only login (passwords stay off), so a VPS
+  # provisioned with root's key alone is not locked out.
+  local permit_root="no"
+  if ! has_admin_ssh_login; then
+    permit_root="prohibit-password"
+    printf '%b' "${red}[warning]${no_color} No sudo user with SSH keys found — keeping root login (key only).\n"
+    printf '%b' "${red}[warning]${no_color} Create one with init.sh -u <user>, then re-run to disable root login.\n"
+  fi
+
+  # Baseline before writing: if sshd -t already fails (no host keys or
+  # privilege-separation dir, e.g. in a container), a failure after the write
+  # says nothing about the drop-in, which is then kept.
+  local sshd_ok_before=false
+  $SUDO sshd -t 2>/dev/null && sshd_ok_before=true
+
   # Create a drop-in config for hardening (overrides defaults)
   $SUDO tee "$hardening_conf" > /dev/null <<EOF
 # SSH Hardening — managed by dotfiles setup-security.sh
@@ -65,8 +100,8 @@ configure_ssh() {
 # Non-standard port (reduce automated scan noise)
 Port $SSH_PORT
 
-# Disable root login
-PermitRootLogin no
+# Disable root login (prohibit-password when no other admin can log in)
+PermitRootLogin ${permit_root}
 
 # Disable password authentication (key-only)
 PasswordAuthentication no
@@ -101,23 +136,30 @@ EOF
 
   $SUDO chmod 600 "$hardening_conf"
 
-  # Validate sshd configuration before restarting. Both the check and the restart
-  # are best-effort: sshd may be absent / unable to start in a container, which
-  # must not abort the rest of the hardening run (the config file is already
-  # written above).
+  # Validate before restarting. If the config was valid before the write and
+  # is not after it, the drop-in broke it: move it aside, or sshd would fail
+  # at its next restart or reboot and take SSH access down with it. The
+  # restart itself stays best-effort (no systemd in a container).
   if $SUDO sshd -t 2>/dev/null; then
     $SUDO systemctl restart sshd || true
     printf '%b' "${red}[security]${no_color} SSH hardening applied and service restarted.\n"
+  elif [[ "$sshd_ok_before" = true ]]; then
+    $SUDO mv "$hardening_conf" "${hardening_conf}.rejected"
+    printf '%b' "${red}[error]${no_color} The SSH hardening drop-in made the sshd config invalid — moved to ${hardening_conf}.rejected, sshd left as it was.\n"
+    printf '%b' "${red}[error]${no_color} Check it with: sudo sshd -t -f /etc/ssh/sshd_config\n"
+    return 1
   else
-    printf '%b' "${red}[error]${no_color} SSH config validation failed — not restarting sshd.\n"
-    printf '%b' "${red}[error]${no_color} Review $hardening_conf and fix errors.\n"
+    printf '%b' "${red}[error]${no_color} sshd -t fails on this host, before and after the hardening drop-in — not restarting sshd.\n"
+    printf '%b' "${red}[error]${no_color} Review $hardening_conf and run: sudo sshd -t\n"
   fi
 
   # Check the effective configuration, not just the file written above: another
   # drop-in can still override it. Best-effort (sshd -T needs host keys).
-  local effective directive
+  # sshd -T spells prohibit-password by its old name, without-password.
+  local effective directive expected_root="$permit_root"
+  [[ "$expected_root" = prohibit-password ]] && expected_root="without-password"
   if effective=$($SUDO sshd -T 2>/dev/null); then
-    for directive in "permitrootlogin no" "passwordauthentication no"; do
+    for directive in "permitrootlogin $expected_root" "passwordauthentication no"; do
       if ! grep -qx "$directive" <<<"$effective"; then
         printf '%b' "${red}[warning]${no_color} Effective sshd config lacks '$directive' — another file in /etc/ssh/sshd_config.d/ overrides it.\n"
       fi
@@ -175,7 +217,10 @@ install_configure_ufw() {
 install_configure_fail2ban() {
   printf '%b' "\n\n${red}[security] =>${no_color} Install and configure Fail2Ban\n\n"
 
-  $SUDO apt-get install -y --no-install-recommends fail2ban
+  # python3-systemd is only a Recommends of fail2ban, but `backend = systemd`
+  # below cannot start without it: fail2ban would exit at once, hidden by the
+  # `|| true` on its restart.
+  $SUDO apt-get install -y --no-install-recommends fail2ban python3-systemd
 
   # Create local jail config (never edit jail.conf directly).
   # Unquoted heredoc so $SSH_PORT expands — the jail must watch the same port
@@ -284,10 +329,23 @@ APT::Periodic::Unattended-Upgrade "1";
 APT::Periodic::AutocleanInterval "7";
 EOF
 
-  # Configure unattended-upgrades to only apply security patches
-  $SUDO tee /etc/apt/apt.conf.d/50unattended-upgrades > /dev/null <<'EOF'
-Unattended-Upgrade::Allowed-Origins {
-    "${distro_id}:${distro_codename}-security";
+  # Restrict unattended-upgrades to security patches. Written to its own file
+  # instead of 50unattended-upgrades: that one is a dpkg conffile, and editing
+  # it makes every package upgrade prompt about it. `#clear` drops the origins
+  # the packaged file lists (all stable point updates on Debian); apt reads the
+  # files in order, so 52-… comes after 50-… and wins.
+  # Debian's security archive is matched by label, not by the Ubuntu-style
+  # "${distro_id}:${distro_codename}-security" origin, which matches nothing on
+  # Debian (Debian ships the codename-security suite under origin
+  # "Debian", label "Debian-Security").
+  $SUDO tee /etc/apt/apt.conf.d/52dotfiles-unattended-upgrades > /dev/null <<'EOF'
+// Security patches only — managed by dotfiles setup-security.sh
+#clear Unattended-Upgrade::Allowed-Origins;
+#clear Unattended-Upgrade::Origins-Pattern;
+Unattended-Upgrade::Origins-Pattern {
+    "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
+    "origin=Debian,codename=${distro_codename},label=Debian-Security";
+    "origin=Ubuntu,archive=${distro_codename}-security,label=Ubuntu";
 };
 Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";

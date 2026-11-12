@@ -10,6 +10,31 @@ SUDO="${SUDO:-}"
 # Default so `set -u` doesn't trip when run standalone (init.sh exports it)
 FULL_MODE_SETUP="${FULL_MODE_SETUP:-false}"
 
+# install_apt_key <url> <fingerprint> <keyring>
+# Downloads an apt repository key and writes it into <keyring> only when it is
+# the key with that fingerprint (2026-11-12; until then the key was piped from
+# curl straight into `gpg --dearmor`). A rotated or swapped key aborts the run.
+# The file must hold that one key only. Same function as in setup-base.sh
+# (each script runs on its own).
+install_apt_key() {
+  local url="$1" key_fpr="$2" keyring="$3"
+  local key_tmp gnupg_tmp
+  key_tmp=$(mktemp)
+  gnupg_tmp=$(mktemp -d)
+  curl -fsSL -o "$key_tmp" "$url"
+  if ! GNUPGHOME="$gnupg_tmp" gpg --show-keys --with-colons "$key_tmp" 2>/dev/null \
+      | awk -F: '$1 == "pub" { n++ } $1 == "fpr" && !fpr { fpr = $10 } END { if (n == 1) print fpr }' \
+      | grep -qx "$key_fpr"; then
+    rm -rf "$key_tmp" "$gnupg_tmp"
+    printf '%b' "${red}[error]${no_color} apt key from $url does not match fingerprint $key_fpr — not trusting it.\n"
+    return 1
+  fi
+  $SUDO install -m 0755 -d "$(dirname "$keyring")"
+  GNUPGHOME="$gnupg_tmp" gpg --dearmor < "$key_tmp" | $SUDO tee "$keyring" > /dev/null
+  rm -rf "$key_tmp" "$gnupg_tmp"
+  $SUDO chmod 644 "$keyring"
+}
+
 load_kernel_modules() {
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Load required kernel modules (overlay, br_netfilter)\n\n"
 
@@ -48,10 +73,12 @@ install_lite_setup() {
   # Install kubectl via official Kubernetes apt repository
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Install kubectl\n\n"
   if ! command -v kubectl &>/dev/null; then
-    $SUDO mkdir -p -m 755 /etc/apt/keyrings
-    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key \
-      | $SUDO gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-    $SUDO chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    # The key of pkgs.k8s.io (the "isv:kubernetes OBS Project" key): one key
+    # for every minor's repository, v1.32 and v1.36 served the same one on
+    # 2026-11-12. Its expiry (2026-12-29 that day) is extended on the same
+    # key, so the fingerprint outlives it.
+    install_apt_key https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key \
+      "DE15B14486CD377B9E876E1A234654DA9A296436" /etc/apt/keyrings/kubernetes-apt-keyring.gpg
     echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' \
       | $SUDO tee /etc/apt/sources.list.d/kubernetes.list
     $SUDO chmod 644 /etc/apt/sources.list.d/kubernetes.list

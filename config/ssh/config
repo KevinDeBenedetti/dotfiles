@@ -1,6 +1,10 @@
 # ~/.ssh/config — managed by dotfiles
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Must come before any use of UseKeychain (macOS-only, see Host * below), so
+# the same file also works with Linux OpenSSH.
+IgnoreUnknown UseKeychain
+
 # Machine/infra-specific hosts (IPs, internal servers, …) live in local,
 # UNVERSIONED files. Listed first so their settings take precedence
 # (ssh uses the first obtained value for each parameter).
@@ -22,6 +26,7 @@ Host *
   ServerAliveInterval 60
   ServerAliveCountMax 3
 
-  # Passphrase
+  # Passphrase. UseKeychain exists only in Apple's OpenSSH: without the
+  # IgnoreUnknown above it, ssh on Linux stops with "Bad configuration option".
   UseKeychain yes
   AddKeysToAgent yes

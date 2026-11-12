@@ -103,6 +103,25 @@ setup() {
   assert_failure
 }
 
+@test "the Kubernetes apt key is trusted only after its pinned fingerprint check" {
+  # The key no longer goes from curl straight into the keyring (2026-11-12).
+  # (The old form put the pipe on a continuation line: match the pipe itself.)
+  run grep -E '\|[[:space:]]*\$SUDO gpg --dearmor' "$K8S_SCRIPT"
+  assert_failure
+  run bash -c "sed -n '/^install_apt_key()/,/^}/p' '$K8S_SCRIPT'"
+  assert_success
+  assert_output --partial 'grep -qx "$key_fpr"'
+  assert_output --partial 'END { if (n == 1) print fpr }'
+  assert_output --partial 'return 1'
+  local check dearmor
+  check=$(grep -n 'grep -qx "$key_fpr"' "$K8S_SCRIPT" | cut -d: -f1)
+  dearmor=$(grep -n 'gpg --dearmor < "$key_tmp"' "$K8S_SCRIPT" | cut -d: -f1)
+  [ -n "$check" ] && [ -n "$dearmor" ] && [ "$check" -lt "$dearmor" ]
+  run bash -c "grep -A1 'install_apt_key https://pkgs.k8s.io' '$K8S_SCRIPT'"
+  assert_success
+  assert_output --regexp '"[0-9A-F]{40}" /etc/apt/keyrings/kubernetes-apt-keyring\.gpg'
+}
+
 @test "kernel module + sysctl calls are best-effort (container-safe)" {
   run grep -q 'modprobe overlay || true' "$K8S_SCRIPT"
   assert_success

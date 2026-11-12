@@ -81,3 +81,29 @@ setup() {
   assert_output --partial "kubernetes"
   assert_output --partial "security"
 }
+
+# --- Debian setup-user.sh ---
+
+@test "setup-user.sh rejects a user name with a dot before touching the system" {
+  # sudo skips /etc/sudoers.d files whose name contains a dot.
+  # SUDO=false: any privileged call that slipped past the check would fail.
+  CREATE_USER="first.last" SUDO=false run bash "$REPO_ROOT/os/debian/setup-user.sh"
+  assert_failure 1
+  assert_output --partial "Invalid user name 'first.last'"
+  refute_output --partial "already exists"
+}
+
+@test "setup-user.sh rejects a user name with uppercase or a leading digit" {
+  for name in Deploy 1deploy "de ploy"; do
+    CREATE_USER="$name" SUDO=false run bash "$REPO_ROOT/os/debian/setup-user.sh"
+    assert_failure 1
+    assert_output --partial "Invalid user name"
+  done
+}
+
+@test "setup-user.sh validates the NOPASSWD sudoers rule with visudo before installing it" {
+  run grep -F 'visudo -cqf "$sudoers_tmp"' "$REPO_ROOT/os/debian/setup-user.sh"
+  assert_success
+  run grep -F 'tee "/etc/sudoers.d/' "$REPO_ROOT/os/debian/setup-user.sh"
+  assert_failure
+}

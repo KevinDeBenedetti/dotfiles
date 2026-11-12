@@ -101,7 +101,8 @@ setup() {
 # --- SSH hardening config content ---
 
 @test "SSH config disables root login" {
-  run grep 'PermitRootLogin no' "$SECURITY_SCRIPT"
+  # Off by default; key-only root is the fallback when no other admin exists.
+  run grep -F 'local permit_root="no"' "$SECURITY_SCRIPT"
   assert_success
 }
 
@@ -245,6 +246,93 @@ setup() {
 
 @test "unattended-upgrades enables daily update check" {
   run grep 'Update-Package-Lists "1"' "$SECURITY_SCRIPT"
+  assert_success
+}
+
+@test "unattended-upgrades matches Debian's security archive by label" {
+  # The Ubuntu-style "${distro_id}:${distro_codename}-security" origin matches
+  # nothing on Debian.
+  run grep -F 'codename=${distro_codename}-security,label=Debian-Security' "$SECURITY_SCRIPT"
+  assert_success
+  run bash -c "grep -v '^ *#' '$SECURITY_SCRIPT' | grep -F '\"\${distro_id}:\${distro_codename}-security\"'"
+  assert_failure
+}
+
+@test "unattended-upgrades clears the packaged origins and leaves the conffile alone" {
+  run grep -F '#clear Unattended-Upgrade::Origins-Pattern;' "$SECURITY_SCRIPT"
+  assert_success
+  run grep -F 'tee /etc/apt/apt.conf.d/50unattended-upgrades' "$SECURITY_SCRIPT"
+  assert_failure
+}
+
+# --- Fail2Ban dependencies ---
+
+@test "fail2ban is installed with python3-systemd for its systemd backend" {
+  run grep -E 'apt-get install .*fail2ban python3-systemd' "$SECURITY_SCRIPT"
+  assert_success
+}
+
+# --- SSH lockout safeguards ---
+
+# Defines has_admin_ssh_login from the script (without running the script)
+# with getent and the sudo prefix stubbed: root and alice are in group sudo,
+# alice's authorized_keys is $ALICE_KEYS.
+load_admin_check() {
+  SUDO=""
+  SSH_ALLOWED_USERS="${SSH_ALLOWED_USERS:-}"
+  getent() {
+    case "$1 $2" in
+      "group sudo") echo "sudo:x:27:root,alice" ;;
+      "passwd alice") echo "alice:x:1000:1000::$BATS_TEST_TMPDIR/alice:/bin/bash" ;;
+      "passwd root") echo "root:x:0:0::/root:/bin/bash" ;;
+    esac
+  }
+  eval "$(sed -n '/^has_admin_ssh_login()/,/^}/p' "$SECURITY_SCRIPT")"
+}
+
+@test "root login is disabled only when a sudo user can log in with a key" {
+  run grep -F 'PermitRootLogin ${permit_root}' "$SECURITY_SCRIPT"
+  assert_success
+  run grep -F 'permit_root="prohibit-password"' "$SECURITY_SCRIPT"
+  assert_success
+}
+
+@test "has_admin_ssh_login fails when only root has keys" {
+  load_admin_check
+  run has_admin_ssh_login
+  assert_failure
+}
+
+@test "has_admin_ssh_login succeeds for a sudo user with authorized_keys" {
+  mkdir -p "$BATS_TEST_TMPDIR/alice/.ssh"
+  echo "ssh-ed25519 AAAA test" > "$BATS_TEST_TMPDIR/alice/.ssh/authorized_keys"
+  load_admin_check
+  run has_admin_ssh_login
+  assert_success
+}
+
+@test "has_admin_ssh_login ignores an empty authorized_keys" {
+  mkdir -p "$BATS_TEST_TMPDIR/alice/.ssh"
+  : > "$BATS_TEST_TMPDIR/alice/.ssh/authorized_keys"
+  load_admin_check
+  run has_admin_ssh_login
+  assert_failure
+}
+
+@test "has_admin_ssh_login ignores a sudo user left out of SSH_ALLOWED_USERS" {
+  mkdir -p "$BATS_TEST_TMPDIR/alice/.ssh"
+  echo "ssh-ed25519 AAAA test" > "$BATS_TEST_TMPDIR/alice/.ssh/authorized_keys"
+  SSH_ALLOWED_USERS="deploy"
+  load_admin_check
+  run has_admin_ssh_login
+  assert_failure
+}
+
+@test "an sshd drop-in that breaks a valid config is moved aside" {
+  run grep -F 'mv "$hardening_conf" "${hardening_conf}.rejected"' "$SECURITY_SCRIPT"
+  assert_success
+  # Only when sshd -t passed before the write (a container fails it either way).
+  run grep -F 'sshd_ok_before=true' "$SECURITY_SCRIPT"
   assert_success
 }
 

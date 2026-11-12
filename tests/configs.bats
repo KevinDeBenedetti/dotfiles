@@ -669,3 +669,12 @@ todo_layout() {
     assert_success
   done
 }
+
+@test "ssh config parses with the local OpenSSH (UseKeychain is macOS-only)" {
+  command -v ssh >/dev/null || skip "ssh not installed"
+  # Linux OpenSSH rejects UseKeychain unless IgnoreUnknown lists it first.
+  run grep -n -m1 -E '^[[:space:]]*(IgnoreUnknown|UseKeychain)' "$REPO_ROOT/config/ssh/config"
+  assert_output --partial 'IgnoreUnknown UseKeychain'
+  run ssh -G -F "$REPO_ROOT/config/ssh/config" example.invalid
+  assert_success
+}

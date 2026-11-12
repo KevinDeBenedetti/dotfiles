@@ -90,6 +90,8 @@ Core CLI tools installed via `apt`. Split into lite (always) and additional (ful
 | [Git Credential Manager](https://github.com/git-ecosystem/git-credential-manager) | HTTPS Git credential helper behind `credential.helper = manager` |
 
 > Docker CE is installed from `https://download.docker.com/linux/debian` using the official GPG key. The calling user is automatically added to the `docker` group.
+
+> The apt keys of Docker, HashiCorp and Kubernetes (`pkgs.k8s.io`) are trusted only when they match the fingerprint pinned in the script: a rotated or swapped key aborts the run before apt trusts it. When a vendor rotates its key, update the fingerprint from the vendor's announcement.
 >
 > On a node managed by the infra repository, the script leaves Docker out. It recognises such a node by the sshd drop-in that repository writes, `/etc/ssh/sshd_config.d/00-infra-hardening.conf`, the same marker that makes it skip SSH hardening. Those nodes run k3s with its own containerd, and their Ansible removes Docker, whose iptables rules forward published ports around the host firewall.
 >
@@ -127,7 +129,7 @@ SSH_PORT=2222 SSH_ALLOWED_USERS="deploy" bash <(curl -fsSL ...) -a
 | Setting                  | Value                | Effect                                   |
 | ------------------------ | -------------------- | ---------------------------------------- |
 | `Port`                   | `$SSH_PORT`          | Configurable port (default: `22`)        |
-| `PermitRootLogin`        | `no`                 | Disable direct root login                |
+| `PermitRootLogin`        | `no`                 | Disable direct root login (see below)    |
 | `PasswordAuthentication` | `no`                 | Key-only authentication                  |
 | `MaxAuthTries`           | `3`                  | Block brute-force attempts               |
 | `X11Forwarding`          | `no`                 | No X11 tunnelling                        |
@@ -140,6 +142,19 @@ the file is named `00-` to win over others such as cloud-init's
 `50-cloud-init.conf`. After writing it, the script checks the effective
 configuration (`sshd -T`) and warns if `PermitRootLogin` or
 `PasswordAuthentication` is still overridden.
+
+Two safeguards keep the hardening from locking you out:
+
+- **Root login stays on (key only) until another admin can log in.** Root
+  login is turned off only when a non-root member of the `sudo` group has a
+  non-empty `~/.ssh/authorized_keys` (and is listed in `SSH_ALLOWED_USERS`
+  when that is set). Otherwise the script writes
+  `PermitRootLogin prohibit-password` and warns. Create the user with
+  `-u <user>`, then re-run the security profile.
+- **A drop-in that breaks sshd is moved aside.** If `sshd -t` passed before
+  the drop-in was written and fails after, the file is renamed to
+  `00-hardening.conf.rejected`, sshd is not restarted and the run stops
+  (UFW is not reconfigured for a port sshd does not listen on).
 
 #### UFW firewall
 
@@ -168,6 +183,9 @@ loopback only. Publish a service on purpose with an explicit address
 | `maxretry`  | 3 attempts |
 | `backend`   | `systemd`  |
 | `banaction` | `ufw`      |
+
+`python3-systemd` is installed with it: the `systemd` backend needs it, and it
+is only a Recommends of the `fail2ban` package.
 
 #### Sysctl hardening (`/etc/sysctl.d/99-security.conf`)
 
@@ -226,7 +244,13 @@ Collaborative threat-intelligence IPS. Adds CrowdSec's packagecloud apt reposito
 
 #### Unattended upgrades
 
-Configures automatic security patches only (`${distro_id}:${distro_codename}-security`). Auto-reboot is **disabled**.
+Configures automatic security patches only, in
+`/etc/apt/apt.conf.d/52dotfiles-unattended-upgrades`: it clears the origins of
+the packaged `50unattended-upgrades` (left untouched, it is a dpkg conffile)
+and allows only the security archive (`label=Debian-Security`, or Ubuntu's
+`<codename>-security`). Auto-reboot is **disabled**.
+
+Check which upgrades it would apply with `sudo unattended-upgrade --dry-run -d`.
 
 #### Security audit tools *(full mode only)*
 

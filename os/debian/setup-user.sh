@@ -32,6 +32,15 @@ CREATE_USER="${CREATE_USER:?'[setup-user] CREATE_USER must be set'}"
 SSH_NOPASSWD="${SSH_NOPASSWD:-false}"
 COPY_ROOT_SSH_KEY="${COPY_ROOT_SSH_KEY:-true}"
 
+# The name ends up in a path (/home/<user>, /etc/sudoers.d/<user>) and in a
+# sudoers rule. sudo silently skips sudoers.d files whose name has a dot, so
+# a name like "first.last" would get no sudo at all. Debian's default
+# NAME_REGEX, minus the dot.
+if [[ ! "$CREATE_USER" =~ ^[a-z][-a-z0-9_]*$ ]]; then
+  printf '%b' "${red}[error]${no_color} Invalid user name '${CREATE_USER}': use lowercase letters, digits, '-' and '_' (no dots), starting with a letter.\n" >&2
+  exit 1
+fi
+
 printf '%b' "\n\n${red}[user] =>${no_color} Create user '${CREATE_USER}'\n\n"
 
 # Create user if it doesn't exist
@@ -60,8 +69,17 @@ fi
 
 # Grant passwordless sudo (required for non-interactive provisioning, e.g. k3s install)
 if [[ "${SSH_NOPASSWD}" == "true" ]]; then
-  echo "${CREATE_USER} ALL=(ALL) NOPASSWD:ALL" | $SUDO tee "/etc/sudoers.d/${CREATE_USER}" > /dev/null
-  $SUDO chmod 440 "/etc/sudoers.d/${CREATE_USER}"
+  # Written to a temp file and checked with visudo first: a sudoers.d file
+  # with a syntax error makes sudo refuse to run for everyone.
+  sudoers_tmp=$(mktemp)
+  printf '%s ALL=(ALL) NOPASSWD:ALL\n' "${CREATE_USER}" > "$sudoers_tmp"
+  if ! $SUDO visudo -cqf "$sudoers_tmp"; then
+    rm -f "$sudoers_tmp"
+    printf '%b' "${red}[error]${no_color} Generated sudoers rule failed visudo validation — not installing it.\n" >&2
+    exit 1
+  fi
+  $SUDO install -m 0440 -o root -g root "$sudoers_tmp" "/etc/sudoers.d/${CREATE_USER}"
+  rm -f "$sudoers_tmp"
   printf '%b' "${red}[user]${no_color} NOPASSWD sudo granted via /etc/sudoers.d/${CREATE_USER}.\n"
 else
   # The user was created with --disabled-password and is in the sudo group, but

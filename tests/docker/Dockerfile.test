@@ -104,9 +104,17 @@ RUN sudo apt-get update \
       openssh-server \
       ufw \
       fail2ban \
+      python3-systemd \
       unattended-upgrades \
       apt-listchanges \
     && sudo rm -rf /var/lib/apt/lists/*
+
+# An admin who can still log in once root login is off: without one, the
+# security profile keeps PermitRootLogin prohibit-password (lockout guard).
+RUN sudo usermod -aG sudo tester \
+    && mkdir -p -m 700 "$HOME/.ssh" \
+    && echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDockerTestKeyNotARealKey000000000000000 tester@test" > "$HOME/.ssh/authorized_keys" \
+    && chmod 600 "$HOME/.ssh/authorized_keys"
 
 # Source the script and call each config function individually
 # (systemctl/sshd-t/ufw calls will fail silently — that's expected in Docker)
@@ -118,7 +126,7 @@ RUN export SUDO="sudo" FULL_MODE_SETUP="false" \
 
 # Verify SSH hardening config was created with correct settings
 RUN sudo test -f /etc/ssh/sshd_config.d/00-hardening.conf \
-    && sudo grep -q "PermitRootLogin no" /etc/ssh/sshd_config.d/00-hardening.conf \
+    && sudo grep -qx "PermitRootLogin no" /etc/ssh/sshd_config.d/00-hardening.conf \
     && sudo grep -q "PasswordAuthentication no" /etc/ssh/sshd_config.d/00-hardening.conf \
     && sudo grep -q "MaxAuthTries 3" /etc/ssh/sshd_config.d/00-hardening.conf \
     && sudo grep -q "X11Forwarding no" /etc/ssh/sshd_config.d/00-hardening.conf \
@@ -146,10 +154,18 @@ RUN test -f /etc/apt/apt.conf.d/20auto-upgrades \
     && grep -q 'APT::Periodic::Unattended-Upgrade "1"' /etc/apt/apt.conf.d/20auto-upgrades \
     && echo "Auto-upgrades config verified"
 
-RUN test -f /etc/apt/apt.conf.d/50unattended-upgrades \
-    && grep -q 'Automatic-Reboot "false"' /etc/apt/apt.conf.d/50unattended-upgrades \
-    && grep -q 'Remove-Unused-Dependencies "true"' /etc/apt/apt.conf.d/50unattended-upgrades \
+RUN test -f /etc/apt/apt.conf.d/52dotfiles-unattended-upgrades \
+    && grep -q '^Unattended-Upgrade::Automatic-Reboot "false"' /etc/apt/apt.conf.d/52dotfiles-unattended-upgrades \
+    && grep -q '^Unattended-Upgrade::Remove-Unused-Dependencies "true"' /etc/apt/apt.conf.d/52dotfiles-unattended-upgrades \
+    && grep -q 'label=Debian-Security' /etc/apt/apt.conf.d/52dotfiles-unattended-upgrades \
     && echo "Unattended-upgrades config verified"
+
+# What apt actually resolves, all files merged: the packaged
+# 50unattended-upgrades origins are cleared, only security archives remain.
+RUN origins=$(apt-config dump Unattended-Upgrade::Origins-Pattern | grep '^Unattended-Upgrade::Origins-Pattern:: ') \
+    && echo "$origins" | grep -q 'label=Debian-Security' \
+    && ! echo "$origins" | grep -v -e 'label=Debian-Security' -e 'distro_codename}-security,label=Ubuntu' \
+    && echo "Unattended-upgrades effective origins verified"
 
 # Verify sysctl hardening config
 RUN test -f /etc/sysctl.d/99-security.conf \
@@ -177,9 +193,17 @@ RUN sudo apt-get update \
       openssh-server \
       ufw \
       fail2ban \
+      python3-systemd \
       unattended-upgrades \
       apt-listchanges \
     && sudo rm -rf /var/lib/apt/lists/*
+
+# An admin who can still log in once root login is off: without one, the
+# security profile keeps PermitRootLogin prohibit-password (lockout guard).
+RUN sudo usermod -aG sudo tester \
+    && mkdir -p -m 700 "$HOME/.ssh" \
+    && echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDockerTestKeyNotARealKey000000000000000 tester@test" > "$HOME/.ssh/authorized_keys" \
+    && chmod 600 "$HOME/.ssh/authorized_keys"
 
 # Install oh-my-zsh (installer pinned to a commit SHA for reproducibility)
 RUN RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/df34d2b8d575777465aed8ae9b7cd90d63fdcd6e/tools/install.sh)"
@@ -204,6 +228,7 @@ RUN sudo test -f /etc/ssh/sshd_config.d/00-hardening.conf \
     && sudo test -f /etc/fail2ban/jail.local \
     && test -f /etc/sysctl.d/99-security.conf \
     && test -f /etc/apt/apt.conf.d/20auto-upgrades \
+    && test -f /etc/apt/apt.conf.d/52dotfiles-unattended-upgrades \
     && echo "Security configs verified"
 
 # ---------------------------------------------------------------------------

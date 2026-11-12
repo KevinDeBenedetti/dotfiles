@@ -50,6 +50,10 @@ Prevents idle connections from being dropped by firewalls or routers.
 | `UseKeychain`    | `yes` | Read/store the key passphrase in the macOS keychain |
 | `AddKeysToAgent` | `yes` | Add keys to `ssh-agent` automatically on first use  |
 
+`UseKeychain` exists only in Apple's OpenSSH. The config starts with
+`IgnoreUnknown UseKeychain` so the same file works on Linux, where `ssh`
+would otherwise stop with "Bad configuration option".
+
 ## Machine-specific hosts
 
 Host blocks for specific machines (infra IPs, internal servers) live in

@@ -10,6 +10,34 @@ SUDO="${SUDO:-}"
 # Default so `set -u` doesn't trip when run standalone (init.sh exports it)
 FULL_MODE_SETUP="${FULL_MODE_SETUP:-false}"
 
+# install_apt_key <url> <fingerprint> <keyring>
+# Downloads an apt repository key and writes it into <keyring> only when it is
+# the key with that fingerprint. Until 2026-11-12 the keys were piped from curl
+# straight into `gpg --dearmor`: apt then trusted, for every package of that
+# repository, whatever the URL served that day. A rotated or swapped key now
+# aborts the run instead. The file must hold that one key only: an extra key
+# appended to it would land in the keyring too. Same check as
+# install_configure_crowdsec in setup-security.sh and install_apt_key in
+# setup-kubernetes.sh (each script runs on its own).
+install_apt_key() {
+  local url="$1" key_fpr="$2" keyring="$3"
+  local key_tmp gnupg_tmp
+  key_tmp=$(mktemp)
+  gnupg_tmp=$(mktemp -d)
+  curl -fsSL -o "$key_tmp" "$url"
+  if ! GNUPGHOME="$gnupg_tmp" gpg --show-keys --with-colons "$key_tmp" 2>/dev/null \
+      | awk -F: '$1 == "pub" { n++ } $1 == "fpr" && !fpr { fpr = $10 } END { if (n == 1) print fpr }' \
+      | grep -qx "$key_fpr"; then
+    rm -rf "$key_tmp" "$gnupg_tmp"
+    printf '%b' "${red}[error]${no_color} apt key from $url does not match fingerprint $key_fpr — not trusting it.\n"
+    return 1
+  fi
+  $SUDO install -m 0755 -d "$(dirname "$keyring")"
+  GNUPGHOME="$gnupg_tmp" gpg --dearmor < "$key_tmp" | $SUDO tee "$keyring" > /dev/null
+  rm -rf "$key_tmp" "$gnupg_tmp"
+  $SUDO chmod 644 "$keyring"
+}
+
 install_lite_setup() {
   # Configure locale (prevents LC_* warnings on SSH login)
   printf '%b' "\n\n${red}[base] =>${no_color} Configure locale (en_US.UTF-8)\n\n"
@@ -40,9 +68,11 @@ install_lite_setup() {
     # Detect distro ID (debian or ubuntu) for the correct Docker repo URL
     _DOCKER_DISTRO=$(. /etc/os-release && echo "${ID}")
     _DOCKER_CODENAME=$(. /etc/os-release && echo "${VERSION_CODENAME}")
-    curl -fsSL "https://download.docker.com/linux/${_DOCKER_DISTRO}/gpg" \
-      | $SUDO gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    $SUDO chmod a+r /etc/apt/keyrings/docker.gpg
+    # Docker's release key, the same for Debian and Ubuntu. Fingerprint as
+    # Docker's install docs print it (9DC8 5822 9FC7 DD38 854A  E2D8 8D81 803C
+    # 0EBF CD88), equal to the key served on 2026-11-12.
+    install_apt_key "https://download.docker.com/linux/${_DOCKER_DISTRO}/gpg" \
+      "9DC858229FC7DD38854AE2D88D81803C0EBFCD88" /etc/apt/keyrings/docker.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
 https://download.docker.com/linux/${_DOCKER_DISTRO} \
 ${_DOCKER_CODENAME} stable" \
@@ -79,9 +109,13 @@ ${_DOCKER_CODENAME} stable" \
   printf '%b' "\n\n${red}[base] =>${no_color} Install Terraform\n\n"
   if ! command -v terraform &>/dev/null; then
     $SUDO install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://apt.releases.hashicorp.com/gpg \
-      | $SUDO gpg --dearmor -o /etc/apt/keyrings/hashicorp.gpg
-    $SUDO chmod a+r /etc/apt/keyrings/hashicorp.gpg
+    # HashiCorp's package signing key. Fingerprint recorded on 2026-11-12 from
+    # the key apt.releases.hashicorp.com served that day (created 2026-09-09,
+    # expires 2031-09-08): trust on first use, not checked against a second
+    # source. HashiCorp rotates this key; a new one aborts here until the
+    # fingerprint is updated from its announcement.
+    install_apt_key https://apt.releases.hashicorp.com/gpg \
+      "D55C0D1AC78A8D8126CB631CFC9CA96ACA026560" /etc/apt/keyrings/hashicorp.gpg
     _HASHICORP_CODENAME=$(. /etc/os-release && echo "${VERSION_CODENAME}")
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/hashicorp.gpg] \
 https://apt.releases.hashicorp.com ${_HASHICORP_CODENAME} main" \

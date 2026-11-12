@@ -55,6 +55,33 @@ lite_body() { sed -n '/^install_lite_setup()/,/^}/p' "$1"; }
   assert_failure
 }
 
+@test "the Debian base script trusts an apt key only after its fingerprint check" {
+  # No key goes from curl straight into the keyring any more (2026-11-12).
+  # (The old form put the pipe on a continuation line: match the pipe itself.)
+  run grep -E '\|[[:space:]]*\$SUDO gpg --dearmor' "$DEBIAN_BASE"
+  assert_failure
+  run bash -c "sed -n '/^install_apt_key()/,/^}/p' '$DEBIAN_BASE'"
+  assert_success
+  assert_output --partial 'grep -qx "$key_fpr"'
+  # The file holds that one key only: an appended key would be trusted too.
+  assert_output --partial 'END { if (n == 1) print fpr }'
+  assert_output --partial 'return 1'
+  # The check comes before the key is written into the apt keyring.
+  local check dearmor
+  check=$(grep -n 'grep -qx "$key_fpr"' "$DEBIAN_BASE" | cut -d: -f1)
+  dearmor=$(grep -n 'gpg --dearmor < "$key_tmp"' "$DEBIAN_BASE" | cut -d: -f1)
+  [ -n "$check" ] && [ -n "$dearmor" ] && [ "$check" -lt "$dearmor" ]
+}
+
+@test "Docker's and HashiCorp's apt keys are installed with a pinned fingerprint" {
+  run bash -c "grep -A1 'install_apt_key \"https://download.docker.com' '$DEBIAN_BASE'"
+  assert_success
+  assert_output --regexp '"[0-9A-F]{40}" /etc/apt/keyrings/docker\.gpg'
+  run bash -c "grep -A1 'install_apt_key https://apt.releases.hashicorp.com/gpg' '$DEBIAN_BASE'"
+  assert_success
+  assert_output --regexp '"[0-9A-F]{40}" /etc/apt/keyrings/hashicorp\.gpg'
+}
+
 @test "GCM gets its Linux credential store system-wide, never via the linked ~/.gitconfig" {
   run grep -qF 'git config --system credential.credentialStore cache' "$DEBIAN_BASE"
   assert_success
