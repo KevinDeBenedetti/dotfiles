@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.8.0...v0.9.0) (2026-11-12)
+
+
+### Features
+
+* **crowdsec:** install CrowdSec from signed apt repo instead of remote script ([467ea3f](https://github.com/KevinDeBenedetti/dotfiles/commit/467ea3faa742af0830c8cc72026641d1530bacc0))
+* **ssh:** improve SSH config for cross-platform compatibility ([29e292d](https://github.com/KevinDeBenedetti/dotfiles/commit/29e292d45651c22cf1ce69cdb665aa0da1068675))
+
 ## [0.8.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.7.0...v0.8.0) (2026-11-10)
 
 
