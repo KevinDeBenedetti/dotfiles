@@ -219,14 +219,35 @@ install_configure_crowdsec() {
   printf '%b' "\n\n${red}[security] =>${no_color} Install and configure CrowdSec\n\n"
 
   if ! command -v cscli &>/dev/null; then
-    # Install CrowdSec repository and package. Downloaded to a file first (-f:
-    # an HTTP error aborts instead of piping an error page into a root shell,
-    # and a truncated download never runs half a script).
-    local installer
-    installer=$(mktemp)
-    curl -fsSL -o "$installer" https://install.crowdsec.net
-    $SUDO bash "$installer"
-    rm -f "$installer"
+    # CrowdSec's apt repository, set up inline instead of running the
+    # https://install.crowdsec.net script as root: that script only adds this
+    # packagecloud repo (same keyring and list paths, so hosts it set up are
+    # overwritten, not duplicated). The key must match the pinned fingerprint
+    # (recorded 2026-11-12 from packagecloud.io) before apt trusts it; a
+    # rotated or swapped key aborts the run instead of being trusted silently.
+    # The file must hold that one key only: an extra key appended to it would
+    # land in the keyring too.
+    local key_fpr="6A89E3C2303A901A889971D3376ED5326E93CD0C"
+    local keyring="/etc/apt/keyrings/crowdsec_crowdsec-archive-keyring.gpg"
+    local key_tmp gnupg_tmp
+    key_tmp=$(mktemp)
+    gnupg_tmp=$(mktemp -d)
+    $SUDO apt-get install -y --no-install-recommends ca-certificates gnupg
+    curl -fsSL -o "$key_tmp" https://packagecloud.io/crowdsec/crowdsec/gpgkey
+    if ! GNUPGHOME="$gnupg_tmp" gpg --show-keys --with-colons "$key_tmp" 2>/dev/null \
+        | awk -F: '$1 == "pub" { n++ } $1 == "fpr" && !fpr { fpr = $10 } END { if (n == 1) print fpr }' \
+        | grep -qx "$key_fpr"; then
+      rm -rf "$key_tmp" "$gnupg_tmp"
+      printf '%b' "${red}[error]${no_color} CrowdSec apt key does not match fingerprint $key_fpr — not installing CrowdSec.\n"
+      return 1
+    fi
+    $SUDO install -m 0755 -d /etc/apt/keyrings
+    GNUPGHOME="$gnupg_tmp" gpg --dearmor < "$key_tmp" | $SUDO tee "$keyring" > /dev/null
+    rm -rf "$key_tmp" "$gnupg_tmp"
+    $SUDO chmod 644 "$keyring"
+    echo "deb [signed-by=$keyring] https://packagecloud.io/crowdsec/crowdsec/any/ any main" \
+      | $SUDO tee /etc/apt/sources.list.d/crowdsec_crowdsec.list > /dev/null
+    $SUDO apt-get update -qq
     $SUDO apt-get install -y --no-install-recommends crowdsec
 
     # Install the firewall bouncer (works with iptables/nftables)

@@ -220,7 +220,7 @@ Installs `apparmor` and `apparmor-utils`, adds GRUB boot parameters (`apparmor=1
 
 #### CrowdSec *(full mode only)*
 
-Collaborative threat-intelligence IPS. Downloads the `install.crowdsec.net` repository script to a file (aborting on HTTP errors), runs it, and adds:
+Collaborative threat-intelligence IPS. Adds CrowdSec's packagecloud apt repository directly (no remote install script runs as root): the repository key must match the fingerprint pinned in `setup-security.sh`, otherwise the run aborts before apt trusts it. Then installs `crowdsec` and adds:
 - `crowdsec-firewall-bouncer-iptables` — automatic firewall banning
 - Collections: `crowdsecurity/linux`, `crowdsecurity/sshd`
 

@@ -25,3 +25,15 @@ regexTarget  = "secret"
 regexes      = [
   '''https?://github\.com/[A-Za-z0-9_.\-/]+''',
 ]
+
+# Scripts pin the fingerprint of a vendor's public apt signing key (e.g.
+# CrowdSec in os/debian/setup-security.sh) so a swapped key is rejected.
+# A 40-hex OpenPGP fingerprint is public by design; the generic-api-key rule
+# only trips on its entropy.  Scoped to `*_fpr="<40 hex>"` assignments.
+[[allowlists]]
+targetRules = ["generic-api-key"]
+description = "Public OpenPGP key fingerprints pinned in *_fpr variables"
+regexTarget = "match"
+regexes     = [
+  '''_fpr="[0-9A-F]{40}"''',
+]

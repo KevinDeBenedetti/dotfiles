@@ -149,11 +149,26 @@ setup() {
 
 # --- Remote installers ---
 
-@test "CrowdSec installer is never piped from curl into a root shell" {
-  run grep -E 'curl[^|]*install\.crowdsec\.net[^|]*\|' "$SECURITY_SCRIPT"
-  assert_failure
-  run grep -E 'curl -fsSL -o "\$installer" https://install\.crowdsec\.net' "$SECURITY_SCRIPT"
+@test "CrowdSec is installed from its signed apt repo, never a remote script" {
+  run bash -c "sed -n '/^install_configure_crowdsec()/,/^}/p' '$SECURITY_SCRIPT' | grep -v '^ *#'"
   assert_success
+  refute_output --partial 'install.crowdsec.net'
+  refute_output --regexp '(\| *|\$SUDO +)(ba)?sh[[:space:]]'
+  assert_output --partial 'signed-by=$keyring] https://packagecloud.io/crowdsec/crowdsec/any/ any main'
+}
+
+@test "CrowdSec apt key is checked against a pinned fingerprint before it is trusted" {
+  run bash -c "sed -n '/^install_configure_crowdsec()/,/^}/p' '$SECURITY_SCRIPT'"
+  assert_success
+  assert_output --regexp 'key_fpr="[0-9A-F]{40}"'
+  assert_output --partial 'grep -qx "$key_fpr"'
+  # The file holds that one key only: an appended key would be trusted too.
+  assert_output --partial 'END { if (n == 1) print fpr }'
+  # The check comes before the key is written into the apt keyring.
+  local check dearmor
+  check=$(grep -n 'grep -qx "$key_fpr"' "$SECURITY_SCRIPT" | cut -d: -f1)
+  dearmor=$(grep -n 'gpg --dearmor < "$key_tmp"' "$SECURITY_SCRIPT" | cut -d: -f1)
+  [ -n "$check" ] && [ -n "$dearmor" ] && [ "$check" -lt "$dearmor" ]
 }
 
 # --- Fail2Ban config content ---
