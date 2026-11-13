@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.9.0...v0.10.0) (2026-11-13)
+
+
+### Features
+
+* **kubernetes:** skip kubectl installation on infra-managed nodes ([2e6cbb9](https://github.com/KevinDeBenedetti/dotfiles/commit/2e6cbb9b20a72c1882916810604b7f5d262ae74e))
+
 ## [0.9.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.8.0...v0.9.0) (2026-11-12)
 
 
