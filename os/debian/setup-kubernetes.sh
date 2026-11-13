@@ -72,7 +72,15 @@ install_lite_setup() {
 
   # Install kubectl via official Kubernetes apt repository
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Install kubectl\n\n"
-  if ! command -v kubectl &>/dev/null; then
+  # On a node the infra repo manages, its Ansible `common` role removes the
+  # pkgs.k8s.io repository and kubectl on every run (k3s ships its own). A
+  # re-run here would put both back until the next Ansible run. Same marker as
+  # the Docker step of setup-base.sh: the infra sshd drop-in means the node is
+  # theirs.
+  local infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"
+  if [[ -f "$infra_conf" ]]; then
+    printf '%b' "${red}[kubernetes]${no_color} Node managed by the infra repo ($infra_conf) — skipping kubectl.\n"
+  elif ! command -v kubectl &>/dev/null; then
     # The key of pkgs.k8s.io (the "isv:kubernetes OBS Project" key): one key
     # for every minor's repository, v1.32 and v1.36 served the same one on
     # 2026-11-12. Its expiry (2026-12-29 that day) is extended on the same

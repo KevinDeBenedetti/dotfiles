@@ -271,6 +271,8 @@ Tools for Kubernetes cluster management.
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | [`kubectl`](https://kubernetes.io/docs/reference/kubectl/) | Kubernetes command-line client (installed from the official `pkgs.k8s.io` repo, currently v1.32) |
 
+> On a node managed by the infra repository (same marker as for Docker, `/etc/ssh/sshd_config.d/00-infra-hardening.conf`), the script installs neither `kubectl` nor the `pkgs.k8s.io` repository: k3s ships its own `kubectl`, and that repository's Ansible removes both on every run.
+
 **Additional (full mode):**
 
 | Tool                       | Description                                                               |

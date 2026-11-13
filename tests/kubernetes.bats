@@ -122,6 +122,22 @@ setup() {
   assert_output --regexp '"[0-9A-F]{40}" /etc/apt/keyrings/kubernetes-apt-keyring\.gpg'
 }
 
+@test "the lite setup leaves kubectl and its apt repository off a node managed by the infra repo" {
+  # Same marker as the Docker step of setup-base.sh: the infra `common` role
+  # removes both on every run, a re-run must not put them back.
+  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$K8S_SCRIPT'"
+  assert_output --partial 'infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"'
+  assert_output --partial 'if [[ -f "$infra_conf" ]]; then'
+  # The marker is tested before the key and the repository are written, and
+  # nothing is installed in its branch.
+  local marker repo
+  marker=$(sed -n '/^install_lite_setup()/,/^}/p' "$K8S_SCRIPT" | grep -n 'if \[\[ -f "$infra_conf" \]\]' | head -n1 | cut -d: -f1)
+  repo=$(sed -n '/^install_lite_setup()/,/^}/p' "$K8S_SCRIPT" | grep -n 'sources.list.d/kubernetes.list' | head -n1 | cut -d: -f1)
+  [ -n "$marker" ] && [ -n "$repo" ] && [ "$marker" -lt "$repo" ]
+  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$K8S_SCRIPT' | sed -n '/if \[\[ -f \"\$infra_conf\" \]\]; then/,/^  elif/p' | grep -E 'apt-get|kubernetes.list|install_apt_key'"
+  assert_failure
+}
+
 @test "kernel module + sysctl calls are best-effort (container-safe)" {
   run grep -q 'modprobe overlay || true' "$K8S_SCRIPT"
   assert_success
