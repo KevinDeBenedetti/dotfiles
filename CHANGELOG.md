@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.10.0...v0.11.0) (2026-11-15)
+
+
+### Features
+
+* **kubernetes:** install helm with pinned commit and SHA-256 verification ([f0de324](https://github.com/KevinDeBenedetti/dotfiles/commit/f0de3241da68af1c7a7b8c036cd1e7086810175a))
+
 ## [0.10.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.9.0...v0.10.0) (2026-11-13)
 
 
