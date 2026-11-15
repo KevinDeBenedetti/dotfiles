@@ -99,13 +99,27 @@ install_lite_setup() {
 
 install_additional_setup() {
   # Install helm via the official get-helm-3 script (it verifies the release
-  # tarball checksum). Downloaded to a file first so an HTTP error or a
-  # truncated download never runs a partial script.
+  # tarball checksum). The script itself is pinned to the commit of a helm
+  # release tag and checked against its SHA-256 before it runs: from `main`,
+  # whatever that branch held on the day ran here unreviewed. To bump: take
+  # the commit of the new tag (`git ls-remote https://github.com/helm/helm
+  # 'refs/tags/vX.Y.Z^{}'`), fetch scripts/get-helm-3 at it, `sha256sum` it,
+  # and read its diff before replacing both values.
+  # Downloaded to a file first so an HTTP error or a truncated download never
+  # runs a partial script.
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Install helm\n\n"
   if ! command -v helm &>/dev/null; then
     local helm_installer
+    # helm v4.3.1 (c0d08d0), read 2026-11-13.
+    local helm_installer_commit="c0d08d0d6d9424d4a14febb5e8a3e51b0dd00dff"
+    local helm_installer_sha256="08edc9569a7115a22fdc4ec164a653d072440ad14a8dbe51ca9b321c903c59a9"
     helm_installer=$(mktemp)
-    curl -fsSL -o "$helm_installer" https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    curl -fsSL -o "$helm_installer" "https://raw.githubusercontent.com/helm/helm/${helm_installer_commit}/scripts/get-helm-3"
+    if ! echo "${helm_installer_sha256}  ${helm_installer}" | sha256sum -c --quiet -; then
+      rm -f "$helm_installer"
+      printf '%b' "${red}[error]${no_color} get-helm-3 does not match its pinned SHA-256 — helm not installed.\n"
+      return 1
+    fi
     bash "$helm_installer"
     rm -f "$helm_installer"
   else
