@@ -176,11 +176,8 @@ install_additional_setup() {
     gh \
     nmap
 
-  # Install proto
-  if ! command -v proto &>/dev/null; then
-    printf '%b' "\n\n${red}[base] =>${no_color} Install proto\n\n"
-    curl -fsSL https://moonrepo.dev/install/proto.sh | bash -s -- --yes
-  fi
+  # proto is installed by os/helpers/proto.sh, which init.sh runs right after
+  # this profile (pinned release, SHA-256 checked) — not from a remote script.
 }
 
 

@@ -97,31 +97,55 @@ install_lite_setup() {
   fi
 }
 
+# fetch_verified <url> <sha256> <dest>: download kept only if its SHA-256 matches.
+# shellcheck source=../helpers/fetch.sh
+source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/../helpers/fetch.sh"
+
+# install_helm_tarball <url> <sha256> <arch> <dest_dir>
+# Install the helm binary of a release tarball into <dest_dir>, only if the
+# tarball's SHA-256 is <sha256>. Every step is checked explicitly, so the
+# function is also correct where errexit is off (inside `if`, `||`, tests).
+install_helm_tarball() {
+  local url="$1" sha256="$2" arch="$3" dest_dir="$4" helm_tmp
+  helm_tmp=$(mktemp -d "${TMPDIR:-/tmp}/helm.XXXXXX") || return 1
+  if ! fetch_verified "$url" "$sha256" "$helm_tmp/helm.tar.gz"; then
+    rm -rf "$helm_tmp"
+    printf '%b' "${red}[error]${no_color} $url could not be downloaded or does not match its pinned SHA-256 — helm not installed.\n"
+    return 1
+  fi
+  if ! tar -xzf "$helm_tmp/helm.tar.gz" -C "$helm_tmp" "linux-${arch}/helm" \
+      || ! $SUDO install -m 0755 "$helm_tmp/linux-${arch}/helm" "$dest_dir/helm"; then
+    rm -rf "$helm_tmp"
+    printf '%b' "${red}[error]${no_color} helm could not be extracted or installed into $dest_dir.\n"
+    return 1
+  fi
+  rm -rf "$helm_tmp"
+}
+
+# Install helm from a pinned release. The SHA-256 of each architecture's
+# tarball is pinned here, so neither a script nor a checksum fetched at install
+# time is trusted (helm's own installer script installs whatever release is
+# latest, checked against a sum from the same host).
+# To bump: change the version, then copy the sums published next to the
+# tarballs (read 2026-11-16 for the values below):
+#   curl -fsSL https://get.helm.sh/helm-<version>-linux-<arch>.tar.gz.sha256sum
+install_helm() {
+  local version="v4.3.2" arch sha256
+  arch=$(dpkg --print-architecture)
+  case "$arch" in
+    amd64) sha256="d1c0278d46beab79582d7e50f5b3dc206944ba8e577cde618513fd07daa53983" ;;
+    arm64) sha256="df31cb61680ef728f82c770e5280dd565617bee6b039d37e85c677288be4bbb0" ;;
+    *)
+      printf '%b' "${red}[error]${no_color} No pinned helm checksum for architecture '$arch' — helm not installed.\n"
+      return 1 ;;
+  esac
+  install_helm_tarball "https://get.helm.sh/helm-${version}-linux-${arch}.tar.gz" "$sha256" "$arch" /usr/local/bin
+}
+
 install_additional_setup() {
-  # Install helm via the official get-helm-3 script (it verifies the release
-  # tarball checksum). The script itself is pinned to the commit of a helm
-  # release tag and checked against its SHA-256 before it runs: from `main`,
-  # whatever that branch held on the day ran here unreviewed. To bump: take
-  # the commit of the new tag (`git ls-remote https://github.com/helm/helm
-  # 'refs/tags/vX.Y.Z^{}'`), fetch scripts/get-helm-3 at it, `sha256sum` it,
-  # and read its diff before replacing both values.
-  # Downloaded to a file first so an HTTP error or a truncated download never
-  # runs a partial script.
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Install helm\n\n"
   if ! command -v helm &>/dev/null; then
-    local helm_installer
-    # helm v4.3.1 (c0d08d0), read 2026-11-13.
-    local helm_installer_commit="c0d08d0d6d9424d4a14febb5e8a3e51b0dd00dff"
-    local helm_installer_sha256="08edc9569a7115a22fdc4ec164a653d072440ad14a8dbe51ca9b321c903c59a9"
-    helm_installer=$(mktemp)
-    curl -fsSL -o "$helm_installer" "https://raw.githubusercontent.com/helm/helm/${helm_installer_commit}/scripts/get-helm-3"
-    if ! echo "${helm_installer_sha256}  ${helm_installer}" | sha256sum -c --quiet -; then
-      rm -f "$helm_installer"
-      printf '%b' "${red}[error]${no_color} get-helm-3 does not match its pinned SHA-256 — helm not installed.\n"
-      return 1
-    fi
-    bash "$helm_installer"
-    rm -f "$helm_installer"
+    install_helm
   else
     printf '%b' "${red}[kubernetes]${no_color} helm already installed — skipping.\n"
   fi

@@ -48,19 +48,66 @@ For each task, the agent:
 1. moves it to `🔴 In progress`, so an interrupted run leaves a trace;
 2. implements it, with its tests and the docs it makes stale;
 3. runs the project's checks — a check it cannot run becomes a `🖐 Manual`
-   step, never a pass;
+   step, never a pass — then a real test: the command that exercises the change
+   the way its user would, run by the agent when it can, otherwise handed to
+   you as a "Try it" line;
 4. moves it to `✅ Done` with the date and how it was verified;
 5. proposes a Conventional Commit message and the files to stage, without
    committing.
 
 A task it cannot finish stays in `🔴 In progress`, marked
-`BLOCKED YYYY-MM-DD: <what is needed>`, and the agent stops to ask. A batch
-stops at its first blocker; later runs skip a `BLOCKED` task until the owner
-removes the marker or names the task.
+`BLOCKED YYYY-MM-DD: <what is needed>`, and the agent asks what to do. Later
+runs skip a `BLOCKED` task until the owner removes the marker or names the
+task.
 
 After the task — once at the end of a batch — the agent adds at most about five
-grounded recommendations and five security findings for triage. A batch ends
-with a commit plan: one commit per task, in order.
+grounded recommendations and five security findings for triage.
+
+### A whole batch with one command
+
+`/next-task all` is the one command for everything that is approved:
+
+1. It first lists the `BLOCKED` tasks and asks which blockers are resolved;
+   those join the run.
+2. It works the tasks one at a time. After each one it reports what changed,
+   the checks and their result, the "Try it" command with its success signal,
+   and the proposed commit message with its files.
+3. A task that blocks is marked and reported, and the run goes on with the
+   tasks that do not depend on it. The blockers are put to you once, at the
+   end.
+4. It ends with the summary and a commit plan — one commit per task, in order,
+   flagging the files several tasks changed.
+5. When `🖐 Manual` has open steps, it asks whether to go through them now and,
+   on a yes, continues with the guided session [below](#manual-steps).
+
+## Agent skills in Claude Code
+
+In Claude Code, `/next-task` also calls the skills of the `mattpocock-skills`
+plugin (see [Claude Code](./claude-code.md)) where they fit. The other tools do
+not have them and run the same steps without them.
+
+| Skill             | Used by `/next-task`                                                         |
+| ----------------- | ---------------------------------------------------------------------------- |
+| `diagnosing-bugs` | To find the cause of a `FIX` before changing anything                        |
+| `grilling`        | To settle an ambiguous task with you, in one round of questions              |
+| `to-tickets`      | To split a task too big for one change into ordered tasks                    |
+| `tdd`             | To write the test first for a `FEAT` or `FIX`                                |
+| `code-review`     | To review the task's changes once the checks pass, before it is recorded     |
+
+The same plugin feeds the file. In a repository set up with
+`/mattpocock-skills:setup-matt-pocock-skills` to use `TODO.md` as its tracker
+(this one is: see [Issue Tracker](../agents/issue-tracker.md)), the planning
+skills write tasks that `/next-task` then works:
+
+1. `/mattpocock-skills:grilling` settles a design with you.
+2. `/mattpocock-skills:to-spec` writes it to `.scratch/<feature>/spec.md`.
+3. `/mattpocock-skills:to-tickets` cuts it into task lines, added to
+   `🤖 Agent recommendations`.
+4. You approve them by moving them to `🟡 To do`.
+5. `/next-task all` works them.
+
+The plugin's `implement` skill is not used: it commits, and committing stays
+yours.
 
 ## Manual steps
 

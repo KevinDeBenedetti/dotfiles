@@ -64,7 +64,7 @@ Installed unconditionally before any profile (via `apt`):
 
 `ca-certificates`, `curl`, `gnupg`, `gzip`, `jq`, `unzip`, `wget`, `xz-utils`, `git`, `build-essential`
 
-[Oh My Zsh](https://ohmyz.sh) is also installed at this stage if `~/.oh-my-zsh` does not exist.
+[Oh My Zsh](https://ohmyz.sh) is also installed at this stage if `~/.oh-my-zsh` does not exist: its installer script is fetched at a pinned commit and runs only when it matches the SHA-256 pinned in `os/helpers/oh-my-zsh.sh`. Only the installer is pinned: it clones the current Oh My Zsh, which then updates itself.
 
 ## Profiles
 
@@ -88,6 +88,7 @@ Core CLI tools installed via `apt`. Split into lite (always) and additional (ful
 | `rsync`                                                                           | Incremental file transfer                                        |
 | [Terraform](https://developer.hashicorp.com/terraform)                            | Infrastructure as code, from HashiCorp's apt repository          |
 | [Git Credential Manager](https://github.com/git-ecosystem/git-credential-manager) | HTTPS Git credential helper behind `credential.helper = manager` |
+| [`proto`](https://moonrepo.dev/proto)                                             | Toolchain version manager (pinned release, SHA-256 verified)     |
 
 > Docker CE is installed from `https://download.docker.com/linux/debian` using the official GPG key. The calling user is automatically added to the `docker` group.
 
@@ -103,7 +104,6 @@ Core CLI tools installed via `apt`. Split into lite (always) and additional (ful
 | ------------------------------------- | ---------------------------------------------------------------------------- |
 | [`gh`](https://cli.github.com)        | GitHub CLI — PRs, issues, repos from the terminal                            |
 | `nmap`                                | Network exploration and port scanning                                        |
-| [`proto`](https://moonrepo.dev/proto) | Multi-language toolchain version manager (installed via curl if not present) |
 
 ### `security`
 
@@ -275,10 +275,10 @@ Tools for Kubernetes cluster management.
 
 **Additional (full mode):**
 
-| Tool                       | Description                                                               |
-| -------------------------- | ------------------------------------------------------------------------- |
-| [`helm`](https://helm.sh)  | Kubernetes package manager (official get-helm-3 script, downloaded first) |
-| [`k9s`](https://k9scli.io) | Terminal UI for Kubernetes clusters (latest release, SHA-256 verified)    |
+| Tool                       | Description                                                                |
+| -------------------------- | -------------------------------------------------------------------------- |
+| [`helm`](https://helm.sh)  | Kubernetes package manager (pinned release, SHA-256 verified; amd64/arm64) |
+| [`k9s`](https://k9scli.io) | Terminal UI for Kubernetes clusters (latest release, SHA-256 verified)     |
 
 ## Dotfiles Linking
 

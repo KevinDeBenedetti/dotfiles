@@ -410,7 +410,7 @@ setup() {
 }
 
 @test "shared helper scripts exist" {
-  for helper in completions proto; do
+  for helper in completions fetch oh-my-zsh proto; do
     assert_file_exists "$REPO_ROOT/os/helpers/${helper}.sh"
   done
 }

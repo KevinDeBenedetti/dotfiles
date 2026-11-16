@@ -62,6 +62,23 @@ manual mode, the skill's opening plan does it.
   for triage and of open `🖐 Manual` steps (`/next-task manual` takes those),
   and stop.
 
+## Agent skills
+
+When these skills are available (the `mattpocock-skills` plugin in Claude
+Code), call them at the step named here; without them, do the step as written.
+They never override this command or the project's guardrails: no commit, no
+push, and `TODO.md` stays in the `todo-md` format.
+
+| Skill             | When                                                                                          |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `diagnosing-bugs` | §4, for a `FIX` whose cause is not known yet                                                  |
+| `grilling`        | §4, when the task is ambiguous or needs the owner's decisions: one round, then carry on        |
+| `to-tickets`      | §4, to split a task too big for one change into ordered `TODO.md` tasks                        |
+| `tdd`             | §5, for a `FEAT` or `FIX` whose behavior a test can state first                               |
+| `code-review`     | §6, once the checks pass: review the task's uncommitted changes, fix what it finds, re-verify |
+
+Never call `implement`: it commits. This command is its replacement here.
+
 ## 4. Understand
 
 - Read the code the task touches before changing anything.
@@ -91,6 +108,11 @@ manual mode, the skill's opening plan does it.
   production or cluster access) is not a pass: add a `🖐 Manual` step with the
   exact command and its success signal, and say so.
 - A failure you cannot fix within the task's scope is a blocker (§8).
+- Then a **real test**, beyond the automated checks: the one command (or short
+  sequence) that exercises the change the way its user would, with what
+  success looks like. Run it yourself when your session allows and report the
+  output; otherwise hand it to the owner as the task's "Try it" line, and add
+  it as a `🖐 Manual` step when the task cannot be trusted without it.
 
 ## 7. Record
 
@@ -162,17 +184,32 @@ Never write a secret value into `TODO.md` — its location only.
 
 ## 10. Batch mode
 
+- Before the first task, list the `BLOCKED` tasks and ask the owner, in one
+  question, which blockers are resolved: those lose their marker and join the
+  scope; the others stay skipped.
 - One task at a time: §3 to §8 for each, re-reading `TODO.md` before every
-  pick. Give one line per task as you go.
+  pick. After each task, give its report before starting the next:
+
+  ```text
+  ✅ <TYPE>: <task>            (or ⛔ blocked: <what is needed>)
+  Changed: <what, in one or two lines>
+  Checks:  <commands run> → <result>
+  Try it:  <command> → <what success looks like>   (ran it: <output> | yours to run)
+  Commit:  <Conventional Commit message>
+  Files:   <paths>
+  ```
 - The scope is frozen at the start: the candidate tasks (§3), or the first `N`
   of them. Sub-tasks from a split replace their task; what you add to other
   sections during the run is not worked.
-- Stop when the scope is done, or at the first blocker (§8): ask, and resume
-  the remaining tasks only once the owner has decided.
+- A task that blocks (§8) does not end the run: mark it, report it, and go on
+  with the tasks that do not depend on it. Stop early only when nothing left
+  can be worked without it. Ask about every blocker once, at the end.
 - If the per-task checks were targeted, run the project's full check once at
   the end. When it fails, find the task that broke it and treat it as a
   blocker.
 - Then §9, once, and the summary.
+- Last, when `🖐 Manual` has open steps, ask the owner whether to go through
+  them now; on a yes, continue with §11 in the same session.
 
 ## 11. Manual mode
 
@@ -184,11 +221,11 @@ picked, and nothing outside `TODO.md` changes unless the owner asks for it.
 ## 12. Summary
 
 - **Single mode**: the task (done or blocked), files changed, checks run and
-  their result, `🖐 Manual` steps added, recommendations and findings added,
+  their result, the "Try it" line (§6), `🖐 Manual` steps added, recommendations and findings added,
   and the proposed commit (message and files).
-- **Batch mode**: tasks done, the task that halted the run and why, `BLOCKED`
-  tasks skipped, checks, manual steps, recommendations and findings, then a
-  **commit plan**: one commit per task, in order, each with its message and
+- **Batch mode**: tasks done, tasks blocked during the run and what each
+  needs, `BLOCKED` tasks skipped, checks, the "Try it" lines still the owner's
+  to run, manual steps, recommendations and findings, then a **commit plan**: one commit per task, in order, each with its message and
   files. Flag the files several tasks changed — `TODO.md` always is, unless
   git ignores it — and those that already had changes, so the owner stages
   them hunk by hunk (`git add -p`).

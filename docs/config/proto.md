@@ -8,13 +8,14 @@ Global [proto](https://moonrepo.dev/proto) toolchain configuration.
 
 ## Installation
 
-proto is installed via its official installer (run automatically with the `base` profile):
+`os/helpers/proto.sh` installs proto (run automatically with the `base`
+profile, and on Debian also when linking dotfiles). It downloads the release tarball of the
+version pinned in the script from GitHub, checks it against the SHA-256 pinned
+next to it, and installs `proto` and `proto-shim` into `~/.proto/bin`. No
+installer script is fetched. Builds are pinned for Linux and macOS, x86_64 and
+arm64; `proto upgrade` moves to newer releases afterwards.
 
-```sh
-curl -fsSL https://moonrepo.dev/install/proto.sh | bash -s -- --no-profile
-```
-
-> `--no-profile` skips patching shell files. Shell integration is managed by `os/helpers/proto.sh`, which adds the following block to `~/.zshrc` if not already present:
+> Shell integration is managed by the same script, which adds the following block to `~/.zshrc` if not already present:
 >
 > ```sh
 > export PROTO_HOME="$HOME/.proto"

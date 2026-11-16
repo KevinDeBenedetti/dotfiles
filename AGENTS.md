@@ -7,8 +7,8 @@ it through [`CLAUDE.md`](CLAUDE.md).
 ## Commands
 
 Run `make ci` before declaring a change done (`make submodules` first on a
-fresh clone; `make help` lists every target). Docker/Lima targets
-(`docker-test-*`, `vm-*`) are slow integration runs: only on request.
+fresh clone; `make help` lists every target). Docker targets
+(`docker-test-*`) are slow integration runs: only on request.
 
 ## Conventions
 
@@ -59,11 +59,11 @@ update its "Existing skills" table when adding one.
 
 ### Issue tracker
 
-Issues are markdown files under the gitignored `.scratch/<feature>/`; `TODO.md` stays the owner's own list. See `docs/agents/issue-tracker.md`.
+Tickets are task lines in the gitignored `TODO.md` (`todo-md` format), worked by `/next-task`; specs and wayfinder maps are files in the gitignored `.scratch/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Default role strings (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) on each issue's `Status:` line. See `docs/agents/triage-labels.md`.
+Triage roles map to `TODO.md` sections and `BLOCKED` markers, not labels. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 

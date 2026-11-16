@@ -169,9 +169,10 @@ through the `~/.claude/settings.json` symlink into the tracked file.
 `mattpocock-skills` skills are namespaced (`/mattpocock-skills:tdd`, …). Its
 workflow skills (`triage`, `to-spec`, `to-tickets`, `wayfinder`) read a
 per-repository setup: run `/mattpocock-skills:setup-matt-pocock-skills` once in
-each repository that uses them. In this repository their issues are local
-markdown files under the gitignored `.scratch/`, apart from `TODO.md`: see
-[Issue Tracker](../agents/issue-tracker.md).
+each repository that uses them. In this repository that setup makes `TODO.md`
+their tracker, so the tickets they write are worked by `/next-task`: see
+[Issue Tracker](../agents/issue-tracker.md) and
+[TODO Workflow](./todo-workflow.md#agent-skills-in-claude-code).
 
 Unused skills are hidden from the model through `skillOverrides` (value
 `user-invocable-only`): they leave the skill listing Claude reads at the start

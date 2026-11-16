@@ -205,7 +205,10 @@ if [ ! -d "$HOME/.oh-my-zsh" ]; then
   printf '%b' "\n${red}${i}.${no_color} Install oh-my-zsh\n\n"
   i=$(($i + 1))
 
-  RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  # Installer pinned by commit and SHA-256 (os/helpers/oh-my-zsh.sh).
+  # shellcheck source=../helpers/oh-my-zsh.sh
+  source "$HELPERS_DIR/oh-my-zsh.sh"
+  install_oh_my_zsh
 fi
 
 
@@ -216,7 +219,7 @@ if [[ "$INSTALL_BASE" = "true" ]]; then
 
   bash "$SCRIPT_PATH/setup-base.sh"
 
-  # Install proto (official installer) and configure shell integration
+  # Install proto (pinned release, SHA-256 checked) and configure shell integration
   bash "$HELPERS_DIR/proto.sh"
 fi
 
