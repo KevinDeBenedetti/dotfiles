@@ -154,26 +154,31 @@ changes. Two variables, set in the `env` block, tune it:
 
 ### Plugins
 
-The `ecc` plugin (marketplace `affaan-m/ECC`) is enabled with its hooks on.
-Individual ECC hooks are turned off through the `env` block, which applies to
-every session and its subprocesses:
+Two plugins are enabled in `enabledPlugins`:
 
-| Variable             | Value                 | Effect                                                                                          |
-| -------------------- | --------------------- | ----------------------------------------------------------------------------------------------- |
-| `ECC_DISABLED_HOOKS` | `stop:desktop-notify` | No macOS notification (via `osascript`, owned by Script Editor) each time Claude stops replying |
-| `ECC_GATEGUARD`      | `off`                 | No GateGuard fact-forcing denials (first Bash/Edit, destructive commands); retry always passed  |
+| Plugin                                      | Source                                                                                  | Ships                                                |
+| ------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `hyperframes@hyperframes`                   | marketplace `heygen-com/hyperframes` (declared in `extraKnownMarketplaces`)             | Video skills (HTML rendered to video)                |
+| `mattpocock-skills@claude-plugins-official` | Anthropic's built-in marketplace, which pins `mattpocock/skills` to a commit            | Engineering skills only (no hooks, no MCP servers)   |
 
-`ECC_DISABLED_HOOKS` takes a comma-separated list of ECC hook IDs;
-`ECC_GATEGUARD=off` is GateGuard's own global switch.
+Plugin hooks and MCP servers run outside the Bash sandbox, so each plugin added
+is trusted with your account. Install one with
+`claude plugin install <plugin>@<marketplace>`: it writes `enabledPlugins`
+through the `~/.claude/settings.json` symlink into the tracked file.
+
+`mattpocock-skills` skills are namespaced (`/mattpocock-skills:tdd`, …). Its
+workflow skills (`triage`, `to-spec`, `to-tickets`, `wayfinder`) read a
+per-repository setup: run `/mattpocock-skills:setup-matt-pocock-skills` once in
+each repository that uses them. In this repository their issues are local
+markdown files under the gitignored `.scratch/`, apart from `TODO.md`: see
+[Issue Tracker](../agents/issue-tracker.md).
 
 Unused skills are hidden from the model through `skillOverrides` (value
 `user-invocable-only`): they leave the skill listing Claude reads at the start
-of every session but stay available by hand as `/<name>`. ECC's ~400 skills and
-commands overflow that listing's budget on their own, which truncates every
-description, so only the ECC ones in use stay visible (`code-review`,
-`agent-security-hardening`, `skill-health`, `skill-stocktake`,
-`nextjs-turbopack`); the claude.ai-synced skills, `langfuse` and `context7-mcp`
-are hidden the same way. Delete an entry to make the skill visible again.
+of every session but stay available by hand as `/<name>`. The claude.ai-synced
+skills, `langfuse` and `context7-mcp` are hidden this way, which keeps the
+listing within its budget so the descriptions of the visible skills are not
+truncated. Delete an entry to make the skill visible again.
 
 `disableClaudeAiConnectors: true` keeps the claude.ai connectors (Gmail, Google
 Calendar, …) out of Claude Code; they stay available on claude.ai.

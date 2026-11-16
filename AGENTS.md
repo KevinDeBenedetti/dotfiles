@@ -54,3 +54,17 @@ update its "Existing skills" table when adding one.
 - `kubectl` is read-only for agents; mutating verbs are denied.
 - **Dev ports**: follow the slot convention in `~/.claude/dev-ports.md`
   when a project publishes host ports.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are markdown files under the gitignored `.scratch/<feature>/`; `TODO.md` stays the owner's own list. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default role strings (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) on each issue's `Status:` line. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root, created only when needed. See `docs/agents/domain.md`.

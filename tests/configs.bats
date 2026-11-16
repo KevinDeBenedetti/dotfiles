@@ -361,11 +361,18 @@ setup() {
   done
 }
 
-@test "ECC: GateGuard off and desktop notifications disabled through env" {
-  run jq -r '.env.ECC_GATEGUARD' "$CONFIG_DIR/claude/settings.json"
-  assert_output "off"
-  run jq -r '.env.ECC_DISABLED_HOOKS' "$CONFIG_DIR/claude/settings.json"
-  assert_output --partial "stop:desktop-notify"
+@test "mattpocock-skills comes from the official marketplace, not a re-declared one" {
+  run jq -r '.enabledPlugins["mattpocock-skills@claude-plugins-official"]' "$CONFIG_DIR/claude/settings.json"
+  assert_output "true"
+  # The built-in marketplace pins the plugin to a commit; a second
+  # declaration of the repo would track its default branch instead.
+  run jq -e '.extraKnownMarketplaces // {} | has("mattpocock")' "$CONFIG_DIR/claude/settings.json"
+  assert_failure
+}
+
+@test "the ECC plugin is not enabled or declared" {
+  run jq -e '(.enabledPlugins // {} | has("ecc@ecc")) or (.extraKnownMarketplaces // {} | has("ecc"))' "$CONFIG_DIR/claude/settings.json"
+  assert_failure
 }
 
 @test "VS Code settings survive an unresolved shell env: \${userHome} paths, longer timeout" {

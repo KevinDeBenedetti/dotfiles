@@ -26,3 +26,5 @@ id_ecdsa
 .DS_Store
 .claude/
 TODO.md
+# Specs and wayfinder maps of the agent skills (docs/agents/issue-tracker.md)
+.scratch/
