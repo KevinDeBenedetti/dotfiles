@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.11.0...v0.12.0) (2026-11-16)
+
+
+### Features
+
+* **debian, macos:** install oh-my-zsh and proto from pinned releases ([6de2274](https://github.com/KevinDeBenedetti/dotfiles/commit/6de22742ce9b1568d027aedd277652a31b5eedb9))
+
 ## [0.11.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.10.0...v0.11.0) (2026-11-15)
 
 
