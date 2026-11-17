@@ -43,16 +43,32 @@ lite_body() { sed -n '/^install_lite_setup()/,/^}/p' "$1"; }
   run lite_body "$MACOS_BASE"
   assert_output --partial 'install_cask git-credential-manager'
   run lite_body "$DEBIAN_BASE"
-  assert_output --partial 'git-ecosystem/git-credential-manager'
+  assert_output --partial 'install_gcm'
 }
 
-@test "the Debian GCM .deb is checked against GitHub's SHA-256 digest before install" {
-  run lite_body "$DEBIAN_BASE"
-  assert_output --partial '.digest'
-  assert_output --partial 'sha256sum -c'
-  # Never piped from curl into a shell or dpkg.
-  run grep -E 'curl[^|]*git-credential-manager[^|]*\|[[:space:]]*(ba)?sh' "$DEBIAN_BASE"
+@test "install_gcm installs one pinned Git Credential Manager .deb, checked against its pinned SHA-256" {
+  SUDO="" red="" no_color=""
+  dpkg() { echo "${FAKE_ARCH:-amd64}"; }
+  install_deb_verified() { echo "$*"; }
+  eval "$(sed -n '/^install_gcm()/,/^}/p' "$DEBIAN_BASE")"
+  declare -F install_gcm >/dev/null || fail "install_gcm not found"
+  run install_gcm
+  assert_success
+  assert_output --regexp '^git-credential-manager https://github\.com/git-ecosystem/git-credential-manager/releases/download/v[0-9.]+/gcm-linux-x64-[0-9.]+\.deb [0-9a-f]{64}$'
+  # The asset name repeats the version, without its leading v.
+  local v
+  v=$(sed -n 's|.*/download/v\([0-9.]*\)/.*|\1|p' <<<"$output")
+  assert_output --partial "gcm-linux-x64-$v.deb"
+  FAKE_ARCH=arm64 run install_gcm
+  assert_output --regexp 'gcm-linux-arm64-[0-9.]+\.deb'
+  FAKE_ARCH=armhf run install_gcm
   assert_failure
+  assert_output --partial "armhf"
+}
+
+@test "Git Credential Manager no longer follows the latest release" {
+  run grep -c 'git-credential-manager/releases/latest' "$DEBIAN_BASE"
+  assert_output "0"
 }
 
 @test "the Debian base script trusts an apt key only after its fingerprint check" {

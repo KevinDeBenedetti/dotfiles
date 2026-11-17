@@ -61,12 +61,17 @@ RUN sudo apt-get update \
     && sudo apt-get install -y --no-install-recommends zsh jq \
     && sudo rm -rf /var/lib/apt/lists/*
 
-# Install oh-my-zsh (required for dotfile linking)
-# Installer pinned to a commit SHA (oh-my-zsh ships no release tags) for reproducibility.
-RUN RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/df34d2b8d575777465aed8ae9b7cd90d63fdcd6e/tools/install.sh)"
-
-# Run dotfile linking only
+# Run dotfile linking only. init.sh installs oh-my-zsh first (required for
+# dotfile linking), from the commit pinned in os/helpers/oh-my-zsh.sh.
 RUN bash /home/tester/.dotfiles/os/debian/init.sh -d
+
+# oh-my-zsh comes from init.sh itself (os/helpers/oh-my-zsh.sh), at the commit
+# pinned there: the stage exercises that install instead of pre-installing one.
+RUN pinned=$(sed -n '/^install_oh_my_zsh()/,/^}/s/.*local commit="\([0-9a-f]\{40\}\)".*/\1/p' /home/tester/.dotfiles/os/helpers/oh-my-zsh.sh) \
+    && test -n "$pinned" \
+    && test "$(git -C "$HOME/.oh-my-zsh" rev-parse HEAD)" = "$pinned" \
+    && test -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" \
+    && echo "oh-my-zsh at pinned commit $pinned verified"
 
 # Verify dotfiles were linked
 RUN test -f "$HOME/.zshrc" \
@@ -182,6 +187,50 @@ RUN grep -q "/dev/shm" /etc/fstab \
     && echo "Shared memory fstab entry verified"
 
 # ---------------------------------------------------------------------------
+# Stage: test-security-full — the full-mode security steps: CrowdSec from its
+# signed apt repository (pinned key fingerprint) and the audit tools.
+# ---------------------------------------------------------------------------
+FROM base AS test-security-full
+
+# The slim image has no systemd: the crowdsec and bouncer packages call
+# systemctl from their post-install scripts (enable, start), and dpkg aborts
+# without it. A no-op stand-in lets them install; starting services is not
+# what this stage checks, and a real host has systemd. It goes in /usr/bin:
+# maintainer scripts may set a PATH without /usr/local/bin, and the image
+# has no systemctl there to overwrite.
+RUN test ! -e /usr/bin/systemctl \
+    && printf '#!/bin/sh\nexit 0\n' | sudo tee /usr/bin/systemctl > /dev/null \
+    && sudo chmod 755 /usr/bin/systemctl
+
+# Run the two full-mode functions on their own, with every failure fatal: the
+# lite steps need systemd, sshd and netfilter, which a container lacks, and are
+# covered by test-security. A key that fails its fingerprint check fails here.
+RUN export SUDO="sudo" \
+    && sudo apt-get update -qq \
+    && bash -euo pipefail -c ' \
+      red="" no_color="" SUDO=sudo; \
+      eval "$(sed -n "/^install_configure_crowdsec()/,/^}/p" /home/tester/.dotfiles/os/debian/setup-security.sh)"; \
+      eval "$(sed -n "/^install_audit_tools()/,/^}/p" /home/tester/.dotfiles/os/debian/setup-security.sh)"; \
+      install_configure_crowdsec; \
+      install_audit_tools \
+    '
+
+# CrowdSec came from its own repository, trusted through the pinned keyring
+RUN test "$(stat -c '%a' /etc/apt/keyrings/crowdsec_crowdsec-archive-keyring.gpg)" = 644 \
+    && grep -q 'signed-by=/etc/apt/keyrings/crowdsec_crowdsec-archive-keyring.gpg' /etc/apt/sources.list.d/crowdsec_crowdsec.list \
+    && apt-cache policy crowdsec | grep -q 'packagecloud.io/crowdsec' \
+    && cscli version \
+    && dpkg -s crowdsec-firewall-bouncer-iptables > /dev/null \
+    && echo "CrowdSec install verified"
+
+# Audit tools
+RUN command -v lynis \
+    && command -v rkhunter \
+    && command -v chkrootkit \
+    && sudo test -x /sbin/auditctl \
+    && echo "Audit tools verified"
+
+# ---------------------------------------------------------------------------
 # Stage: test-full — full install with all profiles (-a -l for lite mode)
 # ---------------------------------------------------------------------------
 FROM base AS test-full
@@ -205,12 +254,17 @@ RUN sudo usermod -aG sudo tester \
     && echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDockerTestKeyNotARealKey000000000000000 tester@test" > "$HOME/.ssh/authorized_keys" \
     && chmod 600 "$HOME/.ssh/authorized_keys"
 
-# Install oh-my-zsh (installer pinned to a commit SHA for reproducibility)
-RUN RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/df34d2b8d575777465aed8ae9b7cd90d63fdcd6e/tools/install.sh)"
-
 # Run full install in lite mode (all profiles enabled, skip heavy tools)
 RUN sudo mkdir -p /etc/ssh/sshd_config.d /etc/sysctl.d \
     && bash /home/tester/.dotfiles/os/debian/init.sh -a -l 2>&1 || true
+
+# oh-my-zsh comes from init.sh itself (os/helpers/oh-my-zsh.sh), at the commit
+# pinned there: the stage exercises that install instead of pre-installing one.
+RUN pinned=$(sed -n '/^install_oh_my_zsh()/,/^}/s/.*local commit="\([0-9a-f]\{40\}\)".*/\1/p' /home/tester/.dotfiles/os/helpers/oh-my-zsh.sh) \
+    && test -n "$pinned" \
+    && test "$(git -C "$HOME/.oh-my-zsh" rev-parse HEAD)" = "$pinned" \
+    && test -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" \
+    && echo "oh-my-zsh at pinned commit $pinned verified"
 
 # Verify base profile artifacts
 RUN command -v docker \

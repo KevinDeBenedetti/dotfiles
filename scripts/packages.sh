@@ -22,7 +22,10 @@ install_macos() {
 
   if ! command -v brew >/dev/null; then
     echo "Installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # Installer pinned by commit and SHA-256.
+    # shellcheck source=../os/helpers/homebrew.sh
+    source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/os/helpers/homebrew.sh"
+    install_homebrew
   fi
 
   brew install \

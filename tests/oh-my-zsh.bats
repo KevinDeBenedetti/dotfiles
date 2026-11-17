@@ -1,8 +1,9 @@
 #!/usr/bin/env bats
 
-# Tests for os/helpers/oh-my-zsh.sh: the oh-my-zsh installer runs only when it
-# is the script pinned by commit and SHA-256. The functions run for real, with
-# curl stubbed to "download" a fake installer.
+# Tests for clone_at_commit (os/helpers/fetch.sh) and os/helpers/oh-my-zsh.sh:
+# a repository is cloned at one pinned commit, whose hash git itself verifies;
+# no installer script is fetched or run. The clone runs for real against a
+# local fixture repository.
 
 setup() {
   DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
@@ -13,55 +14,136 @@ setup() {
   load 'test_helper/bats-file/load'
 
   export TMPDIR="$BATS_TEST_TMPDIR"
-  export RAN="$BATS_TEST_TMPDIR/installer-ran"
-  # A fake installer that records that it ran, and with which settings.
-  FAKE_INSTALLER="$BATS_TEST_TMPDIR/install.sh"
-  printf 'echo "RUNZSH=$RUNZSH CHSH=$CHSH KEEP_ZSHRC=$KEEP_ZSHRC" > "$RAN"\n' > "$FAKE_INSTALLER"
+  # Keep the owner's git config (signing, url rewrites) out of the fixture.
+  export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+  export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid
+  export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid
 
-  curl() {
-    local out="" prev="" arg
-    for arg in "$@"; do [ "$prev" = "-o" ] && out="$arg"; prev="$arg"; done
-    echo "$*" >> "$BATS_TEST_TMPDIR/curl.log"
-    cp "$FAKE_INSTALLER" "$out"
-  }
+  # An "upstream" whose master has moved on since the commit we pin.
+  UPSTREAM="$BATS_TEST_TMPDIR/upstream"
+  git init -q -b master "$UPSTREAM"
+  PINNED=$(fixture_commit "pinned")
+  fixture_commit "newer, unreviewed" > /dev/null
+  # GitHub serves any reachable commit by hash; a local repo must opt in.
+  git -C "$UPSTREAM" config uploadpack.allowAnySHA1InWant true
+
+  DEST="$BATS_TEST_TMPDIR/home/.oh-my-zsh"
   source "$REPO_ROOT/os/helpers/oh-my-zsh.sh"
 }
 
-sha256_of() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
+# Record a new state of the fixture's oh-my-zsh.sh on its master and print the
+# new commit's hash.
+fixture_commit() {
+  echo "$1" > "$UPSTREAM/oh-my-zsh.sh"
+  git -C "$UPSTREAM" add oh-my-zsh.sh
+  git -C "$UPSTREAM" commit -q -m "$1"
+  git -C "$UPSTREAM" rev-parse HEAD
+}
 
-@test "run_oh_my_zsh_installer runs a matching installer unattended, keeping .zshrc" {
-  run run_oh_my_zsh_installer https://example.invalid/install.sh "$(sha256_of "$FAKE_INSTALLER")"
+@test "clone_at_commit checks out the pinned commit, not the branch tip" {
+  run clone_at_commit oh-my-zsh "file://$UPSTREAM" "$PINNED" "$DEST"
   assert_success
-  run cat "$RAN"
-  assert_output "RUNZSH=no CHSH=no KEEP_ZSHRC=yes"
+  run git -C "$DEST" rev-parse HEAD
+  assert_output "$PINNED"
+  run cat "$DEST/oh-my-zsh.sh"
+  assert_output "pinned"
 }
 
-@test "run_oh_my_zsh_installer never runs an installer that does not match" {
-  run run_oh_my_zsh_installer https://example.invalid/install.sh \
-    0000000000000000000000000000000000000000000000000000000000000000
+@test "clone_at_commit leaves a checkout that oh-my-zsh can update from master" {
+  clone_at_commit oh-my-zsh "file://$UPSTREAM" "$PINNED" "$DEST"
+  # A bare `git pull` only works through the branch's tracking config.
+  run git -C "$DEST" pull -q --rebase
+  assert_success
+  run cat "$DEST/oh-my-zsh.sh"
+  assert_output "newer, unreviewed"
+}
+
+@test "clone_at_commit refuses an existing destination and leaves it untouched" {
+  mkdir -p "$DEST"
+  echo "mine" > "$DEST/keep"
+  run clone_at_commit oh-my-zsh "file://$UPSTREAM" "$PINNED" "$DEST"
   assert_failure
-  assert_output --partial "pinned SHA-256"
-  assert_file_not_exists "$RAN"
+  assert_output --partial "already exists"
+  run cat "$DEST/keep"
+  assert_output "mine"
 }
 
-@test "run_oh_my_zsh_installer reports a failing installer and leaves no temp files" {
-  printf 'exit 7\n' > "$FAKE_INSTALLER"
-  run run_oh_my_zsh_installer https://example.invalid/install.sh "$(sha256_of "$FAKE_INSTALLER")"
-  assert_failure 7
-  run find "$BATS_TEST_TMPDIR" -maxdepth 1 -name 'oh-my-zsh.*'
+@test "clone_at_commit leaves no group- or world-writable files, whatever the umask" {
+  umask 000
+  clone_at_commit oh-my-zsh "file://$UPSTREAM" "$PINNED" "$DEST"
+  run find "$DEST" -perm -020 -o -perm -002
   assert_output ""
 }
 
-@test "install_oh_my_zsh fetches the installer at a pinned commit and rejects other bytes" {
-  run install_oh_my_zsh
+@test "clone_at_commit leaves no partial clone next to the destination on failure" {
+  run clone_at_commit oh-my-zsh "file://$UPSTREAM" 0123456789abcdef0123456789abcdef01234567 "$DEST"
   assert_failure
-  assert_output --partial "pinned SHA-256"
-  assert_file_not_exists "$RAN"
-  run cat "$BATS_TEST_TMPDIR/curl.log"
-  assert_output --regexp 'https://raw\.githubusercontent\.com/ohmyzsh/ohmyzsh/[0-9a-f]{40}/tools/install\.sh$'
+  run find "$BATS_TEST_TMPDIR/home" -mindepth 1
+  assert_output ""
 }
 
-@test "no init script fetches the oh-my-zsh installer from a branch" {
-  run grep -rnE 'ohmyzsh/ohmyzsh/(master|main)/' "$REPO_ROOT/os"
+@test "clone_at_commit fails on a commit the remote does not have, and leaves nothing" {
+  run clone_at_commit oh-my-zsh "file://$UPSTREAM" 0123456789abcdef0123456789abcdef01234567 "$DEST"
   assert_failure
+  assert_output --partial "oh-my-zsh not installed"
+  assert_dir_not_exists "$DEST"
+}
+
+@test "clone_at_commit refuses anything but a full commit hash" {
+  local ref
+  for ref in master "" "${PINNED:0:12}"; do
+    run clone_at_commit oh-my-zsh "file://$UPSTREAM" "$ref" "$DEST"
+    assert_failure
+    assert_dir_not_exists "$DEST"
+  done
+}
+
+@test "install_oh_my_zsh clones the official repository at one pinned commit" {
+  clone_at_commit() { echo "$*"; }
+  HOME="$BATS_TEST_TMPDIR/home" run install_oh_my_zsh
+  assert_success
+  # oh-my-zsh.remote and oh-my-zsh.branch are what its updater (tools/upgrade.sh) reads.
+  assert_output --regexp "^oh-my-zsh https://github\.com/ohmyzsh/ohmyzsh\.git [0-9a-f]{40} $BATS_TEST_TMPDIR/home/\.oh-my-zsh oh-my-zsh\.remote=origin oh-my-zsh\.branch=master$"
+}
+
+@test "no oh-my-zsh installer script is fetched by the setup scripts" {
+  run grep -rn 'tools/install.sh' "$REPO_ROOT/os"
+  assert_failure
+}
+
+@test "clone_at_commit sets extra git config in the clone before it is in place" {
+  clone_at_commit oh-my-zsh "file://$UPSTREAM" "$PINNED" "$DEST" oh-my-zsh.remote=origin oh-my-zsh.branch=master
+  run git -C "$DEST" config oh-my-zsh.remote
+  assert_output "origin"
+  run git -C "$DEST" config oh-my-zsh.branch
+  assert_output "master"
+}
+
+@test "clone_at_commit leaves no destination when an extra git config fails" {
+  run clone_at_commit oh-my-zsh "file://$UPSTREAM" "$PINNED" "$DEST" "not a valid key=x"
+  assert_failure
+  assert_dir_not_exists "$DEST"
+  run find "$BATS_TEST_TMPDIR/home" -mindepth 1
+  assert_output ""
+}
+
+@test "install_zsh_completions clones zsh-completions at one pinned commit into the given dir" {
+  clone_at_commit() { echo "$*"; }
+  run install_zsh_completions "$BATS_TEST_TMPDIR/plugins/zsh-completions"
+  assert_success
+  assert_output --regexp "^zsh-completions https://github\.com/zsh-users/zsh-completions\.git [0-9a-f]{40} $BATS_TEST_TMPDIR/plugins/zsh-completions$"
+}
+
+@test "no init script clones zsh-completions from its default branch" {
+  run grep -n 'git clone .*zsh-completions' "$REPO_ROOT/os/debian/init.sh" "$REPO_ROOT/os/macos/init.sh"
+  assert_failure 1
+  run grep -c 'install_zsh_completions "$ZSH_COMP_PLUGIN"' "$REPO_ROOT/os/debian/init.sh" "$REPO_ROOT/os/macos/init.sh"
+  assert_line --regexp 'debian/init\.sh:1$'
+  assert_line --regexp 'macos/init\.sh:1$'
+}
+
+@test "the macOS completions step resolves the oh-my-zsh dir from \$HOME, not a literal ~" {
+  # Inside double quotes "~" is not expanded: the plugin landed in ./~/.oh-my-zsh.
+  run grep -n 'ZSH_COMP_PLUGIN=.*ZSH:-~' "$REPO_ROOT/os/macos/init.sh" "$REPO_ROOT/os/debian/init.sh"
+  assert_failure 1
 }

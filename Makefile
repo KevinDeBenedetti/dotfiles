@@ -69,7 +69,7 @@ validate: ## Validate YAML files with yamllint
 # Docker
 # ──────────────────────────────────────────────────────────────────────────────
 
-.PHONY: docker-build docker-test-bats docker-test-init docker-test-dotfiles docker-test-security docker-test-full
+.PHONY: docker-build docker-test-bats docker-test-init docker-test-dotfiles docker-test-base docker-test-security docker-test-security-full docker-test-full
 
 docker-build: ## Build all Docker test stages
 	docker-compose -f $(DOCKER_COMPOSE) build
@@ -83,8 +83,14 @@ docker-test-init: ## Validate init.sh flag parsing in Docker
 docker-test-dotfiles: ## Run dotfile-only install and verify symlinks in Docker
 	docker build -f $(DOCKER_FILE) --target test-dotfiles -t dotfiles-test-dotfiles .
 
+docker-test-base: ## Run the base profile (lite mode) and verify its tools in Docker
+	docker build -f $(DOCKER_FILE) --target test-base -t dotfiles-test-base .
+
 docker-test-security: ## Run security profile and verify configs in Docker
 	docker build -f $(DOCKER_FILE) --target test-security -t dotfiles-test-security .
+
+docker-test-security-full: ## Install CrowdSec and the audit tools (full-mode security) in Docker
+	docker build -f $(DOCKER_FILE) --target test-security-full -t dotfiles-test-security-full .
 
 docker-test-full: ## Run full integration test (all profiles) in Docker
 	docker build -f $(DOCKER_FILE) --target test-full -t dotfiles-test-full .

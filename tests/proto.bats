@@ -26,20 +26,6 @@ setup() {
   source "$PROTO_SCRIPT"
 }
 
-# A well-formed proto release tarball for $1 whose binaries print their name.
-fake_proto_tarball() {
-  command -v xz >/dev/null || skip "xz not installed"
-  local target="$1" dir="$BATS_TEST_TMPDIR/pkg/proto_cli-$1"
-  mkdir -p "$dir"
-  printf '#!/bin/sh\necho fake proto\n' > "$dir/proto"
-  printf '#!/bin/sh\necho fake shim\n' > "$dir/proto-shim"
-  chmod +x "$dir/proto" "$dir/proto-shim"
-  tar -cJf "$BATS_TEST_TMPDIR/proto.tar.xz" -C "$BATS_TEST_TMPDIR/pkg" "proto_cli-$target"
-  FAKE_DOWNLOAD="$BATS_TEST_TMPDIR/proto.tar.xz"
-}
-
-sha256_of() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
-
 @test "proto_release_target names the release build of each supported platform" {
   FAKE_OS=Linux FAKE_MACHINE=x86_64 run proto_release_target
   assert_output "x86_64-unknown-linux-gnu"
@@ -56,26 +42,11 @@ sha256_of() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shas
   assert_failure
 }
 
-@test "install_proto_tarball installs proto and proto-shim from a tarball that matches" {
-  fake_proto_tarball x86_64-unknown-linux-gnu
-  run install_proto_tarball https://example.invalid/p.tar.xz "$(sha256_of "$FAKE_DOWNLOAD")" \
-    x86_64-unknown-linux-gnu "$BATS_TEST_TMPDIR/home/bin"
+@test "install_proto installs proto and proto-shim from the tarball into the bin dir, without sudo" {
+  install_from_tarball() { echo "$*"; }
+  FAKE_OS=Darwin FAKE_MACHINE=arm64 run install_proto "$BATS_TEST_TMPDIR/home/bin"
   assert_success
-  run "$BATS_TEST_TMPDIR/home/bin/proto"
-  assert_output "fake proto"
-  run "$BATS_TEST_TMPDIR/home/bin/proto-shim"
-  assert_output "fake shim"
-}
-
-@test "install_proto_tarball installs nothing from a download that does not match" {
-  printf 'not proto\n' > "$BATS_TEST_TMPDIR/payload"
-  FAKE_DOWNLOAD="$BATS_TEST_TMPDIR/payload"
-  run install_proto_tarball https://example.invalid/p.tar.xz \
-    0000000000000000000000000000000000000000000000000000000000000000 \
-    x86_64-unknown-linux-gnu "$BATS_TEST_TMPDIR/home/bin"
-  assert_failure
-  assert_output --partial "pinned SHA-256"
-  assert_file_not_exists "$BATS_TEST_TMPDIR/home/bin/proto"
+  assert_output --regexp "^proto https://github\.com/moonrepo/proto/releases/download/v[0-9.]+/proto_cli-aarch64-apple-darwin\.tar\.xz [0-9a-f]{64} $BATS_TEST_TMPDIR/home/bin proto_cli-aarch64-apple-darwin/proto proto_cli-aarch64-apple-darwin/proto-shim\$"
 }
 
 @test "install_proto requests one pinned GitHub release and rejects other bytes" {

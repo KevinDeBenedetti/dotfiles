@@ -410,7 +410,7 @@ setup() {
 }
 
 @test "shared helper scripts exist" {
-  for helper in completions fetch oh-my-zsh proto; do
+  for helper in completions fetch homebrew oh-my-zsh proto; do
     assert_file_exists "$REPO_ROOT/os/helpers/${helper}.sh"
   done
 }
@@ -684,4 +684,78 @@ todo_layout() {
   assert_output --partial 'IgnoreUnknown UseKeychain'
   run ssh -G -F "$REPO_ROOT/config/ssh/config" example.invalid
   assert_success
+}
+
+@test "the Docker stages install oh-my-zsh through init.sh, never from an installer script" {
+  # A pre-installed oh-my-zsh would skip init.sh's own pinned clone, so the
+  # stages would test a different install than the one users get.
+  run grep -n 'ohmyzsh/ohmyzsh/.*/tools/install.sh' "$REPO_ROOT/tests/docker/Dockerfile.test"
+  assert_failure
+  run grep -c 'oh-my-zsh at pinned commit' "$REPO_ROOT/tests/docker/Dockerfile.test"
+  assert_output "2"
+}
+
+@test "every pinned release version in the install scripts is tracked by Renovate" {
+  # Each `local version=` pin carries a `# renovate:` annotation on the line
+  # above, and renovate.json has a regex manager for that file and line shape.
+  local f
+  for f in os/debian/setup-kubernetes.sh os/debian/setup-base.sh os/helpers/proto.sh; do
+    run awk '/^[[:space:]]*local version="/ { if (prev !~ /# renovate: datasource=[^ ]+ depName=[^ ]+/) bad++ } { prev = $0 } END { print bad + 0 }' "$REPO_ROOT/$f"
+    assert_output "0"
+    run grep -c '^[[:space:]]*local version="' "$REPO_ROOT/$f"
+    refute_output "0"
+    run jq -e --arg f "$f" '[.customManagers[] | select(.matchStrings[] | test("local version")) | .managerFilePatterns[] | ltrimstr("/") | rtrimstr("/") as $m | select($f | test($m))] | length > 0' "$REPO_ROOT/renovate.json"
+    assert_success
+  done
+}
+
+@test "the Renovate regex for release pins extracts each pinned version" {
+  command -v perl >/dev/null || skip "perl not installed"
+  local re f
+  re=$(jq -r '.customManagers[] | select(.matchStrings[] | test("local version")) | .matchStrings[0]' "$REPO_ROOT/renovate.json")
+  for f in os/debian/setup-kubernetes.sh os/debian/setup-base.sh os/helpers/proto.sh; do
+    # Renovate's named groups are PCRE-compatible; perl applies the same regex.
+    run perl -0ne 'while (/'"$re"'/g) { print "$+{depName} $+{currentValue}\n" }' "$REPO_ROOT/$f"
+    assert_output --regexp '^((helm/helm|moonrepo/proto|derailed/k9s|git-ecosystem/git-credential-manager) v[0-9]+\.[0-9]+\.[0-9]+
+?)+$'
+  done
+}
+
+@test "every Docker test stage is run by CI and has a make target and a compose service" {
+  local stage
+  for stage in $(sed -n 's/^FROM base AS \(test-[a-z-]*\)$/\1/p' "$REPO_ROOT/tests/docker/Dockerfile.test"); do
+    run grep -q "\"$stage\"" "$REPO_ROOT/.github/workflows/ci-cd.yml"
+    assert_success
+    run grep -q "^  $stage:$" "$REPO_ROOT/tests/docker/docker-compose.test.yml"
+    assert_success
+    run grep -q "^docker-$stage:" "$REPO_ROOT/Makefile"
+    assert_success
+  done
+}
+
+@test "a Docker stage runs the full-mode security steps without swallowing failures" {
+  run sed -n '/^FROM base AS test-security-full$/,/^FROM /p' "$REPO_ROOT/tests/docker/Dockerfile.test"
+  assert_output --partial "install_configure_crowdsec"
+  assert_output --partial "install_audit_tools"
+  assert_output --partial "cscli version"
+  refute_output --partial "|| true"
+}
+
+@test "the Docker oh-my-zsh check reads exactly the commit install_oh_my_zsh pins" {
+  # Run the Dockerfile's own extraction against the repo's helper: it must yield
+  # one hash (oh-my-zsh.sh also pins zsh-completions), the one cloned.
+  local cmd pinned
+  cmd=$(sed -n 's|^RUN pinned=\$(\(sed .*\)) \\$|\1|p' "$REPO_ROOT/tests/docker/Dockerfile.test" | head -n 1)
+  [ -n "$cmd" ] || fail "no pinned-commit extraction found in Dockerfile.test"
+  pinned=$(eval "${cmd//\/home\/tester\/.dotfiles/$REPO_ROOT}")
+  [[ "$pinned" =~ ^[0-9a-f]{40}$ ]] || fail "extraction gave: '$pinned'"
+  # Source first: the helper defines the real clone_at_commit, replaced after.
+  run bash -c 'source "$1/os/helpers/oh-my-zsh.sh"; clone_at_commit() { echo "$3"; }; install_oh_my_zsh' _ "$REPO_ROOT"
+  assert_output "$pinned"
+}
+
+@test "renovate.json uses no option Renovate has deprecated" {
+  # renovate-config-validator --strict fails on fileMatch (now managerFilePatterns).
+  run jq -e '[.. | objects | has("fileMatch")] | any' "$REPO_ROOT/renovate.json"
+  assert_failure
 }

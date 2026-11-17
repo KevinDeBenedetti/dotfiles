@@ -10,11 +10,11 @@ Personal Debian VPS dotfiles and setup scripts powered by `apt`, [proto](https:/
 
 The script requires either `root` or a user with `sudo` access. It will exit early with an error if neither is available.
 
-| Prerequisite   | Notes                                                        |
-| -------------- | ------------------------------------------------------------ |
-| `sudo` or root | Required to install packages and write to system directories |
-| `curl`         | Used to bootstrap Oh My Zsh, proto, Helm, and k9s            |
-| `git`          | Installed automatically via `apt` in the common step         |
+| Prerequisite   | Notes                                                              |
+| -------------- | ------------------------------------------------------------------ |
+| `sudo` or root | Required to install packages and write to system directories       |
+| `curl`         | Downloads the pinned releases (proto, Helm, k9s, GCM) and apt keys |
+| `git`          | Installed automatically via `apt` in the common step               |
 
 ## Installation
 
@@ -64,7 +64,7 @@ Installed unconditionally before any profile (via `apt`):
 
 `ca-certificates`, `curl`, `gnupg`, `gzip`, `jq`, `unzip`, `wget`, `xz-utils`, `git`, `build-essential`
 
-[Oh My Zsh](https://ohmyz.sh) is also installed at this stage if `~/.oh-my-zsh` does not exist: its installer script is fetched at a pinned commit and runs only when it matches the SHA-256 pinned in `os/helpers/oh-my-zsh.sh`. Only the installer is pinned: it clones the current Oh My Zsh, which then updates itself.
+[Oh My Zsh](https://ohmyz.sh) is also installed at this stage if `~/.oh-my-zsh` does not exist: it is cloned at the commit pinned in `os/helpers/oh-my-zsh.sh`, with no installer script, and updates itself from `master` afterwards.
 
 ## Profiles
 
@@ -96,7 +96,7 @@ Core CLI tools installed via `apt`. Split into lite (always) and additional (ful
 >
 > On a node managed by the infra repository, the script leaves Docker out. It recognises such a node by the sshd drop-in that repository writes, `/etc/ssh/sshd_config.d/00-infra-hardening.conf`, the same marker that makes it skip SSH hardening. Those nodes run k3s with its own containerd, and their Ansible removes Docker, whose iptables rules forward published ports around the host firewall.
 >
-> Git Credential Manager comes from its latest GitHub release (`.deb`, amd64 or arm64), checked against the SHA-256 digest GitHub publishes for the file. Linux has no default credential store, so when none is configured the script sets `credential.credentialStore cache` in the system config (`/etc/gitconfig`): credentials stay in memory (15 minutes by default), never on disk.
+> Git Credential Manager comes from the release pinned in `os/debian/setup-base.sh` (`.deb`, amd64 or arm64), checked against the SHA-256 pinned next to it before apt installs it. A download that fails or does not match stops the profile, as for every pinned release (proto, Helm, k9s). A machine that already has `git-credential-manager` or `k9s` keeps the build it has: bumping a pin does not upgrade it. Linux has no default credential store, so when none is configured the script sets `credential.credentialStore cache` in the system config (`/etc/gitconfig`): credentials stay in memory (15 minutes by default), never on disk.
 
 **Additional (full mode):**
 
@@ -278,7 +278,7 @@ Tools for Kubernetes cluster management.
 | Tool                       | Description                                                                |
 | -------------------------- | -------------------------------------------------------------------------- |
 | [`helm`](https://helm.sh)  | Kubernetes package manager (pinned release, SHA-256 verified; amd64/arm64) |
-| [`k9s`](https://k9scli.io) | Terminal UI for Kubernetes clusters (latest release, SHA-256 verified)     |
+| [`k9s`](https://k9scli.io) | Terminal UI for Kubernetes clusters (pinned release, SHA-256 verified)     |
 
 ## Dotfiles Linking
 
@@ -330,12 +330,12 @@ If `~/.ssh/id_rsa.pub` exists, the script automatically creates `~/.ssh/allowed_
 
 Running `-c` installs zsh completions for:
 
-| Tool                                                              | Source                                                    |
-| ----------------------------------------------------------------- | --------------------------------------------------------- |
-| `gh`                                                              | `gh completion -s zsh`                                    |
-| `proto`                                                           | `proto completions --shell zsh`                           |
-| `uv`                                                              | `uv generate-shell-completion zsh`                        |
-| [`zsh-completions`](https://github.com/zsh-users/zsh-completions) | Cloned into Oh My Zsh custom plugins and added to `fpath` |
+| Tool                                                              | Source                                                                    |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `gh`                                                              | `gh completion -s zsh`                                                    |
+| `proto`                                                           | `proto completions --shell zsh`                                           |
+| `uv`                                                              | `uv generate-shell-completion zsh`                                        |
+| [`zsh-completions`](https://github.com/zsh-users/zsh-completions) | Cloned at a pinned commit into Oh My Zsh custom plugins, added to `fpath` |
 
 Completions are written to `/usr/local/share/zsh/site-functions` (with `sudo` when not root).
 

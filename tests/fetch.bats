@@ -1,7 +1,8 @@
 #!/usr/bin/env bats
 
 # Tests for os/helpers/fetch.sh: a download is kept only when its SHA-256 is
-# the pinned one. fetch_verified runs for real, with curl stubbed.
+# the pinned one. fetch_verified and install_from_tarball run for real, with
+# curl stubbed and fixture tarballs.
 
 setup() {
   DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
@@ -55,4 +56,109 @@ setup() {
     assert_failure
     assert_file_not_exists "$OUT"
   done
+}
+
+# --- install_from_tarball: verified download, then binaries into a directory ---
+
+# A tarball holding pkg/tool, which prints "fake tool": gzip, or xz with "xz".
+fake_tool_tarball() {
+  local compress="-z"
+  if [ "${1:-}" = xz ]; then
+    command -v xz >/dev/null || skip "xz not installed"
+    compress="-J"
+  fi
+  mkdir -p "$BATS_TEST_TMPDIR/src/pkg"
+  printf '#!/bin/sh\necho fake tool\n' > "$BATS_TEST_TMPDIR/src/pkg/tool"
+  tar "$compress" -cf "$BATS_TEST_TMPDIR/tool.tar.gz" -C "$BATS_TEST_TMPDIR/src" pkg
+  curl() {
+    local out="" prev="" arg
+    for arg in "$@"; do [ "$prev" = "-o" ] && out="$arg"; prev="$arg"; done
+    cp "$BATS_TEST_TMPDIR/tool.tar.gz" "$out"
+  }
+  TOOL_SHA256=$( { sha256sum "$BATS_TEST_TMPDIR/tool.tar.gz" 2>/dev/null || shasum -a 256 "$BATS_TEST_TMPDIR/tool.tar.gz"; } | cut -d' ' -f1)
+}
+
+@test "install_from_tarball installs the named members of a matching tarball, executable" {
+  fake_tool_tarball
+  export TMPDIR="$BATS_TEST_TMPDIR"
+  run install_from_tarball tool https://example.invalid/t.tar.gz "$TOOL_SHA256" "$BATS_TEST_TMPDIR/bin" pkg/tool
+  assert_success
+  run "$BATS_TEST_TMPDIR/bin/tool"
+  assert_output "fake tool"
+}
+
+@test "install_from_tarball installs nothing from a download that does not match" {
+  fake_tool_tarball
+  export TMPDIR="$BATS_TEST_TMPDIR"
+  run install_from_tarball tool https://example.invalid/t.tar.gz "$PAYLOAD_SHA256" "$BATS_TEST_TMPDIR/bin" pkg/tool
+  assert_failure 1
+  assert_output --partial "tool not installed"
+  assert_file_not_exists "$BATS_TEST_TMPDIR/bin/tool"
+}
+
+@test "install_from_tarball fails when a member is missing, and cleans up its temp dir" {
+  fake_tool_tarball
+  export TMPDIR="$BATS_TEST_TMPDIR/tmp"
+  mkdir -p "$TMPDIR"
+  run install_from_tarball tool https://example.invalid/t.tar.gz "$TOOL_SHA256" "$BATS_TEST_TMPDIR/bin" pkg/missing
+  assert_failure 1
+  assert_file_not_exists "$BATS_TEST_TMPDIR/bin/missing"
+  run find "$TMPDIR" -mindepth 1
+  assert_output ""
+}
+
+@test "install_from_tarball --sudo runs the install steps through \$SUDO" {
+  fake_tool_tarball
+  export TMPDIR="$BATS_TEST_TMPDIR"
+  printf '#!/bin/sh\necho "$@" >> "%s/sudo.log"\nexec "$@"\n' "$BATS_TEST_TMPDIR" > "$BATS_TEST_TMPDIR/fake-sudo"
+  chmod +x "$BATS_TEST_TMPDIR/fake-sudo"
+  SUDO="$BATS_TEST_TMPDIR/fake-sudo" run install_from_tarball --sudo tool https://example.invalid/t.tar.gz \
+    "$TOOL_SHA256" "$BATS_TEST_TMPDIR/bin" pkg/tool
+  assert_success
+  run cat "$BATS_TEST_TMPDIR/sudo.log"
+  assert_output --partial "mkdir -p"
+  assert_output --partial "install -m 0755"
+}
+
+@test "install_from_tarball extracts an xz tarball too (proto ships .tar.xz)" {
+  fake_tool_tarball xz
+  export TMPDIR="$BATS_TEST_TMPDIR"
+  run install_from_tarball tool https://example.invalid/t.tar.xz "$TOOL_SHA256" "$BATS_TEST_TMPDIR/bin" pkg/tool
+  assert_success
+  run "$BATS_TEST_TMPDIR/bin/tool"
+  assert_output "fake tool"
+}
+
+# --- install_deb_verified: verified download, then apt-get install as $SUDO ---
+
+# A fake `sudo` that logs what it runs and fakes apt-get (no real install).
+fake_sudo_with_apt() {
+  printf '#!/bin/sh\necho "$*" >> "%s/sudo.log"\n[ "$1" = apt-get ] && { cp "$5" "%s/installed.deb"; exit 0; }\nexec "$@"\n' \
+    "$BATS_TEST_TMPDIR" "$BATS_TEST_TMPDIR" > "$BATS_TEST_TMPDIR/fake-sudo"
+  chmod +x "$BATS_TEST_TMPDIR/fake-sudo"
+  export SUDO="$BATS_TEST_TMPDIR/fake-sudo" TMPDIR="$BATS_TEST_TMPDIR"
+}
+
+@test "install_deb_verified installs a matching .deb with apt-get, through \$SUDO" {
+  PAYLOAD="release payload"
+  fake_sudo_with_apt
+  run install_deb_verified tool https://example.invalid/tool.deb "$PAYLOAD_SHA256"
+  assert_success
+  run cat "$BATS_TEST_TMPDIR/sudo.log"
+  assert_output --regexp '^apt-get install -y --no-install-recommends /.*/tool\.deb$'
+  run cat "$BATS_TEST_TMPDIR/installed.deb"
+  assert_output "release payload"
+  run find "$BATS_TEST_TMPDIR" -maxdepth 1 -name 'tool.*'
+  assert_output ""
+}
+
+@test "install_deb_verified never hands a .deb that does not match to apt" {
+  PAYLOAD="tampered payload"
+  fake_sudo_with_apt
+  run install_deb_verified tool https://example.invalid/tool.deb "$PAYLOAD_SHA256"
+  assert_failure 1
+  assert_output --partial "tool not installed"
+  assert_file_not_exists "$BATS_TEST_TMPDIR/sudo.log"
+  run find "$BATS_TEST_TMPDIR" -maxdepth 1 -name 'tool.*'
+  assert_output ""
 }

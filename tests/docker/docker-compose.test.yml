@@ -34,6 +34,13 @@ services:
       dockerfile: tests/docker/Dockerfile.test
       target: test-security
 
+  # Full-mode security steps: CrowdSec and the audit tools
+  test-security-full:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+      target: test-security-full
+
   # Full integration test (all profiles, lite mode)
   test-full:
     build:

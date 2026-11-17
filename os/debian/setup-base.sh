@@ -10,6 +10,10 @@ SUDO="${SUDO:-}"
 # Default so `set -u` doesn't trip when run standalone (init.sh exports it)
 FULL_MODE_SETUP="${FULL_MODE_SETUP:-false}"
 
+# fetch_verified and install_deb_verified: downloads kept only if their SHA-256 matches.
+# shellcheck source=../helpers/fetch.sh
+source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/../helpers/fetch.sh"
+
 # install_apt_key <url> <fingerprint> <keyring>
 # Downloads an apt repository key and writes it into <keyring> only when it is
 # the key with that fingerprint. Until 2026-11-12 the keys were piped from curl
@@ -36,6 +40,27 @@ install_apt_key() {
   GNUPGHOME="$gnupg_tmp" gpg --dearmor < "$key_tmp" | $SUDO tee "$keyring" > /dev/null
   rm -rf "$key_tmp" "$gnupg_tmp"
   $SUDO chmod 644 "$keyring"
+}
+
+# Install Git Credential Manager from a pinned release .deb. The SHA-256 of
+# each architecture's .deb is pinned here: following `latest` and checking it
+# against the digest of the same release let a compromised release through.
+# To bump: change the version, then copy the digest of each .deb asset:
+#   gh release view <version> -R git-ecosystem/git-credential-manager --json assets -q '.assets[] | "\(.name) \(.digest)"'
+install_gcm() {
+  local arch asset_arch sha256
+  # renovate: datasource=github-releases depName=git-ecosystem/git-credential-manager
+  local version="v3.0.2"
+  arch=$(dpkg --print-architecture)
+  case "$arch" in
+    amd64) asset_arch=x64 sha256="5e8d0d368c1fd5ff57bc33ffe4440e79638427490ef4691fea6bb08c07ed03ef" ;;
+    arm64) asset_arch=arm64 sha256="ff118acac8550758c557be31730086e6eb356c91831daea0fd1d0af4aa75c8b1" ;;
+    *)
+      printf '%b' "${red}[error]${no_color} No pinned Git Credential Manager checksum for architecture '$arch' — not installed.\n"
+      return 1 ;;
+  esac
+  install_deb_verified git-credential-manager \
+    "https://github.com/git-ecosystem/git-credential-manager/releases/download/${version}/gcm-linux-${asset_arch}-${version#v}.deb" "$sha256"
 }
 
 install_lite_setup() {
@@ -127,35 +152,12 @@ https://apt.releases.hashicorp.com ${_HASHICORP_CODENAME} main" \
   fi
 
   # Install Git Credential Manager: config/git/.gitconfig sets
-  # `credential.helper = manager`. Latest release .deb, checked against the
-  # SHA-256 digest GitHub publishes for the asset before apt installs it as
-  # root. `git-credential-manager configure` is deliberately NOT run: it would
-  # write the helper into ~/.gitconfig, the tracked and linked config.
+  # `credential.helper = manager`. `git-credential-manager configure` is
+  # deliberately NOT run: it would write the helper into ~/.gitconfig, the
+  # tracked and linked config.
   printf '%b' "\n\n${red}[base] =>${no_color} Install Git Credential Manager\n\n"
   if ! command -v git-credential-manager &>/dev/null; then
-    case "$(dpkg --print-architecture)" in
-      amd64) _GCM_ARCH=x64 ;;
-      arm64) _GCM_ARCH=arm64 ;;
-      *) _GCM_ARCH="" ;;
-    esac
-    # `|| true` so a failed/rate-limited API call skips GCM instead of aborting
-    # the whole profile under `set -e`; the guard below reports it.
-    _GCM_URL="" _GCM_DIGEST=""
-    read -r _GCM_URL _GCM_DIGEST < <(curl -fsSL https://api.github.com/repos/git-ecosystem/git-credential-manager/releases/latest 2>/dev/null \
-      | jq -r --arg a "$_GCM_ARCH" '.assets[] | select(.name | test("^gcm-linux-" + $a + "-[0-9.]+\\.deb$")) | "\(.browser_download_url) \(.digest)"' 2>/dev/null \
-      | head -n 1) || true
-    if [[ -z "$_GCM_ARCH" || "$_GCM_URL" != https://* || "$_GCM_DIGEST" != sha256:* ]]; then
-      printf "%b[error]%b Could not resolve a Git Credential Manager .deb for %s — skipping.\n" "$red" "$no_color" "$(dpkg --print-architecture)"
-    else
-      _GCM_TMP=$(mktemp -d)
-      curl -fsSL -o "$_GCM_TMP/gcm.deb" "$_GCM_URL"
-      if printf '%s  %s\n' "${_GCM_DIGEST#sha256:}" "$_GCM_TMP/gcm.deb" | sha256sum -c --quiet -; then
-        $SUDO apt-get install -y --no-install-recommends "$_GCM_TMP/gcm.deb"
-      else
-        printf "%b[error]%b Git Credential Manager checksum verification failed — skipping.\n" "$red" "$no_color"
-      fi
-      rm -rf "$_GCM_TMP"
-    fi
+    install_gcm
   else
     printf '%b' "${red}[base]${no_color} git-credential-manager already installed — skipping.\n"
   fi

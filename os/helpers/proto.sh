@@ -23,29 +23,6 @@ proto_release_target() {
   esac
 }
 
-# install_proto_tarball <url> <sha256> <target> <bin_dir>
-# Install proto and proto-shim from a release tarball into <bin_dir>, only if
-# the tarball's SHA-256 is <sha256>. Every step is checked explicitly, so the
-# function is also correct where errexit is off.
-install_proto_tarball() {
-  local url="$1" sha256="$2" target="$3" bin_dir="$4" proto_tmp
-  proto_tmp=$(mktemp -d "${TMPDIR:-/tmp}/proto.XXXXXX") || return 1
-  if ! fetch_verified "$url" "$sha256" "$proto_tmp/proto.tar.xz"; then
-    rm -rf "$proto_tmp"
-    printf '%b' "${red}[error]${no_color} $url could not be downloaded or does not match its pinned SHA-256 — proto not installed.\n"
-    return 1
-  fi
-  if ! tar -xJf "$proto_tmp/proto.tar.xz" -C "$proto_tmp" \
-        "proto_cli-${target}/proto" "proto_cli-${target}/proto-shim" \
-      || ! mkdir -p "$bin_dir" \
-      || ! install -m 0755 "$proto_tmp/proto_cli-${target}/proto" "$proto_tmp/proto_cli-${target}/proto-shim" "$bin_dir/"; then
-    rm -rf "$proto_tmp"
-    printf '%b' "${red}[error]${no_color} proto could not be extracted from its tarball or installed into $bin_dir.\n"
-    return 1
-  fi
-  rm -rf "$proto_tmp"
-}
-
 # install_proto <bin_dir>
 # Install the pinned proto release. The SHA-256 of each platform's tarball is
 # pinned here, so no installer script and no checksum fetched at install time
@@ -54,7 +31,9 @@ install_proto_tarball() {
 # (read 2026-11-16 for the values below):
 #   gh release view <version> -R moonrepo/proto --json assets -q '.assets[] | "\(.name) \(.digest)"'
 install_proto() {
-  local bin_dir="$1" version="v0.64.0" target sha256
+  local bin_dir="$1" target sha256
+  # renovate: datasource=github-releases depName=moonrepo/proto
+  local version="v0.64.0"
   if ! target=$(proto_release_target); then
     printf '%b' "${red}[error]${no_color} No pinned proto build for $(uname -s)/$(uname -m) — proto not installed.\n"
     return 1
@@ -68,9 +47,9 @@ install_proto() {
       printf '%b' "${red}[error]${no_color} No pinned proto checksum for $target — proto not installed.\n"
       return 1 ;;
   esac
-  install_proto_tarball \
+  install_from_tarball proto \
     "https://github.com/moonrepo/proto/releases/download/${version}/proto_cli-${target}.tar.xz" \
-    "$sha256" "$target" "$bin_dir"
+    "$sha256" "$bin_dir" "proto_cli-${target}/proto" "proto_cli-${target}/proto-shim"
 }
 
 # Add the minimal proto shell block to .zshrc if not already present.

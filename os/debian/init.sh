@@ -195,7 +195,7 @@ if [ ! -d "$HOME/.oh-my-zsh" ]; then
   i=$(($i + 1))
 
   $SUDO apt-get install -y --no-install-recommends zsh
-  # Installer pinned by commit and SHA-256 (os/helpers/oh-my-zsh.sh).
+  # Cloned at a pinned commit, no installer script (os/helpers/oh-my-zsh.sh).
   # shellcheck source=../helpers/oh-my-zsh.sh
   source "$HELPERS_DIR/oh-my-zsh.sh"
   install_oh_my_zsh
@@ -280,7 +280,10 @@ if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
   bash "$HELPERS_DIR/completions.sh"
   ZSH_COMP_PLUGIN="${ZSH_CUSTOM:-${ZSH:-$HOME/.oh-my-zsh}/custom}/plugins/zsh-completions"
   if [ ! -d "$ZSH_COMP_PLUGIN" ]; then
-    git clone https://github.com/zsh-users/zsh-completions.git "$ZSH_COMP_PLUGIN"
+    # Cloned at a pinned commit (os/helpers/oh-my-zsh.sh).
+    # shellcheck source=../helpers/oh-my-zsh.sh
+    source "$HELPERS_DIR/oh-my-zsh.sh"
+    install_zsh_completions "$ZSH_COMP_PLUGIN"
   else
     printf '%b' "${red}[completions]${no_color} zsh-completions already present — skipping clone.\n"
   fi

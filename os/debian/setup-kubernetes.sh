@@ -97,30 +97,9 @@ install_lite_setup() {
   fi
 }
 
-# fetch_verified <url> <sha256> <dest>: download kept only if its SHA-256 matches.
+# fetch_verified and install_from_tarball: downloads kept only if their SHA-256 matches.
 # shellcheck source=../helpers/fetch.sh
 source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/../helpers/fetch.sh"
-
-# install_helm_tarball <url> <sha256> <arch> <dest_dir>
-# Install the helm binary of a release tarball into <dest_dir>, only if the
-# tarball's SHA-256 is <sha256>. Every step is checked explicitly, so the
-# function is also correct where errexit is off (inside `if`, `||`, tests).
-install_helm_tarball() {
-  local url="$1" sha256="$2" arch="$3" dest_dir="$4" helm_tmp
-  helm_tmp=$(mktemp -d "${TMPDIR:-/tmp}/helm.XXXXXX") || return 1
-  if ! fetch_verified "$url" "$sha256" "$helm_tmp/helm.tar.gz"; then
-    rm -rf "$helm_tmp"
-    printf '%b' "${red}[error]${no_color} $url could not be downloaded or does not match its pinned SHA-256 — helm not installed.\n"
-    return 1
-  fi
-  if ! tar -xzf "$helm_tmp/helm.tar.gz" -C "$helm_tmp" "linux-${arch}/helm" \
-      || ! $SUDO install -m 0755 "$helm_tmp/linux-${arch}/helm" "$dest_dir/helm"; then
-    rm -rf "$helm_tmp"
-    printf '%b' "${red}[error]${no_color} helm could not be extracted or installed into $dest_dir.\n"
-    return 1
-  fi
-  rm -rf "$helm_tmp"
-}
 
 # Install helm from a pinned release. The SHA-256 of each architecture's
 # tarball is pinned here, so neither a script nor a checksum fetched at install
@@ -130,7 +109,9 @@ install_helm_tarball() {
 # tarballs (read 2026-11-16 for the values below):
 #   curl -fsSL https://get.helm.sh/helm-<version>-linux-<arch>.tar.gz.sha256sum
 install_helm() {
-  local version="v4.3.2" arch sha256
+  # renovate: datasource=github-releases depName=helm/helm
+  local version="v4.3.2"
+  local arch sha256
   arch=$(dpkg --print-architecture)
   case "$arch" in
     amd64) sha256="d1c0278d46beab79582d7e50f5b3dc206944ba8e577cde618513fd07daa53983" ;;
@@ -139,7 +120,29 @@ install_helm() {
       printf '%b' "${red}[error]${no_color} No pinned helm checksum for architecture '$arch' — helm not installed.\n"
       return 1 ;;
   esac
-  install_helm_tarball "https://get.helm.sh/helm-${version}-linux-${arch}.tar.gz" "$sha256" "$arch" /usr/local/bin
+  install_from_tarball --sudo helm "https://get.helm.sh/helm-${version}-linux-${arch}.tar.gz" \
+    "$sha256" /usr/local/bin "linux-${arch}/helm"
+}
+
+# Install k9s from a pinned release .deb. The SHA-256 of each architecture's
+# .deb is pinned here: following `latest` and checking it against the
+# checksums file of the same release let a compromised release through.
+# To bump: change the version, then copy the digest of each .deb asset:
+#   gh release view <version> -R derailed/k9s --json assets -q '.assets[] | "\(.name) \(.digest)"'
+install_k9s() {
+  local arch sha256
+  # renovate: datasource=github-releases depName=derailed/k9s
+  local version="v0.51.0"
+  arch=$(dpkg --print-architecture)
+  case "$arch" in
+    amd64) sha256="56b539a509eb2d6357cf4f575ed38c089f0e4880c95f79a70196b54f14954908" ;;
+    arm64) sha256="9dbc652cb3a6ede7279216e49c638ac2d5dfb701edd4e407e89dc42cb9920423" ;;
+    *)
+      printf '%b' "${red}[error]${no_color} No pinned k9s checksum for architecture '$arch' — k9s not installed.\n"
+      return 1 ;;
+  esac
+  install_deb_verified k9s \
+    "https://github.com/derailed/k9s/releases/download/${version}/k9s_linux_${arch}.deb" "$sha256"
 }
 
 install_additional_setup() {
@@ -150,32 +153,9 @@ install_additional_setup() {
     printf '%b' "${red}[kubernetes]${no_color} helm already installed — skipping.\n"
   fi
 
-  # Install k9s
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Install k9s\n\n"
   if ! command -v k9s &>/dev/null; then
-    # `|| true` so a failed/rate-limited API call doesn't abort under `set -e`;
-    # the guard below turns an empty/invalid tag into a clean skip instead of a
-    # broken "download//k9s..." URL and a failing `dpkg -i`.
-    K9S_VERSION=$(curl -fsSL https://api.github.com/repos/derailed/k9s/releases/latest | jq -r '.tag_name' || true)
-    if [[ ! "$K9S_VERSION" =~ ^v[0-9] ]]; then
-      printf "%b[error]%b Could not resolve latest k9s version from the GitHub API (got '%s') — skipping k9s install.\n" "$red" "$no_color" "$K9S_VERSION"
-    else
-      K9S_ARCH=$(dpkg --print-architecture)
-      K9S_DEB="k9s_linux_${K9S_ARCH}.deb"
-      K9S_URL="https://github.com/derailed/k9s/releases/download/${K9S_VERSION}"
-      # Private temp dir (not a predictable /tmp path) and checksum verified
-      # against the release's checksums.sha256 before dpkg runs as root.
-      K9S_TMP=$(mktemp -d)
-      curl -fsSL -o "$K9S_TMP/$K9S_DEB" "$K9S_URL/$K9S_DEB"
-      curl -fsSL -o "$K9S_TMP/checksums.sha256" "$K9S_URL/checksums.sha256"
-      if (cd "$K9S_TMP" && awk -v f="$K9S_DEB" '$2 == f' checksums.sha256 | grep -q . \
-          && awk -v f="$K9S_DEB" '$2 == f' checksums.sha256 | sha256sum -c --quiet -); then
-        $SUDO dpkg -i "$K9S_TMP/$K9S_DEB"
-      else
-        printf "%b[error]%b k9s checksum verification failed — skipping k9s install.\n" "$red" "$no_color"
-      fi
-      rm -rf "$K9S_TMP"
-    fi
+    install_k9s
   else
     printf '%b' "${red}[kubernetes]${no_color} k9s already installed — skipping.\n"
   fi

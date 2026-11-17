@@ -85,21 +85,6 @@ setup() {
 
 # --- Regressions: guards that keep full mode robust ---
 
-@test "k9s install is guarded against an empty/invalid version" {
-  # A failed/rate-limited GitHub API must not produce a broken download URL.
-  run grep -Eq 'K9S_VERSION.*=~[[:space:]]*\^v\[0-9\]' "$K8S_SCRIPT"
-  assert_success
-}
-
-@test "k9s .deb is checksum-verified and not staged at a predictable /tmp path" {
-  run grep -q 'checksums.sha256' "$K8S_SCRIPT"
-  assert_success
-  run grep -q 'sha256sum -c' "$K8S_SCRIPT"
-  assert_success
-  run grep -q '/tmp/k9s' "$K8S_SCRIPT"
-  assert_failure
-}
-
 @test "no helm installer script is fetched" {
   run grep -c 'get-helm' "$K8S_SCRIPT"
   assert_output "0"
@@ -151,9 +136,6 @@ setup() {
 
 # --- Verified downloads (behaviour: the functions run, curl is stubbed) ---
 
-# `printf 'release payload\n' | sha256sum`
-PAYLOAD_SHA256=be110d6f8d61b5ddbd77bac7005548b01a51a7267183875866b264659d9d0753
-
 # Defines the download functions from the script without running it, with
 # curl stubbed to "download" $FAKE_DOWNLOAD (or to fail after a partial write
 # when CURL_FAILS is set) and dpkg reporting $FAKE_ARCH.
@@ -171,15 +153,10 @@ stub_downloads_and_load_helm_functions() {
   export TMPDIR="$BATS_TEST_TMPDIR"
   source "$REPO_ROOT/os/helpers/fetch.sh"
   local fn
-  for fn in install_helm_tarball install_helm; do
+  for fn in install_helm install_k9s; do
     eval "$(sed -n "/^$fn()/,/^}/p" "$K8S_SCRIPT")"
     declare -F "$fn" >/dev/null || fail "$fn not found in $K8S_SCRIPT"
   done
-}
-
-fake_download() {
-  printf '%s\n' "$1" > "$BATS_TEST_TMPDIR/payload"
-  FAKE_DOWNLOAD="$BATS_TEST_TMPDIR/payload"
 }
 
 # A well-formed helm tarball for amd64 whose helm prints "fake helm".
@@ -190,34 +167,12 @@ fake_helm_tarball() {
   FAKE_DOWNLOAD="$BATS_TEST_TMPDIR/helm.tar.gz"
 }
 
-@test "install_helm_tarball installs an executable helm from a tarball that matches" {
-  fake_helm_tarball
+@test "install_helm installs linux-<arch>/helm from the tarball into /usr/local/bin, through sudo" {
   stub_downloads_and_load_helm_functions
-  local sha256
-  sha256=$(sha256sum "$FAKE_DOWNLOAD" | cut -d' ' -f1)
-  run install_helm_tarball https://example.invalid/helm.tar.gz "$sha256" amd64 "$BATS_TEST_TMPDIR/bin"
+  install_from_tarball() { echo "$*"; }
+  FAKE_ARCH=arm64 run install_helm
   assert_success
-  run "$BATS_TEST_TMPDIR/bin/helm"
-  assert_output "fake helm"
-}
-
-@test "install_helm_tarball installs nothing from a tarball that does not match" {
-  fake_helm_tarball
-  stub_downloads_and_load_helm_functions
-  run install_helm_tarball https://example.invalid/helm.tar.gz "$PAYLOAD_SHA256" amd64 "$BATS_TEST_TMPDIR/bin"
-  assert_failure
-  assert_output --partial "pinned SHA-256"
-  assert_file_not_exists "$BATS_TEST_TMPDIR/bin/helm"
-}
-
-@test "install_helm_tarball fails when the verified tarball holds no helm for the architecture" {
-  fake_helm_tarball
-  stub_downloads_and_load_helm_functions
-  local sha256
-  sha256=$(sha256sum "$FAKE_DOWNLOAD" | cut -d' ' -f1)
-  run install_helm_tarball https://example.invalid/helm.tar.gz "$sha256" arm64 "$BATS_TEST_TMPDIR/bin"
-  assert_failure
-  assert_file_not_exists "$BATS_TEST_TMPDIR/bin/helm"
+  assert_output --regexp '^--sudo helm https://get\.helm\.sh/helm-v[0-9.]+-linux-arm64\.tar\.gz [0-9a-f]{64} /usr/local/bin linux-arm64/helm$'
 }
 
 @test "install_helm requests one pinned release from get.helm.sh and rejects other bytes" {
@@ -237,4 +192,26 @@ fake_helm_tarball() {
   assert_failure
   assert_output --partial "riscv64"
   assert_file_not_exists "$BATS_TEST_TMPDIR/curl.log"
+}
+
+@test "install_k9s installs one pinned k9s release .deb, checked against its pinned SHA-256" {
+  stub_downloads_and_load_helm_functions
+  install_deb_verified() { echo "$*"; }
+  FAKE_ARCH=arm64 run install_k9s
+  assert_success
+  assert_output --regexp '^k9s https://github\.com/derailed/k9s/releases/download/v[0-9.]+/k9s_linux_arm64\.deb [0-9a-f]{64}$'
+}
+
+@test "install_k9s fails clearly on an architecture with no pinned checksum" {
+  FAKE_ARCH=armhf
+  stub_downloads_and_load_helm_functions
+  run install_k9s
+  assert_failure
+  assert_output --partial "armhf"
+  assert_file_not_exists "$BATS_TEST_TMPDIR/curl.log"
+}
+
+@test "k9s no longer follows the latest release" {
+  run grep -c 'derailed/k9s/releases/latest' "$K8S_SCRIPT"
+  assert_output "0"
 }

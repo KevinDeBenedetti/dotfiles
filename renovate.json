@@ -5,7 +5,7 @@
     {
       "customType": "regex",
       "description": "Update `rev = \"...\"` pins in prek.toml annotated with a `# renovate:` comment (Renovate's built-in pre-commit manager only handles .pre-commit-config.yaml, not prek.toml).",
-      "fileMatch": ["(^|/)prek\\.toml$"],
+      "managerFilePatterns": ["/(^|/)prek\\.toml$/"],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+rev = \"(?<currentValue>[^\"]+)\""
       ]
@@ -13,9 +13,21 @@
     {
       "customType": "regex",
       "description": "Bump the proto toolchain pins in config/proto/.prototools (Renovate has no native proto manager). Each `<tool> = \"<version>\"` line is annotated with a `# renovate:` comment carrying its datasource/depName.",
-      "fileMatch": ["(^|/)\\.prototools$"],
+      "managerFilePatterns": ["/(^|/)\\.prototools$/"],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\S+ = \"(?<currentValue>[^\"]+)\""
+      ]
+    },
+    {
+      "customType": "regex",
+      "description": "Bump the pinned helm, proto, k9s and Git Credential Manager releases. Each `local version=\"…\"` line is annotated with a `# renovate:` comment. The SHA-256 pinned next to it is not updated: the install fails closed until the sums are copied, as the PR body says.",
+      "managerFilePatterns": [
+        "/(^|/)os/debian/setup-kubernetes\\.sh$/",
+        "/(^|/)os/helpers/proto\\.sh$/",
+        "/(^|/)os/debian/setup-base\\.sh$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+local version=\"(?<currentValue>[^\"]+)\""
       ]
     }
   ],
@@ -24,6 +36,16 @@
       "description": "github-workflows pins move with each of its releases: its propagate-release job opens the pull request, merged once its checks pass, so Renovate would only duplicate it.",
       "matchPackageNames": ["KevinDeBenedetti/github-workflows"],
       "enabled": false
+    },
+    {
+      "description": "helm, proto, k9s and Git Credential Manager pin a SHA-256 per platform next to the version: a version bump alone makes the install refuse the new tarball.",
+      "matchPackageNames": [
+        "helm/helm",
+        "moonrepo/proto",
+        "derailed/k9s",
+        "git-ecosystem/git-credential-manager"
+      ],
+      "prBodyNotes": ["⚠️ Update the SHA-256 pins next to the version before merging, or the install refuses the new release: copy them from the release (helm: `https://get.helm.sh/helm-<version>-linux-<arch>.tar.gz.sha256sum`; proto, k9s, Git Credential Manager: the `digest` of each asset on the GitHub release)."]
     }
   ]
 }

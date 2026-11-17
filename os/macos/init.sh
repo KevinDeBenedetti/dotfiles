@@ -127,10 +127,13 @@ install_clt() {
   printf "\nCommand Line Tools version installed :\n%s\n\n" "$PROD"
 }
 
-install_homebrew() {
+# Homebrew installer pinned by commit and SHA-256 (os/helpers/homebrew.sh).
+# shellcheck source=../helpers/homebrew.sh
+source "$HELPERS_DIR/homebrew.sh"
+
+install_homebrew_and_report() {
   printf '%b' "\n\n${red}Optional.${no_color} Installs homebrew...\n\n"
-  export NONINTERACTIVE=1
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  NONINTERACTIVE=1 install_homebrew
   printf '%b' "\nhomebrew version installed :\n$(brew --version)\n\n"
 }
 
@@ -156,7 +159,7 @@ if ! command -v brew &>/dev/null; then
     read -r yn
     case $yn in
       [Yy]*)
-        install_homebrew
+        install_homebrew_and_report
         break;;
       [Nn]*)
         exit;;
@@ -205,7 +208,7 @@ if [ ! -d "$HOME/.oh-my-zsh" ]; then
   printf '%b' "\n${red}${i}.${no_color} Install oh-my-zsh\n\n"
   i=$(($i + 1))
 
-  # Installer pinned by commit and SHA-256 (os/helpers/oh-my-zsh.sh).
+  # Cloned at a pinned commit, no installer script (os/helpers/oh-my-zsh.sh).
   # shellcheck source=../helpers/oh-my-zsh.sh
   source "$HELPERS_DIR/oh-my-zsh.sh"
   install_oh_my_zsh
@@ -298,9 +301,12 @@ if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
   i=$(($i + 1))
 
   bash "$HELPERS_DIR/completions.sh"
-  ZSH_COMP_PLUGIN="${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions"
+  ZSH_COMP_PLUGIN="${ZSH_CUSTOM:-${ZSH:-$HOME/.oh-my-zsh}/custom}/plugins/zsh-completions"
   if [ ! -d "$ZSH_COMP_PLUGIN" ]; then
-    git clone https://github.com/zsh-users/zsh-completions.git "$ZSH_COMP_PLUGIN"
+    # Cloned at a pinned commit (os/helpers/oh-my-zsh.sh).
+    # shellcheck source=../helpers/oh-my-zsh.sh
+    source "$HELPERS_DIR/oh-my-zsh.sh"
+    install_zsh_completions "$ZSH_COMP_PLUGIN"
   else
     printf '%b' "${red}[completions]${no_color} zsh-completions already present — skipping clone.\n"
   fi

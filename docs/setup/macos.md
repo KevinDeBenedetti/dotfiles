@@ -8,7 +8,7 @@ Personal macOS dotfiles and setup scripts powered by [Homebrew](https://brew.sh)
 
 ## Prerequisites
 
-The init script checks for both prerequisites at startup and offers to install them automatically.
+The init script checks for both prerequisites at startup and offers to install them automatically. Homebrew's installer script is fetched at the commit pinned in `os/helpers/homebrew.sh` and runs only when it matches the SHA-256 pinned there; it then installs Homebrew's latest release.
 
 | Prerequisite             | Check             | Install                    |
 | ------------------------ | ----------------- | -------------------------- |
