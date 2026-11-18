@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.12.0...v0.13.0) (2026-11-18)
+
+
+### Features
+
+* **hooks:** add skill-context and skill-router hooks for enhanced skill management ([49ac017](https://github.com/KevinDeBenedetti/dotfiles/commit/49ac0176c4fefca1ac5b1235612480b59ec81859))
+* **tests:** enhance testing for Homebrew and oh-my-zsh installation ([3ef9cb3](https://github.com/KevinDeBenedetti/dotfiles/commit/3ef9cb3e7e25a37493fcc1d054d0debaab7545dd))
+
 ## [0.12.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.11.0...v0.12.0) (2026-11-16)
 
 
