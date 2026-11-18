@@ -291,6 +291,19 @@ setup() {
   assert_file_exists "$CONFIG_DIR/claude/hooks/next-steps.sh"
 }
 
+@test "claude skill hooks are wired: policy at SessionStart, routing on each prompt" {
+  local s="$CONFIG_DIR/claude/settings.json"
+  run jq -r '[.hooks.SessionStart[].hooks[] | select(.command | contains(".claude/hooks/skill-context.sh"))] | length' "$s"
+  assert_output "1"
+  run jq -r '[.hooks.UserPromptSubmit[].hooks[] | select(.command | contains(".claude/hooks/skill-router.sh"))] | length' "$s"
+  assert_output "1"
+  # Async hooks would deliver the context after Claude has started the turn.
+  run jq -r '[(.hooks.SessionStart, .hooks.UserPromptSubmit)[].hooks[] | .async // false] | any' "$s"
+  assert_output "false"
+  assert_file_executable "$CONFIG_DIR/claude/hooks/skill-context.sh"
+  assert_file_executable "$CONFIG_DIR/claude/hooks/skill-router.sh"
+}
+
 @test "the public repo stays reusable: MIT LICENSE and a SECURITY.md exist" {
   assert_file_exists "$REPO_ROOT/LICENSE"
   run head -1 "$REPO_ROOT/LICENSE"
