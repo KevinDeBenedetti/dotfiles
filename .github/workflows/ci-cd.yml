@@ -25,7 +25,7 @@ jobs:
       && !(startsWith(github.head_ref, 'release-please')
            && github.event.pull_request.head.repo.full_name == github.repository
            && github.event.pull_request.user.login == 'github-actions[bot]') }}
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@24d9c6a76ab5c373c922feee05c0eb0f7b2364ac # v0.49.0
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@f72bdd6cd03fe6df8854fe19a880f2068f77221c # v0.50.0
     with:
       run-shellcheck: true
       run-bats: true
@@ -42,7 +42,7 @@ jobs:
       && !(startsWith(github.head_ref, 'release-please')
            && github.event.pull_request.head.repo.full_name == github.repository
            && github.event.pull_request.user.login == 'github-actions[bot]') }}
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@24d9c6a76ab5c373c922feee05c0eb0f7b2364ac # v0.49.0
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@f72bdd6cd03fe6df8854fe19a880f2068f77221c # v0.50.0
     permissions:
       contents: read
       actions: read
@@ -58,7 +58,7 @@ jobs:
 
   bot-check:
     if: github.event_name == 'pull_request'
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/check-bot-commits.yml@24d9c6a76ab5c373c922feee05c0eb0f7b2364ac # v0.49.0
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/check-bot-commits.yml@f72bdd6cd03fe6df8854fe19a880f2068f77221c # v0.50.0
     permissions:
       contents: read
       pull-requests: read
@@ -87,7 +87,7 @@ jobs:
       && github.ref == 'refs/heads/main'
       && needs.ci.result != 'failure' && needs.ci.result != 'cancelled'
       && needs.security.result != 'failure' && needs.security.result != 'cancelled' }}
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@24d9c6a76ab5c373c922feee05c0eb0f7b2364ac # v0.49.0
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@f72bdd6cd03fe6df8854fe19a880f2068f77221c # v0.50.0
     permissions:
       contents: write
       issues: write
