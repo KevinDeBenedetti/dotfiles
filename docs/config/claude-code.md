@@ -122,14 +122,16 @@ Changes made in the working copy go live only after review, commit and
 
 ### Hooks
 
-| Event        | Command              | Purpose                                                                                                            |
-| ------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `PreToolUse` | inline `jq` + `grep` | Blocks `git commit` / `git push`, including wrapped (`bash -c`, `$(…)`) and `-c`/`-C` forms                        |
-| `PreToolUse` | inline `jq` + `grep` | Blocks mutating `kubectl` verbs — kubectl is read-only for agents                                                  |
-| `PreToolUse` | inline `jq` + `grep` | Blocks `kubectl … get secret(s)` whatever the flags, namespace or `rtk` prefix — deny rules only match plain forms |
-| `PreToolUse` | `rtk hook claude`    | Rewrites Bash commands through `rtk` for token-optimized output                                                    |
-| `Stop`       | `docs-sync-check.sh` | Code changed but neither `docs/` nor `README.md` did → asks for the `docs-hub` / `readme` skills, once per turn    |
-| `Stop`       | `next-steps.sh`      | Shows you the next steps (re-stage, commit, push, blocked or next task, triage) and the open `🖐 Manual` steps     |
+| Event              | Command              | Purpose                                                                                                            |
+| ------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `PreToolUse`       | inline `jq` + `grep` | Blocks `git commit` / `git push`, including wrapped (`bash -c`, `$(…)`) and `-c`/`-C` forms                        |
+| `PreToolUse`       | inline `jq` + `grep` | Blocks mutating `kubectl` verbs — kubectl is read-only for agents                                                  |
+| `PreToolUse`       | inline `jq` + `grep` | Blocks `kubectl … get secret(s)` whatever the flags, namespace or `rtk` prefix — deny rules only match plain forms |
+| `PreToolUse`       | `rtk hook claude`    | Rewrites Bash commands through `rtk` for token-optimized output                                                    |
+| `Stop`             | `docs-sync-check.sh` | Code changed but neither `docs/` nor `README.md` did → asks for the `docs-hub` / `readme` skills, once per turn    |
+| `Stop`             | `next-steps.sh`      | Shows you the next steps (re-stage, commit, push, blocked or next task, triage) and the open `🖐 Manual` steps      |
+| `SessionStart`     | `skill-context.sh`   | Tells Claude when to use the `mattpocock-skills` skills unasked, tuned to the repository                           |
+| `UserPromptSubmit` | `skill-router.sh`    | Names the skills a prompt matches (at most two) so Claude invokes them before starting                             |
 
 The `git commit` / `git push` and `kubectl … get secret(s)` hooks are also in
 `managed-settings.json`. These regex hooks catch mistakes, not a determined
@@ -151,6 +153,38 @@ changes. Two variables, set in the `env` block, tune it:
 | ---------------------------- | --------- | --------------------------------------------------------- |
 | `DOTFILES_NEXT_STEPS`        | `changed` | `always` shows the message after every turn, `off` never  |
 | `DOTFILES_NEXT_STEPS_MANUAL` | `10`      | Manual steps listed before "… N more"; `0` lists them all |
+
+#### Skill hooks
+
+Two hooks make Claude reach for the `mattpocock-skills` skills (see
+Plugins below) during ordinary work, not only when you type their slash
+command. Both return `additionalContext`, which Claude reads with the session
+or the prompt; neither blocks anything, and both stay silent when the plugin is
+not enabled.
+
+- `skill-context.sh` runs at session start, after `/clear` and after a
+  compaction. It gives the standing policy: `diagnosing-bugs` before fixing a
+  reported failure, `codebase-design` for a new or reshaped module,
+  `code-review` on a multi-file change before the commit is proposed,
+  `writing-for-agents` for `SKILL.md` / `AGENTS.md` / `CLAUDE.md`, `pr` for a
+  pull request body. It adds what fits the repository's tracked files: `tdd`
+  when there is a test suite, `domain-modeling` when there is a `GLOSSARY.md`
+  or `docs/adr/`, the `audit` command when there is infrastructure (Terraform,
+  Ansible, Helm, Kustomize, Kubernetes manifests, Docker), `debug-action` when
+  there are GitHub workflows, `/next-task` when there is a `TODO.md`. It always
+  forbids `implement` and `implement-spec`, which commit. At startup, in a
+  repository with an `AGENTS.md` or `CLAUDE.md` but no
+  `docs/agents/issue-tracker.md`, it also tells you (not Claude) to run
+  `/mattpocock-skills:setup-matt-pocock-skills`.
+- `skill-router.sh` reads each prompt and matches it, in English or French,
+  against the kinds of work the skills cover: a failure (`diagnosing-bugs`, or
+  `debug-action` for a CI run), a review of changes, an infrastructure audit,
+  a refactor, a plan to grill, a prototype, research, a pull request, agent
+  docs, and a feature or fix in a repository with tests (`tdd`). It skips
+  slash commands, replies shorter than 12 characters and prompts that already
+  name a skill.
+
+`DOTFILES_SKILL_ROUTER=off` in the `env` block silences both.
 
 ### Plugins
 
