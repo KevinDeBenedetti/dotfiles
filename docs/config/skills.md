@@ -87,6 +87,9 @@ command (Copilot does not substitute it). Run edit-capable modes (OpenCode
 and `/next-task manual` guides you through its manual steps with the
 `manual-steps` skill: see [TODO Workflow](./todo-workflow.md).
 
+`/next-issue` does the same over a project's GitHub issues, picked by label and
+recorded as comments: see [Issue Workflow](./issue-workflow.md).
+
 ## Global rules fallback
 
 OpenCode reads `~/.claude/CLAUDE.md` as a global-rules fallback (after its own

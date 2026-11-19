@@ -687,6 +687,40 @@ todo_layout() {
   assert_failure
 }
 
+@test "next-issue works GitHub issues by label and never closes or commits" {
+  local cmd="$CONFIG_DIR/commands/next-issue.md"
+  assert_file_exists "$cmd"
+  run grep -q '^| `manual` ' "$cmd"
+  assert_success
+  # Approval is the owner's label; the issue closes when the owner merges.
+  run grep -q '`ready-for-agent`' "$cmd"
+  assert_success
+  run grep -q 'Fixes #<number>' "$cmd"
+  assert_success
+  # Issues of a public repository are public: findings stay in the chat.
+  run grep -q 'Security findings stay in the chat' "$cmd"
+  assert_success
+  run grep -E 'gh issue (close|delete)' "$cmd"
+  assert_failure
+}
+
+@test "agents may comment on, label and create issues, in claude and opencode alike" {
+  local verb
+  for verb in comment edit create; do
+    run jq -e --arg c "Bash(gh issue $verb *)" '.permissions.allow | index($c)' "$CONFIG_DIR/claude/settings.json"
+    assert_success
+    run jq -r --arg c "gh issue $verb *" '.permission.bash[$c]' "$CONFIG_DIR/opencode/opencode.json"
+    assert_output "allow"
+  done
+  # Closing and deleting stay behind a confirmation (no allow rule).
+  for verb in close delete; do
+    run jq -e --arg v "$verb" '.permissions.allow | map(select(test("gh issue " + $v))) | length == 0' "$CONFIG_DIR/claude/settings.json"
+    assert_success
+    run jq -r --arg c "gh issue $verb *" '.permission.bash[$c]' "$CONFIG_DIR/opencode/opencode.json"
+    assert_output "null"
+  done
+}
+
 @test "AGENTS.md documents every shared skill" {
   local skill
   for skill in "$CONFIG_DIR"/skills/*/; do

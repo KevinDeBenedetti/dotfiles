@@ -33,7 +33,8 @@ Shared skills in `config/skills/` (`commit-types`, `readme`, `docs-hub`,
 `todo-md`, `manual-steps`) load automatically in every tool. Use them instead
 of improvising. The shared `/next-task` command (`config/commands/`) works a
 project's `TODO.md` with `todo-md`, and `/next-task manual` guides the owner
-through its manual steps with `manual-steps`.
+through its manual steps with `manual-steps`. `/next-issue` is its twin over
+GitHub issues, and the one this repository uses.
 
 Rules for editing skills: edit them in `config/skills/<name>/` only (never in
 `~/.claude/skills/`), keep frontmatter to `name` + `description`, no
@@ -59,11 +60,11 @@ update its "Existing skills" table when adding one.
 
 ### Issue tracker
 
-Tickets are task lines in the gitignored `TODO.md` (`todo-md` format), worked by `/next-task`; specs and wayfinder maps are files in the gitignored `.scratch/`. See `docs/agents/issue-tracker.md`.
+Tickets are GitHub issues of this public repository, worked by `/next-issue`; write there only what could go in a commit. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Triage roles map to `TODO.md` sections and `BLOCKED` markers, not labels. See `docs/agents/triage-labels.md`.
+The five default labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), plus `urgent`. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
