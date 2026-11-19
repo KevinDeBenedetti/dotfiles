@@ -301,18 +301,10 @@ if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
   i=$(($i + 1))
 
   bash "$HELPERS_DIR/completions.sh"
-  ZSH_COMP_PLUGIN="${ZSH_CUSTOM:-${ZSH:-$HOME/.oh-my-zsh}/custom}/plugins/zsh-completions"
-  if [ ! -d "$ZSH_COMP_PLUGIN" ]; then
-    # Cloned at a pinned commit (os/helpers/oh-my-zsh.sh).
-    # shellcheck source=../helpers/oh-my-zsh.sh
-    source "$HELPERS_DIR/oh-my-zsh.sh"
-    install_zsh_completions "$ZSH_COMP_PLUGIN"
-  else
-    printf '%b' "${red}[completions]${no_color} zsh-completions already present — skipping clone.\n"
-  fi
-  if ! grep -q 'fpath+=.*zsh-completions' "$HOME/.zshrc" 2>/dev/null; then
-    gsed -i 's|^# fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src|fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src|g' "$HOME/.zshrc"
-  fi
+  # Shared with the other init script (os/helpers/oh-my-zsh.sh).
+  # shellcheck source=../helpers/oh-my-zsh.sh
+  source "$HELPERS_DIR/oh-my-zsh.sh"
+  setup_zsh_completions
 fi
 
 

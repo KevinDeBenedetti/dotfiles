@@ -267,9 +267,9 @@ Tools for Kubernetes cluster management.
 
 **Lite:**
 
-| Tool                                                       | Description                                                                                      |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| [`kubectl`](https://kubernetes.io/docs/reference/kubectl/) | Kubernetes command-line client (installed from the official `pkgs.k8s.io` repo, currently v1.32) |
+| Tool                                                       | Description                                                                                                                                                                                                                               |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`kubectl`](https://kubernetes.io/docs/reference/kubectl/) | Kubernetes command-line client, from the official `pkgs.k8s.io` repo of one pinned minor (`install_kubectl` in `os/debian/setup-kubernetes.sh`), moved to each new minor by Renovate; a re-run moves a kubectl from an older minor's repo |
 
 > On a node managed by the infra repository (same marker as for Docker, `/etc/ssh/sshd_config.d/00-infra-hardening.conf`), the script installs neither `kubectl` nor the `pkgs.k8s.io` repository: k3s ships its own `kubectl`, and that repository's Ansible removes both on every run.
 
@@ -330,12 +330,12 @@ If `~/.ssh/id_rsa.pub` exists, the script automatically creates `~/.ssh/allowed_
 
 Running `-c` installs zsh completions for:
 
-| Tool                                                              | Source                                                                    |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `gh`                                                              | `gh completion -s zsh`                                                    |
-| `proto`                                                           | `proto completions --shell zsh`                                           |
-| `uv`                                                              | `uv generate-shell-completion zsh`                                        |
-| [`zsh-completions`](https://github.com/zsh-users/zsh-completions) | Cloned at a pinned commit into Oh My Zsh custom plugins, added to `fpath` |
+| Tool                                                              | Source                                                                                                                                                                        |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gh`                                                              | `gh completion -s zsh`                                                                                                                                                        |
+| `proto`                                                           | `proto completions --shell zsh`                                                                                                                                               |
+| `uv`                                                              | `uv generate-shell-completion zsh`                                                                                                                                            |
+| [`zsh-completions`](https://github.com/zsh-users/zsh-completions) | Cloned at a pinned commit into Oh My Zsh custom plugins, added to `fpath` (a `~/.zshrc` linked by `scripts/symlink.sh` is left alone: enable the line in `config/zsh/.zshrc`) |
 
 Completions are written to `/usr/local/share/zsh/site-functions` (with `sudo` when not root).
 

@@ -34,3 +34,32 @@ install_zsh_completions() {
   local commit="989b23277ab33e8d5e82df6aed936e846db9d8b8"
   clone_at_commit zsh-completions https://github.com/zsh-users/zsh-completions.git "$commit" "$1"
 }
+
+# setup_zsh_completions
+# The completions step of both init scripts: clone zsh-completions into
+# oh-my-zsh's custom plugins (unless it is there), then enable the fpath line
+# that config/zsh/.zshrc ships commented out. A ~/.zshrc that is a symlink
+# (scripts/symlink.sh) is the repository's own file: it is left alone.
+setup_zsh_completions() {
+  local plugin="${ZSH_CUSTOM:-${ZSH:-$HOME/.oh-my-zsh}/custom}/plugins/zsh-completions"
+  local zshrc="$HOME/.zshrc" tmp
+  if [ ! -d "$plugin" ]; then
+    install_zsh_completions "$plugin" || return 1
+  else
+    printf '%b' "${red}[completions]${no_color} zsh-completions already present — skipping clone.\n"
+  fi
+  if [ -L "$zshrc" ]; then
+    printf '%b' "${red}[completions]${no_color} $zshrc is linked to the repository — enable its zsh-completions fpath line there.\n"
+    return 0
+  fi
+  [ -f "$zshrc" ] || return 0
+  grep -q '^fpath+=.*zsh-completions' "$zshrc" && return 0
+  # Rewritten through a temp file: `sed -i` differs between GNU and BSD sed.
+  tmp=$(mktemp "${TMPDIR:-/tmp}/zshrc.XXXXXX") || return 1
+  sed 's|^# \(fpath+=.*/plugins/zsh-completions/src\)$|\1|' "$zshrc" > "$tmp" && cat "$tmp" > "$zshrc"
+  local rc=$?
+  rm -f "$tmp"
+  [ "$rc" -eq 0 ] || return "$rc"
+  grep -q '^fpath+=.*zsh-completions' "$zshrc" \
+    || printf '%b' "${red}[completions]${no_color} No zsh-completions fpath line in $zshrc — add it to load the plugin's completions.\n"
+}

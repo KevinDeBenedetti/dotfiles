@@ -231,6 +231,55 @@ RUN command -v lynis \
     && echo "Audit tools verified"
 
 # ---------------------------------------------------------------------------
+# Stage: test-kubernetes — os/debian/setup-kubernetes.sh run on its own: first
+# a fresh install on the bare image (no gpg, no kubectl), then in full mode
+# (kubectl, helm, k9s) on a system that still has kubectl from an end-of-life
+# channel: the script must move it to the minor it pins.
+# ---------------------------------------------------------------------------
+FROM base AS test-kubernetes
+
+# Fresh install: the script installs gnupg itself (init.sh is not there to),
+# then kubectl from the pinned minor's repository.
+RUN ! command -v gpg && ! command -v kubectl \
+    && SUDO=sudo bash /home/tester/.dotfiles/os/debian/setup-kubernetes.sh
+
+RUN pin=$(sed -n 's/^  local version="\(v1\.[0-9]*\)"$/\1/p' /home/tester/.dotfiles/os/debian/setup-kubernetes.sh) \
+    && test -n "$pin" \
+    && command -v gpg > /dev/null \
+    && grep -q "stable:/$pin/" /etc/apt/sources.list.d/kubernetes.list \
+    && kubectl version --client | grep -q "Client Version: $pin\." \
+    && echo "fresh install of kubectl $pin verified"
+
+# The state of a machine installed before the move: kubectl from the v1.32
+# repository, the script's previous pin. Every minor's repository is signed by
+# the same key, so the keyring the fresh install wrote serves this one too.
+RUN sudo apt-get purge -y -qq kubectl > /dev/null \
+    && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' \
+      | sudo tee /etc/apt/sources.list.d/kubernetes.list > /dev/null \
+    && sudo apt-get update -qq \
+    && sudo apt-get install -y -qq kubectl > /dev/null \
+    && kubectl version --client | grep -q 'Client Version: v1\.32\.'
+
+RUN SUDO=sudo FULL_MODE_SETUP=true bash /home/tester/.dotfiles/os/debian/setup-kubernetes.sh
+
+# kubectl now comes from the pinned minor's repository, read from the script
+RUN pin=$(sed -n 's/^  local version="\(v1\.[0-9]*\)"$/\1/p' /home/tester/.dotfiles/os/debian/setup-kubernetes.sh) \
+    && test -n "$pin" \
+    && grep -q "stable:/$pin/" /etc/apt/sources.list.d/kubernetes.list \
+    && kubectl version --client | grep -q "Client Version: $pin\." \
+    && echo "kubectl moved to $pin verified"
+
+# A second run finds kubectl current and leaves it alone
+RUN SUDO=sudo bash /home/tester/.dotfiles/os/debian/setup-kubernetes.sh \
+      | grep -q 'already installed from the v1\.[0-9]* repository — skipping' \
+    && echo "re-run skip verified"
+
+# Full mode: helm and k9s from their pinned, checksummed releases
+RUN command -v helm && helm version --short \
+    && command -v k9s && k9s version --short \
+    && echo "helm and k9s verified"
+
+# ---------------------------------------------------------------------------
 # Stage: test-full — full install with all profiles (-a -l for lite mode)
 # ---------------------------------------------------------------------------
 FROM base AS test-full
