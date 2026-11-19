@@ -20,7 +20,7 @@
     },
     {
       "customType": "regex",
-      "description": "Bump the pinned helm, proto, k9s and Git Credential Manager releases. Each `local version=\"…\"` line is annotated with a `# renovate:` comment. The SHA-256 pinned next to it is not updated: the install fails closed until the sums are copied, as the PR body says.",
+      "description": "Bump the pinned helm, proto, k9s and Git Credential Manager releases, and the Kubernetes apt channel of kubectl. Each `local version=\"…\"` line is annotated with a `# renovate:` comment. The SHA-256 pinned next to it is not updated: the install fails closed until the sums are copied, as the PR body says.",
       "managerFilePatterns": [
         "/(^|/)os/debian/setup-kubernetes\\.sh$/",
         "/(^|/)os/helpers/proto\\.sh$/",
@@ -46,6 +46,12 @@
         "git-ecosystem/git-credential-manager"
       ],
       "prBodyNotes": ["⚠️ Update the SHA-256 pins next to the version before merging, or the install refuses the new release: copy them from the release (helm: `https://get.helm.sh/helm-<version>-linux-<arch>.tar.gz.sha256sum`; proto, k9s, Git Credential Manager: the `digest` of each asset on the GitHub release)."]
+    },
+    {
+      "description": "The kubectl apt repository (pkgs.k8s.io) exists per Kubernetes minor, so the pin is `v<major>.<minor>`: each full release tag maps to its minor and pre-releases match nothing. One pull request per new minor, none for patches.",
+      "matchPackageNames": ["kubernetes/kubernetes"],
+      "extractVersion": "^(?<version>v\\d+\\.\\d+)\\.\\d+$",
+      "versioning": "loose"
     }
   ]
 }

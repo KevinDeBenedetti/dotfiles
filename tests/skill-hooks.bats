@@ -112,6 +112,27 @@ session() { # session [source] — run the session hook, print its JSON
   assert_output ""
 }
 
+@test "router: silent for agent reports and app events, which are not the owner's prompts" {
+  # A subagent's report holds review words ("refactor", "PR", "fails") that are
+  # about work already done.
+  run prompt $'Another Claude session sent a message:\n<agent-message from="a1">\nThe refactor fails; open a PR\n</agent-message>'
+  assert_output ""
+  run prompt $'<task-notification>\n<summary>Agent "Spec review" finished: the build is broken</summary>\n</task-notification>'
+  assert_output ""
+  run prompt $'<side-sessions-event>the fix session crashed</side-sessions-event>'
+  assert_output ""
+  run prompt $'<ci-monitor-event>CI failed on the lint job</ci-monitor-event>'
+  assert_output ""
+  # A tag may carry attributes.
+  run prompt $'<task-notification id="t1">\nthe build is broken\n</task-notification>'
+  assert_output ""
+}
+
+@test "router: still hints for an owner's prompt that quotes an agent tag mid-text" {
+  run prompt "why does the <agent-message> parser crash on empty input"
+  assert_output --partial 'diagnosing-bugs'
+}
+
 @test "router: silent when switched off or when the plugin is not enabled" {
   DOTFILES_SKILL_ROUTER=off run prompt "the install script crashes on Debian 12"
   assert_output ""

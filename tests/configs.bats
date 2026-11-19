@@ -304,6 +304,20 @@ setup() {
   assert_file_executable "$CONFIG_DIR/claude/hooks/skill-router.sh"
 }
 
+@test "every top-level script under scripts/ is used or documented somewhere" {
+  # scripts/install.sh and scripts/packages.sh sat unused for months and kept
+  # an unpinned Homebrew install alive (removed 2026-11-18).
+  local script name
+  for script in "$REPO_ROOT"/scripts/*.sh; do
+    name="scripts/$(basename "$script")"
+    # A mention in a comment is neither a caller nor documentation.
+    grep -rnF "$name" "$REPO_ROOT/Makefile" "$REPO_ROOT/README.md" "$REPO_ROOT/AGENTS.md" \
+      "$REPO_ROOT/docs" "$REPO_ROOT/os" "$REPO_ROOT/.github" "$REPO_ROOT/tests" --exclude=configs.bats \
+      | grep -qvE '^[^:]+:[0-9]+:[[:space:]]*#' \
+      || fail "$name has no caller and no documentation"
+  done
+}
+
 @test "the public repo stays reusable: MIT LICENSE and a SECURITY.md exist" {
   assert_file_exists "$REPO_ROOT/LICENSE"
   run head -1 "$REPO_ROOT/LICENSE"
@@ -729,7 +743,7 @@ todo_layout() {
   for f in os/debian/setup-kubernetes.sh os/debian/setup-base.sh os/helpers/proto.sh; do
     # Renovate's named groups are PCRE-compatible; perl applies the same regex.
     run perl -0ne 'while (/'"$re"'/g) { print "$+{depName} $+{currentValue}\n" }' "$REPO_ROOT/$f"
-    assert_output --regexp '^((helm/helm|moonrepo/proto|derailed/k9s|git-ecosystem/git-credential-manager) v[0-9]+\.[0-9]+\.[0-9]+
+    assert_output --regexp '^(((helm/helm|moonrepo/proto|derailed/k9s|git-ecosystem/git-credential-manager) v[0-9]+\.[0-9]+\.[0-9]+|kubernetes/kubernetes v[0-9]+\.[0-9]+)
 ?)+$'
   done
 }
@@ -752,6 +766,41 @@ todo_layout() {
   assert_output --partial "install_audit_tools"
   assert_output --partial "cscli version"
   refute_output --partial "|| true"
+}
+
+@test "a Docker stage runs setup-kubernetes.sh in full mode, from an older kubectl channel" {
+  run sed -n '/^FROM base AS test-kubernetes$/,/^FROM /p' "$REPO_ROOT/tests/docker/Dockerfile.test"
+  assert_success
+  assert_output --partial "FULL_MODE_SETUP=true"
+  assert_output --partial "os/debian/setup-kubernetes.sh"
+  # It starts from the end-of-life channel, so the move is what gets checked.
+  assert_output --partial "stable:/v1.32/"
+  # The expected minor is read from the script, so a Renovate bump never breaks it.
+  assert_output --partial 'local version="\(v1\.[0-9]*\)"'
+  assert_output --partial "already installed from the"
+  assert_output --partial "command -v helm"
+  assert_output --partial "command -v k9s"
+  refute_output --partial "|| true"
+  # A fresh install comes first, on a system with no gpg: the script must
+  # install gnupg itself, so the stage never does.
+  assert_output --partial '! command -v gpg'
+  refute_output --partial 'install-recommends gpg'
+  local fresh old
+  fresh=$(grep -n 'bash /home/tester/.dotfiles/os/debian/setup-kubernetes.sh' <<<"$output" | head -n1 | cut -d: -f1)
+  old=$(grep -n 'stable:/v1.32/' <<<"$output" | head -n1 | cut -d: -f1)
+  [ -n "$fresh" ] && [ -n "$old" ] && [ "$fresh" -lt "$old" ] \
+    || fail "the stage must run setup-kubernetes.sh on the bare system before the v1.32 setup"
+}
+
+@test "the Docker kubectl check reads exactly the minor install_kubectl pins" {
+  local cmd pin
+  cmd=$(sed -n 's|^RUN pin=\$(\(sed .*\)) \\$|\1|p' "$REPO_ROOT/tests/docker/Dockerfile.test" | head -n 1)
+  [ -n "$cmd" ] || fail "no pinned-minor extraction found in Dockerfile.test"
+  cmd=${cmd//\/home\/tester\/.dotfiles/$REPO_ROOT}
+  pin=$(eval "$cmd")
+  run sed -n '/^install_kubectl()/,/^}/p' "$REPO_ROOT/os/debian/setup-kubernetes.sh"
+  assert_output --partial "local version=\"$pin\""
+  [[ $pin =~ ^v1\.[0-9]+$ ]] || fail "extracted '$pin', expected one v1.<minor>"
 }
 
 @test "the Docker oh-my-zsh check reads exactly the commit install_oh_my_zsh pins" {

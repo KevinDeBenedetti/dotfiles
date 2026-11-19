@@ -134,16 +134,78 @@ fixture_commit() {
   assert_output --regexp "^zsh-completions https://github\.com/zsh-users/zsh-completions\.git [0-9a-f]{40} $BATS_TEST_TMPDIR/plugins/zsh-completions$"
 }
 
-@test "no init script clones zsh-completions from its default branch" {
-  run grep -n 'git clone .*zsh-completions' "$REPO_ROOT/os/debian/init.sh" "$REPO_ROOT/os/macos/init.sh"
-  assert_failure 1
-  run grep -c 'install_zsh_completions "$ZSH_COMP_PLUGIN"' "$REPO_ROOT/os/debian/init.sh" "$REPO_ROOT/os/macos/init.sh"
-  assert_line --regexp 'debian/init\.sh:1$'
-  assert_line --regexp 'macos/init\.sh:1$'
+# zshrc_with_fpath_comment — a ~/.zshrc as config/zsh/.zshrc ships it: the
+# zsh-completions fpath line commented out.
+zshrc_with_fpath_comment() {
+  mkdir -p "$HOME"
+  grep -E 'zsh-completions|^source \$ZSH' "$REPO_ROOT/config/zsh/.zshrc" > "$HOME/.zshrc"
+  grep -q '^# fpath+=.*zsh-completions/src$' "$HOME/.zshrc" || fail "config/zsh/.zshrc lost the commented fpath line"
 }
 
-@test "the macOS completions step resolves the oh-my-zsh dir from \$HOME, not a literal ~" {
+@test "setup_zsh_completions clones into oh-my-zsh's custom plugins and enables its fpath line once" {
+  export HOME="$BATS_TEST_TMPDIR/home"
+  unset ZSH ZSH_CUSTOM
+  zshrc_with_fpath_comment
+  install_zsh_completions() { echo "clone $1"; mkdir -p "$1"; }
+  run setup_zsh_completions
+  assert_success
+  assert_output "clone $HOME/.oh-my-zsh/custom/plugins/zsh-completions"
+  run grep -c '^fpath+=.*zsh-completions/src$' "$HOME/.zshrc"
+  assert_output "1"
+  run setup_zsh_completions
+  assert_success
+  assert_output --partial "already present"
+  run grep -c 'zsh-completions/src' "$HOME/.zshrc"
+  assert_output "1"
+}
+
+@test "setup_zsh_completions follows ZSH_CUSTOM" {
+  export HOME="$BATS_TEST_TMPDIR/home" ZSH_CUSTOM="$BATS_TEST_TMPDIR/custom"
+  zshrc_with_fpath_comment
+  install_zsh_completions() { echo "clone $1"; }
+  run setup_zsh_completions
+  assert_output "clone $BATS_TEST_TMPDIR/custom/plugins/zsh-completions"
+}
+
+@test "setup_zsh_completions leaves a linked .zshrc (the repo's own file) alone" {
+  export HOME="$BATS_TEST_TMPDIR/home"
+  unset ZSH ZSH_CUSTOM
+  mkdir -p "$HOME/.oh-my-zsh/custom/plugins/zsh-completions"
+  echo '# fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src' > "$BATS_TEST_TMPDIR/tracked-zshrc"
+  ln -s "$BATS_TEST_TMPDIR/tracked-zshrc" "$HOME/.zshrc"
+  run setup_zsh_completions
+  assert_success
+  assert_output --partial "linked"
+  run grep -c '^# fpath' "$BATS_TEST_TMPDIR/tracked-zshrc"
+  assert_output "1"
+  [ -L "$HOME/.zshrc" ]
+}
+
+@test "setup_zsh_completions fails, leaving .zshrc unchanged, when the clone fails" {
+  export HOME="$BATS_TEST_TMPDIR/home"
+  unset ZSH ZSH_CUSTOM
+  zshrc_with_fpath_comment
+  cp "$HOME/.zshrc" "$BATS_TEST_TMPDIR/before"
+  install_zsh_completions() { return 1; }
+  run setup_zsh_completions
+  assert_failure
+  run diff "$BATS_TEST_TMPDIR/before" "$HOME/.zshrc"
+  assert_success
+}
+
+@test "both init scripts run the shared completions step, with no copy of their own" {
+  local f
+  for f in os/debian/init.sh os/macos/init.sh; do
+    run grep -c '^  setup_zsh_completions$' "$REPO_ROOT/$f"
+    assert_output "1"
+    run grep -nE 'ZSH_COMP_PLUGIN|install_zsh_completions|fpath\+=' "$REPO_ROOT/$f"
+    assert_failure 1
+  done
+}
+
+@test "the completions plugin dir resolves from \$HOME, never a literal ~" {
   # Inside double quotes "~" is not expanded: the plugin landed in ./~/.oh-my-zsh.
-  run grep -n 'ZSH_COMP_PLUGIN=.*ZSH:-~' "$REPO_ROOT/os/macos/init.sh" "$REPO_ROOT/os/debian/init.sh"
-  assert_failure 1
+  run grep -nE 'plugins/zsh-completions"' "$REPO_ROOT/os/helpers/oh-my-zsh.sh"
+  assert_output --partial '$HOME/.oh-my-zsh'
+  refute_output --partial 'ZSH:-~'
 }

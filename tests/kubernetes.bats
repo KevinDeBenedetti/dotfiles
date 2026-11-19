@@ -104,9 +104,123 @@ setup() {
   check=$(grep -n 'grep -qx "$key_fpr"' "$K8S_SCRIPT" | cut -d: -f1)
   dearmor=$(grep -n 'gpg --dearmor < "$key_tmp"' "$K8S_SCRIPT" | cut -d: -f1)
   [ -n "$check" ] && [ -n "$dearmor" ] && [ "$check" -lt "$dearmor" ]
-  run bash -c "grep -A1 'install_apt_key https://pkgs.k8s.io' '$K8S_SCRIPT'"
+  run bash -c "grep -A1 'install_apt_key \"https://pkgs.k8s.io' '$K8S_SCRIPT'"
   assert_success
   assert_output --regexp '"[0-9A-F]{40}" /etc/apt/keyrings/kubernetes-apt-keyring\.gpg'
+}
+
+# load_install_kubectl — source install_kubectl with apt, sudo and the key
+# check stubbed; every call lands in $LOG. HAS_KUBECTL=1 makes kubectl present,
+# NO_GPG=1 makes gpg missing.
+load_install_kubectl() {
+  SUDO="" red="" no_color=""
+  LOG="$BATS_TEST_TMPDIR/calls.log" LIST="$BATS_TEST_TMPDIR/kubernetes.list"
+  : > "$LOG"
+  install_apt_key() { echo "key $*" >> "$LOG"; return "${KEY_FAILS:-0}"; }
+  apt-get() { echo "apt-get $*" >> "$LOG"; return "${APT_FAILS:-0}"; }
+  command() {
+    if [ "$1" = -v ] && [ "$2" = kubectl ]; then [ -n "${HAS_KUBECTL:-}" ]; return; fi
+    if [ "$1" = -v ] && [ "$2" = gpg ]; then [ -z "${NO_GPG:-}" ]; return; fi
+    builtin command "$@"
+  }
+  eval "$(sed -n '/^install_kubectl()/,/^}/p' "$K8S_SCRIPT")"
+  declare -F install_kubectl >/dev/null || fail "install_kubectl not found in $K8S_SCRIPT"
+}
+
+@test "the kubectl apt channel is one pinned, supported minor, used for both the key and the repo" {
+  local body
+  body=$(sed -n '/^install_kubectl()/,/^}/p' "$K8S_SCRIPT")
+  # v1.32 reached end of life on 2026-02-28: no security fixes since.
+  run grep -cE '^[[:space:]]*local version="v1\.[0-9]+"$' <<<"$body"
+  assert_output "1"
+  run grep -E '^[[:space:]]*local version="v1\.(2[0-9]|3[0-2])"$' <<<"$body"
+  assert_failure
+  run grep -cE 'pkgs\.k8s\.io/core:/stable:/\$\{version\}/deb/' <<<"$body"
+  assert_output "2"
+  run grep -B1 -E '^[[:space:]]*local version="v1\.[0-9]+"$' <<<"$body"
+  assert_output --partial '# renovate: datasource=github-releases depName=kubernetes/kubernetes'
+}
+
+@test "install_kubectl adds the pinned channel's key and repository, then installs kubectl" {
+  load_install_kubectl
+  run install_kubectl "$LIST"
+  assert_success
+  run cat "$LIST"
+  assert_output --regexp '^deb \[signed-by=/etc/apt/keyrings/kubernetes-apt-keyring\.gpg\] https://pkgs\.k8s\.io/core:/stable:/v1\.[0-9]+/deb/ /$'
+  run cat "$LOG"
+  assert_line --index 0 --regexp '^key https://pkgs\.k8s\.io/core:/stable:/v1\.[0-9]+/deb/Release\.key [0-9A-F]{40} '
+  assert_line --index 1 'apt-get update -qq'
+  assert_line --index 2 'apt-get install -y kubectl'
+}
+
+@test "install_kubectl installs gnupg first on a system without gpg" {
+  # Run on its own (not through init.sh, which installs gnupg) on a bare
+  # Debian, the script failed the key check with a misleading fingerprint error.
+  load_install_kubectl
+  NO_GPG=1 run install_kubectl "$LIST"
+  assert_success
+  run cat "$LOG"
+  assert_line --index 0 'apt-get update -qq'
+  assert_line --index 1 'apt-get install -y -qq --no-install-recommends gnupg'
+  assert_line --index 2 --regexp '^key https://pkgs\.k8s\.io/'
+}
+
+@test "install_kubectl stops before the key when gnupg cannot be installed" {
+  load_install_kubectl
+  APT_FAILS=1 NO_GPG=1 run install_kubectl "$LIST"
+  assert_failure
+  run grep -c '^key ' "$LOG"
+  assert_output "0"
+  [ ! -e "$LIST" ]
+}
+
+@test "install_kubectl moves a kubectl installed from an older channel to the pinned one" {
+  load_install_kubectl
+  echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' > "$LIST"
+  HAS_KUBECTL=1 run install_kubectl "$LIST"
+  assert_success
+  assert_output --partial 'Moving'
+  run grep -c 'v1.32' "$LIST"
+  assert_output "0"
+  run cat "$LOG"
+  assert_line 'apt-get install -y kubectl'
+}
+
+@test "install_kubectl leaves kubectl alone when it is current, or not installed from pkgs.k8s.io" {
+  load_install_kubectl
+  install_kubectl "$LIST"
+  : > "$LOG"
+  HAS_KUBECTL=1 run install_kubectl "$LIST"
+  assert_success
+  assert_output --partial 'skipping'
+  rm "$LIST"
+  HAS_KUBECTL=1 run install_kubectl "$LIST"
+  assert_success
+  assert_output --partial 'skipping'
+  run cat "$LOG"
+  assert_output ""
+  [ ! -e "$LIST" ]
+}
+
+@test "install_kubectl writes no repository when the key does not match" {
+  load_install_kubectl
+  echo old > "$LIST"
+  KEY_FAILS=1 HAS_KUBECTL=1 run install_kubectl "$LIST"
+  assert_failure
+  run cat "$LIST"
+  assert_output "old"
+  run grep -c apt-get "$LOG"
+  assert_output "0"
+}
+
+@test "Renovate moves the Kubernetes apt channel by minor only, never to a pre-release" {
+  command -v perl >/dev/null || skip "perl not installed"
+  run jq -r '.packageRules[] | select(.matchPackageNames | index("kubernetes/kubernetes")) | .extractVersion' "$REPO_ROOT/renovate.json"
+  assert_success
+  local re=${output//'(?<version>'/(}
+  # Renovate applies extractVersion to each release tag; perl uses the same regex.
+  run perl -e 'for (@ARGV) { print "$1\n" if /'"$re"'/ }' v1.37.2 v1.38.0 v1.38.0-alpha.1 v1.38.0-rc.0
+  assert_output $'v1.37\nv1.38'
 }
 
 @test "the lite setup leaves kubectl and its apt repository off a node managed by the infra repo" {
@@ -117,12 +231,31 @@ setup() {
   assert_output --partial 'if [[ -f "$infra_conf" ]]; then'
   # The marker is tested before the key and the repository are written, and
   # nothing is installed in its branch.
-  local marker repo
+  local marker install
   marker=$(sed -n '/^install_lite_setup()/,/^}/p' "$K8S_SCRIPT" | grep -n 'if \[\[ -f "$infra_conf" \]\]' | head -n1 | cut -d: -f1)
-  repo=$(sed -n '/^install_lite_setup()/,/^}/p' "$K8S_SCRIPT" | grep -n 'sources.list.d/kubernetes.list' | head -n1 | cut -d: -f1)
-  [ -n "$marker" ] && [ -n "$repo" ] && [ "$marker" -lt "$repo" ]
-  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$K8S_SCRIPT' | sed -n '/if \[\[ -f \"\$infra_conf\" \]\]; then/,/^  elif/p' | grep -E 'apt-get|kubernetes.list|install_apt_key'"
+  install=$(sed -n '/^install_lite_setup()/,/^}/p' "$K8S_SCRIPT" | grep -n 'install_kubectl' | head -n1 | cut -d: -f1)
+  [ -n "$marker" ] && [ -n "$install" ] && [ "$marker" -lt "$install" ]
+  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$K8S_SCRIPT' | sed -n '/if \[\[ -f \"\$infra_conf\" \]\]; then/,/^  else/p' | grep -E 'apt-get|kubernetes.list|install_apt_key|install_kubectl'"
   assert_failure
+}
+
+@test "load_kernel_modules writes its config on a system with no /etc/sysctl.d yet" {
+  # The slim debian image ships neither /etc/sysctl.d nor /etc/modules-load.d
+  # (procps and kmod create them): the sysctl write stopped the whole script.
+  ROOT="$BATS_TEST_TMPDIR/root" red="" no_color=""
+  mkdir -p "$ROOT/etc"
+  # Every command run through $SUDO acts under $ROOT instead of /.
+  in_root() { local a=() x; for x in "$@"; do a+=("${x//\/etc\//$ROOT/etc/}"); done; "${a[@]}"; }
+  modprobe() { return 1; }
+  sysctl() { return 1; }
+  eval "$(sed -n '/^load_kernel_modules()/,/^}/p' "$K8S_SCRIPT")"
+  # Under the script's own `set -euo pipefail`: a failing write must fail the test.
+  run bash -c "set -euo pipefail; $(declare -f in_root modprobe sysctl load_kernel_modules); ROOT='$ROOT' SUDO=in_root red= no_color= load_kernel_modules"
+  assert_success
+  run cat "$ROOT/etc/sysctl.d/99-zz-kubernetes-cri.conf"
+  assert_output --partial 'net.ipv4.ip_forward                 = 1'
+  run cat "$ROOT/etc/modules-load.d/k8s.conf"
+  assert_output $'overlay\nbr_netfilter'
 }
 
 @test "kernel module + sysctl calls are best-effort (container-safe)" {

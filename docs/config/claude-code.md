@@ -181,8 +181,10 @@ not enabled.
   `debug-action` for a CI run), a review of changes, an infrastructure audit,
   a refactor, a plan to grill, a prototype, research, a pull request, agent
   docs, and a feature or fix in a repository with tests (`tdd`). It skips
-  slash commands, replies shorter than 12 characters and prompts that already
-  name a skill.
+  slash commands, replies shorter than 12 characters, prompts that already
+  name a skill, and the reports of subagents and events of the app
+  (`<agent-message>`, `<task-notification>`, …), which arrive as prompts but
+  describe work already done.
 
 `DOTFILES_SKILL_ROUTER=off` in the `env` block silences both.
 

@@ -54,6 +54,8 @@ EOF
   # sets ip_forward = 0: systemd-sysctl orders names as text, so the former
   # 100-kubernetes-cri.conf came BEFORE 99-… and lost at every boot (found on
   # an infra-managed node on 2026-11-04). 99-zz-… sorts after it.
+  # A minimal system has no /etc/sysctl.d until procps is installed.
+  $SUDO mkdir -p /etc/sysctl.d
   $SUDO rm -f /etc/sysctl.d/100-kubernetes-cri.conf
   $SUDO tee /etc/sysctl.d/99-zz-kubernetes-cri.conf > /dev/null <<'EOF'
 net.bridge.bridge-nf-call-iptables  = 1
@@ -64,6 +66,52 @@ EOF
   $SUDO sysctl --system > /dev/null 2>&1 || true
 
   printf '%b' "${red}[kubernetes]${no_color} Kernel modules loaded and sysctl applied.\n"
+}
+
+# install_kubectl [<list>]
+# Install kubectl from the pkgs.k8s.io repository of the Kubernetes minor
+# pinned here. A kubectl installed from another minor's repository is moved to
+# this one (apt then upgrades it), so a pin bump reaches machines set up
+# before it; a kubectl installed some other way (no <list>) is left alone.
+# <list> defaults to /etc/apt/sources.list.d/kubernetes.list; only the tests
+# pass another one (hence SC2120, which ShellCheck 0.10 raises).
+# shellcheck disable=SC2120
+install_kubectl() {
+  local list="${1:-/etc/apt/sources.list.d/kubernetes.list}"
+  # pkgs.k8s.io has one repository per Kubernetes minor, which stops getting
+  # fixes at that minor's end of life (about 14 months after its release).
+  # kubectl works against clusters one minor older or newer. Renovate moves
+  # this pin to each new minor (renovate.json maps v1.37.2 to v1.37).
+  # renovate: datasource=github-releases depName=kubernetes/kubernetes
+  local version="v1.37"
+  local entry="deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${version}/deb/ /"
+  if command -v kubectl &>/dev/null; then
+    if [[ ! -f "$list" ]]; then
+      printf '%b' "${red}[kubernetes]${no_color} kubectl installed outside pkgs.k8s.io — skipping.\n"
+      return 0
+    fi
+    if [[ "$(cat "$list")" == "$entry" ]]; then
+      printf '%b' "${red}[kubernetes]${no_color} kubectl already installed from the ${version} repository — skipping.\n"
+      return 0
+    fi
+    printf '%b' "${red}[kubernetes]${no_color} Moving kubectl to the ${version} repository.\n"
+  fi
+  # install_apt_key checks the key with gpg. init.sh installs gnupg first; run
+  # on its own on a bare Debian, this script failed the fingerprint check.
+  if ! command -v gpg &>/dev/null; then
+    { $SUDO apt-get update -qq \
+      && $SUDO apt-get install -y -qq --no-install-recommends gnupg; } || return 1
+  fi
+  # The key of pkgs.k8s.io (the "isv:kubernetes OBS Project" key): one key
+  # for every minor's repository, v1.32, v1.36 and v1.37 served the same one
+  # (2026-11-12, 2026-11-18). Its expiry (2026-12-29 then) is extended on the
+  # same key, so the fingerprint outlives it.
+  install_apt_key "https://pkgs.k8s.io/core:/stable:/${version}/deb/Release.key" \
+    "DE15B14486CD377B9E876E1A234654DA9A296436" /etc/apt/keyrings/kubernetes-apt-keyring.gpg || return 1
+  echo "$entry" | $SUDO tee "$list" > /dev/null
+  $SUDO chmod 644 "$list"
+  $SUDO apt-get update -qq
+  $SUDO apt-get install -y kubectl
 }
 
 install_lite_setup() {
@@ -80,20 +128,8 @@ install_lite_setup() {
   local infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"
   if [[ -f "$infra_conf" ]]; then
     printf '%b' "${red}[kubernetes]${no_color} Node managed by the infra repo ($infra_conf) — skipping kubectl.\n"
-  elif ! command -v kubectl &>/dev/null; then
-    # The key of pkgs.k8s.io (the "isv:kubernetes OBS Project" key): one key
-    # for every minor's repository, v1.32 and v1.36 served the same one on
-    # 2026-11-12. Its expiry (2026-12-29 that day) is extended on the same
-    # key, so the fingerprint outlives it.
-    install_apt_key https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key \
-      "DE15B14486CD377B9E876E1A234654DA9A296436" /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-    echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' \
-      | $SUDO tee /etc/apt/sources.list.d/kubernetes.list
-    $SUDO chmod 644 /etc/apt/sources.list.d/kubernetes.list
-    $SUDO apt-get update -qq
-    $SUDO apt-get install -y kubectl
   else
-    printf '%b' "${red}[kubernetes]${no_color} kubectl already installed — skipping.\n"
+    install_kubectl
   fi
 }
 

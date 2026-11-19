@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install Homebrew from its installer script, pinned by commit and SHA-256.
-# Sourced by os/macos/init.sh and scripts/packages.sh, never executed.
+# Sourced by os/macos/init.sh, never executed.
 
 red="${red:-}"
 no_color="${no_color:-}"

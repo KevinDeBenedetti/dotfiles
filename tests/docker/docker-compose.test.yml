@@ -41,6 +41,13 @@ services:
       dockerfile: tests/docker/Dockerfile.test
       target: test-security-full
 
+  # setup-kubernetes.sh: fresh install, then full mode moving kubectl off an old channel
+  test-kubernetes:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+      target: test-kubernetes
+
   # Full integration test (all profiles, lite mode)
   test-full:
     build:
