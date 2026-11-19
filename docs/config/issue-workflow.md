@@ -102,8 +102,8 @@ Agents may read, comment on, label and create issues (`gh issue view`, `list`,
 Closing or deleting an issue has no allow rule, so it asks first.
 
 ::: tip
-In the Claude Code sandbox on macOS, `gh` can fail with
-`tls: failed to verify certificate`. The
-[sandboxing documentation](https://code.claude.com/docs/en/sandboxing) gives
-the two settings that fix it, and what each one weakens.
+In the Claude Code sandbox on macOS, `gh` fails with
+`tls: failed to verify certificate` unless
+`sandbox.enableWeakerNetworkIsolation` is on, as it is in
+`config/claude/settings.json`: see [Claude Code](./claude-code.md#sandbox).
 :::
