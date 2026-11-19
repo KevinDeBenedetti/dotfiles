@@ -722,7 +722,8 @@
   "effortLevel": "high",
   "modelSettings": {
     "claude-opus-5-5": {
-      "effortLevel": "xhigh"
+      "effortLevel": "xhigh",
+      "autoCompactWindow": "auto"
     },
     "claude-sonnet-5-5": {
       "effortLevel": "medium"

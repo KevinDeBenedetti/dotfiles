@@ -31,10 +31,11 @@ trimmed=${prompt#"${prompt%%[![:space:]]*}"}
 [ "${#trimmed}" -ge 12 ] || exit 0
 case $trimmed in /*) exit 0 ;; esac
 # Reports from subagents and events from the app arrive as prompts too. Their
-# words ("refactor", "fails", "PR") describe work already done: no hint.
+# words ("refactor", "fails", "PR") describe work already done: no hint. Same
+# for a command the owner ran in the app (<bash-input>): its output is no request.
 case $trimmed in
   'Another Claude session sent a message'* | '<agent-message'* | '<task-notification'* \
-    | '<side-sessions-event'* | '<ci-monitor-event'*) exit 0 ;;
+    | '<side-sessions-event'* | '<ci-monitor-event'* | '<bash-input'*) exit 0 ;;
 esac
 grep -qiE 'mattpocock-skills:|Skill tool' <<<"$prompt" && exit 0
 
