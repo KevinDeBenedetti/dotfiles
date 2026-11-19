@@ -191,7 +191,8 @@ not enabled.
   slash commands, replies shorter than 12 characters, prompts that already
   name a skill, and the reports of subagents and events of the app
   (`<agent-message>`, `<task-notification>`, …), which arrive as prompts but
-  describe work already done.
+  describe work already done. It skips too a command the owner runs in the
+  app (`<bash-input>`), whose output carries no request.
 
 `DOTFILES_SKILL_ROUTER=off` in the `env` block silences both.
 

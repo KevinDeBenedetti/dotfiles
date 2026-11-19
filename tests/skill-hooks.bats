@@ -128,6 +128,13 @@ session() { # session [source] — run the session hook, print its JSON
   assert_output ""
 }
 
+@test "router: silent for a command the owner ran in the app, whose output is not a request" {
+  # The output echoes the command and its tool names ("fix end of files",
+  # "ERROR" in a grep pattern), with no request behind them.
+  run prompt $'<bash-input>git push</bash-input><bash-stdout>fix end of files....Passed\nshellcheck....Failed</bash-stdout><bash-stderr></bash-stderr>'
+  assert_output ""
+}
+
 @test "router: still hints for an owner's prompt that quotes an agent tag mid-text" {
   run prompt "why does the <agent-message> parser crash on empty input"
   assert_output --partial 'diagnosing-bugs'
