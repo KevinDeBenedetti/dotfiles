@@ -105,6 +105,13 @@ plus a `network.allowedDomains` allowlist (see precedence below). Tool caches
 so tools use their normal caches instead of Claude redirecting them through
 `PATH=` / `*_CACHE=` prefixes, which no allow rule can match.
 
+`sandbox.enableWeakerNetworkIsolation` is on: without it, Go tools such as
+`gh` cannot verify TLS certificates inside the macOS sandbox
+(`x509: OSStatus -26276`), and `/next-issue` needs `gh`. It weakens the
+sandbox (see the
+[sandboxing documentation](https://code.claude.com/docs/en/sandboxing)); `gh`
+itself stays sandboxed and bound by the permission rules.
+
 ::: warning
 Configs linked into `$HOME` are executed outside the sandbox (shell rc files,
 LaunchAgent, Copilot hook, scripts on `PATH`). Link them from a clean checkout
