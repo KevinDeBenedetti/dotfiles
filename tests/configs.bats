@@ -850,6 +850,9 @@ todo_layout() {
 @test "a Docker stage runs the full-mode security steps without swallowing failures" {
   run sed -n '/^FROM base AS test-security-full$/,/^FROM /p' "$REPO_ROOT/tests/docker/Dockerfile.test"
   assert_output --partial "install_configure_crowdsec"
+  # The stage runs the function on its own: it must load the helper that
+  # holds install_apt_key (os/helpers/fetch.sh) first.
+  assert_output --partial 'source /home/tester/.dotfiles/os/helpers/fetch.sh;'
   assert_output --partial "install_audit_tools"
   assert_output --partial "cscli version"
   refute_output --partial "|| true"

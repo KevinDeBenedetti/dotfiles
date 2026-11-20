@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Verified installs, shared by the setup scripts: downloads kept only when
-# their SHA-256 is the pinned one, and git clones at a pinned commit.
+# their SHA-256 is the pinned one, apt keys trusted only with their pinned
+# fingerprint, and git clones at a pinned commit.
 # Sourced, never executed.
 
 # fetch_verified <url> <sha256> <dest>
@@ -85,6 +86,42 @@ install_deb_verified() {
   fi
   rm -rf "$tmp"
   return "$rc"
+}
+
+# install_apt_key <url> <fingerprint> <keyring>
+# Download an apt repository key and write it into <keyring> (through $SUDO)
+# only when it is the key with that fingerprint. Until 2026-11-12 the keys were
+# piped from curl straight into `gpg --dearmor`: apt then trusted, for every
+# package of that repository, whatever the URL served that day. A rotated or
+# swapped key now fails here instead. The file must hold that one key only: an
+# extra key appended to it would land in the keyring too. Every step is
+# checked explicitly; the temp dir is removed whatever happens.
+install_apt_key() {
+  local url="$1" key_fpr="$2" keyring="$3"
+  local tmp status=0
+  # Without gpg the check below fails as a fingerprint mismatch: say what is
+  # really missing, before anything is downloaded.
+  if ! command -v gpg &>/dev/null; then
+    printf '%b' "${red:-}[error]${no_color:-} gpg is not installed (apt package gnupg) — cannot check the apt key from $url.\n"
+    return 1
+  fi
+  tmp=$(mktemp -d "${TMPDIR:-/tmp}/apt-key.XXXXXX") || return 1
+  if ! curl -fsSL -o "$tmp/key" "$url"; then
+    printf '%b' "${red:-}[error]${no_color:-} apt key from $url could not be downloaded.\n"
+    status=1
+  elif ! GNUPGHOME="$tmp" gpg --show-keys --with-colons "$tmp/key" 2>/dev/null \
+      | awk -F: '$1 == "pub" { n++ } $1 == "fpr" && !fpr { fpr = $10 } END { if (n == 1) print fpr }' \
+      | grep -qx "$key_fpr"; then
+    printf '%b' "${red:-}[error]${no_color:-} apt key from $url does not match fingerprint $key_fpr — not trusting it.\n"
+    status=1
+  elif ! GNUPGHOME="$tmp" gpg --dearmor < "$tmp/key" > "$tmp/keyring" \
+      || ! ${SUDO:-} install -m 0755 -d "$(dirname "$keyring")" \
+      || ! ${SUDO:-} install -m 0644 "$tmp/keyring" "$keyring"; then
+    printf '%b' "${red:-}[error]${no_color:-} $keyring could not be written.\n"
+    status=1
+  fi
+  rm -rf "$tmp"
+  return "$status"
 }
 
 # clone_at_commit <name> <repo_url> <commit> <dest> [<git-config-key>=<value>...]

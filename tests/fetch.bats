@@ -162,3 +162,79 @@ fake_sudo_with_apt() {
   run find "$BATS_TEST_TMPDIR" -maxdepth 1 -name 'tool.*'
   assert_output ""
 }
+
+# --- install_apt_key: an apt key reaches the keyring only with its pinned fingerprint ---
+
+# gpg stub: --show-keys prints one `pub`/`fpr` pair per line of $KEY_FPRS, in
+# gpg's colon format; --dearmor copies stdin. NO_GPG=1 makes gpg missing.
+load_apt_key_stubs() {
+  export TMPDIR="$BATS_TEST_TMPDIR"
+  SUDO="" KEYRING="$BATS_TEST_TMPDIR/keyrings/vendor.gpg" PAYLOAD="armored key"
+  FPR=0123456789ABCDEF0123456789ABCDEF01234567
+  # Another key: same length, different fingerprint.
+  OTHER_FPR="FFFF${FPR:4}"
+  gpg() {
+    local fpr
+    case " $* " in
+      *" --show-keys "*) for fpr in $KEY_FPRS; do printf 'pub:-:255:22:%s:\nfpr:::::::::%s:\n' "${fpr: -16}" "$fpr"; done ;;
+      *" --dearmor "*) cat ;;
+    esac
+  }
+  command() {
+    if [ "$1" = -v ] && [ "$2" = gpg ]; then [ -z "${NO_GPG:-}" ]; return; fi
+    builtin command "$@"
+  }
+}
+
+@test "install_apt_key writes the keyring when the one key has the pinned fingerprint" {
+  load_apt_key_stubs
+  KEY_FPRS="$FPR" run install_apt_key https://example.invalid/key "$FPR" "$KEYRING"
+  assert_success
+  assert_equal "$(cat "$KEYRING")" "armored key"
+}
+
+@test "install_apt_key refuses another key, and writes no keyring" {
+  load_apt_key_stubs
+  KEY_FPRS="$OTHER_FPR" run install_apt_key https://example.invalid/key "$FPR" "$KEYRING"
+  assert_failure
+  assert_output --partial "does not match fingerprint $FPR"
+  assert_file_not_exists "$KEYRING"
+}
+
+@test "install_apt_key refuses a file that holds a second key next to the pinned one" {
+  load_apt_key_stubs
+  KEY_FPRS="$FPR $OTHER_FPR" run install_apt_key https://example.invalid/key "$FPR" "$KEYRING"
+  assert_failure
+  assert_file_not_exists "$KEYRING"
+}
+
+@test "install_apt_key says gpg is not installed, before any download, when gpg is missing" {
+  load_apt_key_stubs
+  curl() { echo "curl called"; }
+  NO_GPG=1 KEY_FPRS="$FPR" run install_apt_key https://example.invalid/key "$FPR" "$KEYRING"
+  assert_failure
+  assert_output --partial 'gpg is not installed'
+  refute_output --partial 'does not match fingerprint'
+  refute_output --partial 'curl called'
+  assert_file_not_exists "$KEYRING"
+}
+
+@test "install_apt_key fails without a keyring when the key cannot be downloaded" {
+  load_apt_key_stubs
+  CURL_FAILS=1 KEY_FPRS="$FPR" run install_apt_key https://example.invalid/key "$FPR" "$KEYRING"
+  assert_failure
+  assert_output --partial 'could not be downloaded'
+  assert_file_not_exists "$KEYRING"
+}
+
+@test "the Debian scripts share this install_apt_key: none keeps a copy of the check" {
+  local script
+  for script in setup-base.sh setup-kubernetes.sh setup-security.sh; do
+    run grep -c 'helpers/fetch.sh"$' "$REPO_ROOT/os/debian/$script"
+    assert_output "1"
+    run grep -nE '^install_apt_key\(\)|gpg --(show-keys|dearmor)' "$REPO_ROOT/os/debian/$script"
+    assert_failure
+    run grep -c 'install_apt_key ' "$REPO_ROOT/os/debian/$script"
+    refute_output "0"
+  done
+}
