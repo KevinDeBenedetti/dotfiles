@@ -8,9 +8,9 @@ A minimal custom Oh My Zsh theme with git integration.
 
 ## Location
 
-| File                                            | Symlinked to                                       |
-| ----------------------------------------------- | -------------------------------------------------- |
-| `config/oh-my-zsh/kevin-de-benedetti.zsh-theme` | `~/.oh-my-zsh/themes/kevin-de-benedetti.zsh-theme` |
+| File                                            | Symlinked to                                              |
+| ----------------------------------------------- | --------------------------------------------------------- |
+| `config/oh-my-zsh/kevin-de-benedetti.zsh-theme` | `~/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme` |
 
 ## Prompt layout
 

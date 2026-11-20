@@ -268,7 +268,7 @@ Key aliases defined in `.zshrc` (beyond plugin aliases):
 
 ### fzf Integration
 
-The `fzf` Oh My Zsh plugin is enabled by the Homebrew completion setup. The following key bindings are available in the terminal:
+`fzf` is installed by the `base` profile, and the completions step (`-c`) runs its Homebrew installer, which generates `~/.fzf.zsh`. The tracked `.zshrc` does not load that file or the `fzf` Oh My Zsh plugin, so the key bindings below are off until you add `fzf` to `plugins=(…)` in `~/.zshrc` (or source `~/.fzf.zsh` from `~/.zshrc.local`):
 
 | Binding  | Action                                              |
 | -------- | --------------------------------------------------- |
@@ -362,10 +362,9 @@ When `~/.ssh/id_rsa.pub` exists the dotfiles install creates `~/.ssh/allowed_sig
 `config/proto/.prototools` is **symlinked** to `~/.proto/.prototools`. It pins global tool versions and configures proto's behaviour:
 
 ```toml
-bun   = "latest"
-node  = "latest"
+# bun, node, pnpm, yarn, python and go: one exact version each
+# (see the file for the numbers)
 npm   = "bundled"   # ships with the Node.js version
-pnpm  = "latest"
 
 [tools.node]
 bundled-npm = true  # keep npm in sync with node
