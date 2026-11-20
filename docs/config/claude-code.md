@@ -83,8 +83,10 @@ so neither the classifier nor a prompt is involved, and hard denies:
 - `gh auth token`, `git credential …` (print stored tokens) and
   `kubectl get secret(s)`
 
-`gh` is pre-approved for read-only subcommands only (`gh pr view`,
-`gh run list`, …). These ask first: `gh api` (it can push, merge or delete
+`gh` is pre-approved for read-only subcommands (`gh pr view`, `gh run list`,
+…), plus the three issue writes [`/next-issue`](./issue-workflow.md) needs:
+`gh issue comment`, `gh issue edit` and `gh issue create`. Closing or deleting
+an issue is not among them. These ask first: `gh api` (it can push, merge or delete
 through the REST API), `gh pr merge`, `terraform apply` / `destroy` and
 `kubectl config view`.
 
