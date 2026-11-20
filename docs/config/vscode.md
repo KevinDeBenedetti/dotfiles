@@ -61,13 +61,14 @@ Debian. Each extension listed in `extensions.json` is installed with
 | `application.shellEnvironmentResolutionTimeout` | `30`                              | Launched from the Dock, VS Code reads PATH from a login zsh; past the 10 s default it gives up, and every proto shim (`node`, `python`) then fails to find `proto` |
 | `python.defaultInterpreterPath`                 | `${userHome}/.proto/shims/python` | The Python extension expands `${userHome}`, not `~`                                                                                                                |
 
-proto is installed with Homebrew (`/opt/homebrew/bin/proto`). When the shell
-environment is not resolved, `PATH` lacks `/opt/homebrew/bin` and the shims fail
-with `proto-shim: Failed to execute proto`. A `proto` link in `~/.proto/bin`
-makes them independent of `PATH` (the shim also looks in `$PROTO_HOME/bin`):
+proto is installed from its pinned release into `~/.proto/bin`
+(`os/helpers/proto.sh`), where the shims look for it (`$PROTO_HOME/bin`) even
+when the shell environment is not resolved. A `proto` installed another way,
+such as with Homebrew, sits outside that directory: the shims then fail with
+`proto-shim: Failed to execute proto`, until a link puts it there:
 
 ```sh
-ln -s /opt/homebrew/bin/proto ~/.proto/bin/proto
+ln -s "$(command -v proto)" ~/.proto/bin/proto
 ```
 
 ### Commit messages

@@ -34,14 +34,19 @@ All tool versions are declared in `config/proto/.prototools`, which is symlinked
 
 ## Managed tools
 
-| Tool     | Version               |
-| -------- | --------------------- |
-| `node`   | `latest`              |
-| `npm`    | `bundled` (with Node) |
-| `bun`    | `latest`              |
-| `pnpm`   | `latest`              |
-| `yarn`   | `latest`              |
-| `python` | `3.12.13`             |
+Every tool is pinned to an exact version in `.prototools`, the source of truth
+for the numbers; the `# renovate:` comments there mark the pins Renovate is
+configured to bump.
+
+| Tool     | Version                          |
+| -------- | -------------------------------- |
+| `node`   | Exact version                    |
+| `npm`    | `bundled` (ships with that Node) |
+| `bun`    | Exact version                    |
+| `pnpm`   | Exact version                    |
+| `yarn`   | Exact version                    |
+| `python` | Exact version                    |
+| `go`     | Exact version                    |
 
 ## Settings
 

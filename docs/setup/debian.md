@@ -376,7 +376,7 @@ The following [Oh My Zsh](https://ohmyz.sh) plugins are enabled in `.zshrc`:
 
 ### fzf Integration
 
-When installed (via the `base` profile), `fzf` provides the following shell key bindings:
+`fzf` is installed by the `base` profile. The tracked `.zshrc` does not load its shell integration, so the key bindings below are off until you add `fzf` to `plugins=(…)` in `~/.zshrc`:
 
 | Binding  | Action                                              |
 | -------- | --------------------------------------------------- |
@@ -467,10 +467,9 @@ When `~/.ssh/id_rsa.pub` exists the dotfiles install creates `~/.ssh/allowed_sig
 `config/proto/.prototools` is **symlinked** to `~/.proto/.prototools`. It pins global tool versions and configures proto's behaviour:
 
 ```toml
-bun   = "latest"
-node  = "latest"
+# bun, node, pnpm, yarn, python and go: one exact version each
+# (see the file for the numbers)
 npm   = "bundled"   # ships with the Node.js version
-pnpm  = "latest"
 
 [tools.node]
 bundled-npm = true  # keep npm in sync with node
