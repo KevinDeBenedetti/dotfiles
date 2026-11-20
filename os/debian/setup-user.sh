@@ -55,7 +55,9 @@ $SUDO usermod -aG sudo "${CREATE_USER}"
 
 # Copy root's authorized_keys so the same SSH key works for the new user
 if [[ "${COPY_ROOT_SSH_KEY}" == "true" ]]; then
-  if [[ -f /root/.ssh/authorized_keys ]]; then
+  # Through $SUDO, like the copy: /root is mode 700, so a sudo user running
+  # this script cannot see the file itself.
+  if $SUDO test -f /root/.ssh/authorized_keys; then
     $SUDO mkdir -p "/home/${CREATE_USER}/.ssh"
     $SUDO cp /root/.ssh/authorized_keys "/home/${CREATE_USER}/.ssh/authorized_keys"
     $SUDO chown -R "${CREATE_USER}:${CREATE_USER}" "/home/${CREATE_USER}/.ssh"

@@ -58,7 +58,7 @@ test-security: ## Run security profile tests
 .PHONY: lint validate
 
 lint: ## Run ShellCheck on all shell scripts
-	find . -type f \( -name "*.sh" -o -path "./scripts/ai/*" \) \
+	find . -type f \( -name "*.sh" -o -path "./scripts/*/*" \) \
 		-not -path "*/test_helper/*" -not -name "*.md" \
 		-exec shellcheck --severity=warning --shell=bash --format=gcc {} +
 

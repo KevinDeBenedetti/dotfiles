@@ -601,6 +601,18 @@ setup() {
   assert_output "GIT_DIR=unset GIT_INDEX_FILE=unset GIT_WORK_TREE=unset"
 }
 
+@test "the tracked .gitconfig names Git Credential Manager only as 'manager'" {
+  # `git-credential-manager configure` writes an absolute, machine-specific
+  # helper path through the ~/.gitconfig symlink: it must not be committed.
+  # An empty value resets the helpers inherited from the system config.
+  run git config --file "$REPO_ROOT/config/git/.gitconfig" --get-all credential.helper
+  assert_success
+  assert_equal "${#lines[@]}" 1
+  assert_line --index 0 "manager"
+  run grep -nE '^[[:space:]]*helper[[:space:]]*=[[:space:]]*/' "$REPO_ROOT/config/git/.gitconfig"
+  assert_failure
+}
+
 # --- Renovate keeps the prek.toml rev pins up to date ---
 
 @test "renovate.json is valid JSON" {
@@ -909,5 +921,36 @@ todo_layout() {
 @test "renovate.json uses no option Renovate has deprecated" {
   # renovate-config-validator --strict fails on fileMatch (now managerFilePatterns).
   run jq -e '[.. | objects | has("fileMatch")] | any' "$REPO_ROOT/renovate.json"
+  assert_failure
+}
+
+# --- ShellCheck reaches every script, with or without a .sh suffix ---
+
+@test "make lint hands every extensionless script under scripts/ to ShellCheck" {
+  # A stand-in shellcheck that prints the files it was given.
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  printf '#!/bin/bash\nprintf "%%s\\n" "$@"\n' > "$BATS_TEST_TMPDIR/bin/shellcheck"
+  chmod +x "$BATS_TEST_TMPDIR/bin/shellcheck"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH" run make -s -C "$REPO_ROOT" --no-print-directory lint
+  assert_success
+  local f
+  for f in "$REPO_ROOT"/scripts/*/*; do
+    [[ "$f" == *.md ]] && continue
+    assert_line "./scripts/${f#"$REPO_ROOT"/scripts/}"
+  done
+  refute_line --regexp '^\./tests/test_helper/'
+}
+
+@test "the prek shellcheck hook matches the extensionless scripts under scripts/" {
+  local pattern f
+  pattern=$(sed -n '/id = "shellcheck"/,/}/s/^ *files = "\(.*\)",$/\1/p' "$REPO_ROOT/prek.toml" | sed 's/\\\\/\\/g')
+  [ -n "$pattern" ] || fail "no files pattern found for the shellcheck hook"
+  for f in "$REPO_ROOT"/scripts/*/* "$REPO_ROOT"/os/helpers/links.sh; do
+    [[ "$f" == *.md ]] && continue
+    run grep -qE "$pattern" <<<"${f#"$REPO_ROOT"/}"
+    assert_success
+  done
+  # Markdown and data files next to them stay out.
+  run grep -qE "$pattern" <<<"config/ollama/models.txt"
   assert_failure
 }

@@ -7,11 +7,18 @@
 # .zshrc is intentionally NOT handled here: scripts/symlink.sh symlinks it,
 # while the init scripts copy it to apply machine-specific edits.
 
-# Backup a file if it exists and is not already a symlink
+# Backup a file if it exists and is not already a symlink. The first backup of
+# the day is kept: a re-run would otherwise copy the file this script installed
+# on the first run over the backup of the user's original.
 backup_if_exists() {
-  local target="$1"
+  local target="$1" backup
   if [ -f "$target" ] && [ ! -L "$target" ]; then
-    cp "$target" "${target}.bak.$(date +%Y%m%d)"
+    backup="${target}.bak.$(date +%Y%m%d)"
+    if [ -e "$backup" ]; then
+      printf '[backup] %s already backed up today — keeping %s\n' "$target" "$backup"
+      return 0
+    fi
+    cp "$target" "$backup"
     printf '[backup] Backed up %s\n' "$target"
   fi
 }

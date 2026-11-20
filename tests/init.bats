@@ -107,3 +107,38 @@ setup() {
   run grep -F 'tee "/etc/sudoers.d/' "$REPO_ROOT/os/debian/setup-user.sh"
   assert_failure
 }
+
+# A sudo stand-in: logs every command it is given and lets them all succeed,
+# except `test -f`, which answers for a root-only path this user cannot stat.
+fake_sudo_for_setup_user() {
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat > "$BATS_TEST_TMPDIR/bin/fakesudo" <<STUB
+#!/bin/bash
+echo "\$*" >> "$BATS_TEST_TMPDIR/sudo.log"
+if [ "\$1" = test ]; then [ "\${ROOT_HAS_KEYS:-}" = 1 ]; fi
+STUB
+  printf '#!/bin/bash\nexit 0\n' > "$BATS_TEST_TMPDIR/bin/id"
+  chmod +x "$BATS_TEST_TMPDIR/bin/fakesudo" "$BATS_TEST_TMPDIR/bin/id"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+}
+
+@test "setup-user.sh copies root's authorized_keys when only root can read /root" {
+  # /root is mode 700: a sudo user cannot see the file, so the check has to go
+  # through sudo like the copy does.
+  fake_sudo_for_setup_user
+  ROOT_HAS_KEYS=1 CREATE_USER=deploy SUDO=fakesudo run bash "$REPO_ROOT/os/debian/setup-user.sh"
+  assert_success
+  assert_output --partial "SSH authorized_keys copied from root."
+  run cat "$BATS_TEST_TMPDIR/sudo.log"
+  assert_line "test -f /root/.ssh/authorized_keys"
+  assert_line "cp /root/.ssh/authorized_keys /home/deploy/.ssh/authorized_keys"
+}
+
+@test "setup-user.sh skips the key copy when root has no authorized_keys" {
+  fake_sudo_for_setup_user
+  CREATE_USER=deploy SUDO=fakesudo run bash "$REPO_ROOT/os/debian/setup-user.sh"
+  assert_success
+  assert_output --partial "skipping key copy"
+  run grep -c '^cp ' "$BATS_TEST_TMPDIR/sudo.log"
+  assert_output "0"
+}
