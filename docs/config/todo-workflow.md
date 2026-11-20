@@ -95,9 +95,11 @@ not have them and run the same steps without them.
 | `code-review`     | To review the task's changes once the checks pass, before it is recorded     |
 
 The same plugin feeds the file. In a repository set up with
-`/mattpocock-skills:setup-matt-pocock-skills` to use `TODO.md` as its tracker
-(this one is: see [Issue Tracker](../agents/issue-tracker.md)), the planning
-skills write tasks that `/next-task` then works:
+`/mattpocock-skills:setup-matt-pocock-skills` to use `TODO.md` as its tracker,
+the planning skills write tasks that `/next-task` then works. This repository
+is not one of them: it tracks its work in GitHub Issues (see
+[Issue Tracker](../agents/issue-tracker.md) and
+[Issue Workflow](./issue-workflow.md)). With `TODO.md` as the tracker:
 
 1. `/mattpocock-skills:grilling` settles a design with you.
 2. `/mattpocock-skills:to-spec` writes it to `.scratch/<feature>/spec.md`.
