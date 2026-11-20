@@ -74,12 +74,6 @@ configure_ssh() {
   # Drop the file written under the old name by previous runs.
   $SUDO rm -f /etc/ssh/sshd_config.d/99-hardening.conf
 
-  # Build AllowUsers directive if env var is set
-  local allow_users_line=""
-  if [[ -n "$SSH_ALLOWED_USERS" ]]; then
-    allow_users_line="AllowUsers $SSH_ALLOWED_USERS"
-  fi
-
   # Root login is only turned off when another way in exists: a member of the
   # sudo group with a non-empty authorized_keys, allowed by AllowUsers when it
   # is set. Otherwise root keeps key-only login (passwords stay off), so a VPS
@@ -89,6 +83,19 @@ configure_ssh() {
     permit_root="prohibit-password"
     printf '%b' "${red}[warning]${no_color} No sudo user with SSH keys found — keeping root login (key only).\n"
     printf '%b' "${red}[warning]${no_color} Create one with init.sh -u <user>, then re-run to disable root login.\n"
+  fi
+
+  # Build AllowUsers directive if env var is set. AllowUsers shuts out every
+  # user it does not name, root included: while root login is kept as the only
+  # way in, root is added to the list, or the fallback above would lock the
+  # host out.
+  local allow_users_line=""
+  if [[ -n "$SSH_ALLOWED_USERS" ]]; then
+    allow_users_line="AllowUsers $SSH_ALLOWED_USERS"
+    if [[ "$permit_root" != no && " $SSH_ALLOWED_USERS " != *" root "* ]]; then
+      allow_users_line+=" root"
+      printf '%b' "${red}[warning]${no_color} AllowUsers also lists root until then, so the kept root login works.\n"
+    fi
   fi
 
   # Baseline before writing: if sshd -t already fails (no host keys or
