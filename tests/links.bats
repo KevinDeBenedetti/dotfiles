@@ -153,3 +153,23 @@ run_link_shared_configs() {
   run cat "$FAKE_HOME/.ssh/config.d/infra.conf"
   assert_line "Host k3s"
 }
+
+@test "backup_if_exists keeps the first backup of the day when it runs twice" {
+  # The init scripts copy .zshrc instead of linking it: a second run the same
+  # day must not back up the installed copy over the user's original.
+  echo "the user's original" > "$FAKE_HOME/.zshrc"
+  run bash -c "source '$REPO_ROOT/os/helpers/links.sh'
+    backup_if_exists '$FAKE_HOME/.zshrc'
+    echo 'the repository copy' > '$FAKE_HOME/.zshrc'
+    backup_if_exists '$FAKE_HOME/.zshrc'"
+  assert_success
+  assert_output --partial "already backed up today"
+  run bash -c "cat '$FAKE_HOME'/.zshrc.bak.*"
+  assert_output "the user's original"
+}
+
+@test "backup_if_exists leaves a symlink alone" {
+  ln -s /dev/null "$FAKE_HOME/.zshrc"
+  run bash -c "source '$REPO_ROOT/os/helpers/links.sh'; backup_if_exists '$FAKE_HOME/.zshrc'; ls -A '$FAKE_HOME'"
+  assert_output ".zshrc"
+}

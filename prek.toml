@@ -50,7 +50,9 @@ hooks = [
   {
     id = "shellcheck",
     args = ["--severity=warning", "--shell=bash"],
-    files = "\\.sh$",
+    # *.sh, plus the extensionless commands of scripts/<domain>/ (make lint
+    # covers the same set).
+    files = "(\\.sh$|^scripts/[^/]+/[^/.]+$)",
     exclude = "tests/test_helper/",
   },
 ]
