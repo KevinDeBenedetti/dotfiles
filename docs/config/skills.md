@@ -90,6 +90,10 @@ and `/next-task manual` guides you through its manual steps with the
 `/next-issue` does the same over a project's GitHub issues, picked by label and
 recorded as comments: see [Issue Workflow](./issue-workflow.md).
 
+`/audit` inspects a whole repository, read-only, and files its findings as
+`needs-triage` issues for `/next-issue`: see
+[Issue Workflow](./issue-workflow.md#auditing-a-repository).
+
 ## Global rules fallback
 
 OpenCode reads `~/.claude/CLAUDE.md` as a global-rules fallback (after its own
