@@ -109,6 +109,22 @@ setup() {
   assert_output --regexp '"[0-9A-F]{40}" /etc/apt/keyrings/kubernetes-apt-keyring\.gpg'
 }
 
+@test "install_apt_key says gpg is not installed, before any download, when gpg is missing" {
+  # Without gpg the fingerprint check failed with "does not match fingerprint".
+  run bash -c "
+    red='' no_color='' SUDO=''
+    curl() { echo 'curl called'; }
+    command() { if [ \"\$1\" = -v ] && [ \"\$2\" = gpg ]; then return 1; fi; builtin command \"\$@\"; }
+    eval \"\$(sed -n '/^install_apt_key()/,/^}/p' '$K8S_SCRIPT')\"
+    install_apt_key https://example.invalid/key ABCD '$BATS_TEST_TMPDIR/keyring.gpg'
+  "
+  assert_failure
+  assert_output --partial 'gpg is not installed'
+  refute_output --partial 'does not match fingerprint'
+  refute_output --partial 'curl called'
+  assert_file_not_exists "$BATS_TEST_TMPDIR/keyring.gpg"
+}
+
 # load_install_kubectl — source install_kubectl with apt, sudo and the key
 # check stubbed; every call lands in $LOG. HAS_KUBECTL=1 makes kubectl present,
 # NO_GPG=1 makes gpg missing.
