@@ -94,6 +94,35 @@ repository's private vulnerability reporting.
 The same goes for everything the agent writes on GitHub: no secret, no real IP
 address or host name, no content of a gitignored file.
 
+## Auditing a repository
+
+`/audit` fills the tracker from the other end: it inspects the whole
+repository and files what it finds for you to triage. It is read-only: it
+changes no file, fixes nothing, and its only writes are the issues.
+
+| Invocation              | Effect                                                       |
+| ----------------------- | ------------------------------------------------------------ |
+| `/audit`                | Audits the whole repository, then files the findings         |
+| `/audit dry-run`        | The same audit, reported in the chat only                    |
+| `/audit <path>`         | Limits the audit to that file or folder                      |
+| `/audit <lens>`         | Limits it to one lens (`security`, `docs`, `tests`, …)       |
+| `/audit dry-run <path>` | `dry-run` combines with a path or a lens                     |
+
+The agent reads the project's own rules first (`AGENTS.md`, `GLOSSARY.md`,
+`docs/adr/`), then audits each lens that applies: correctness, architecture,
+tests, standards, documentation, domain language, agent docs, dependencies,
+CI/CD, infrastructure (Terraform, Ansible, Kubernetes/Helm, Docker) and
+security. With the `mattpocock-skills` plugin, each lens leans on the matching
+skill (`codebase-design`, `domain-modeling`, `code-review`,
+`writing-for-agents`, `diagnosing-bugs`, `research`).
+
+A finding is reported only when it is tied to a file and line, actionable in
+one change, and not already decided by an ADR. Critical and warning findings
+become one `needs-triage` issue per fix, after a search of the open issues so
+nothing is filed twice, with at most about fifteen issues per run. Security
+findings stay in the chat, as above. Label the issues you want
+`ready-for-agent`, and `/next-issue` works them.
+
 ## Guardrails
 
 Agents may read, comment on, label and create issues (`gh issue view`, `list`,

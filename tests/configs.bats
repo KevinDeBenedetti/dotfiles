@@ -584,6 +584,23 @@ setup() {
   assert_success
 }
 
+@test "the prek bats hook hides git's hook environment from the suite" {
+  # Committing from a linked worktree, git exports GIT_DIR to its hooks. Left
+  # in place it overrides repository discovery: the fixtures' `git init` and
+  # `git config` then act on the real repository instead of their temp dir.
+  local entry bin="$BATS_TEST_TMPDIR/bin"
+  entry=$(sed -n '/^id = "bats"$/,/^stages/s/^entry = "\(.*\)"$/\1/p' "$REPO_ROOT/prek.toml" | sed 's/\\"/"/g')
+  [ -n "$entry" ]
+  mkdir -p "$bin"
+  printf '%s\n' '#!/bin/sh' \
+    'echo "GIT_DIR=${GIT_DIR-unset} GIT_INDEX_FILE=${GIT_INDEX_FILE-unset} GIT_WORK_TREE=${GIT_WORK_TREE-unset}"' > "$bin/bats"
+  chmod +x "$bin/bats"
+  run env PATH="$bin:$PATH" GIT_DIR=/nonexistent/.git GIT_INDEX_FILE=/nonexistent/index \
+    GIT_WORK_TREE=/nonexistent sh -c "$entry"
+  assert_success
+  assert_output "GIT_DIR=unset GIT_INDEX_FILE=unset GIT_WORK_TREE=unset"
+}
+
 # --- Renovate keeps the prek.toml rev pins up to date ---
 
 @test "renovate.json is valid JSON" {
@@ -702,6 +719,42 @@ todo_layout() {
   assert_success
   run grep -E 'gh issue (close|delete)' "$cmd"
   assert_failure
+}
+
+@test "a shared command never takes the name of a Claude-only one" {
+  # Both are linked to ~/.claude/commands/<name>.md: one would replace the other.
+  local cmd
+  for cmd in "$CONFIG_DIR"/commands/*.md; do
+    [ ! -e "$CONFIG_DIR/claude/commands/$(basename "$cmd")" ]
+  done
+}
+
+@test "audit inspects the whole repository read-only and files its findings for triage" {
+  local cmd="$CONFIG_DIR/commands/audit.md" skill
+  assert_file_exists "$cmd"
+  run grep -q '^| `dry-run` ' "$cmd"
+  assert_success
+  # Findings become issues the owner triages, never approved work, never duplicates.
+  run grep -q 'gh issue create --label needs-triage' "$cmd"
+  assert_success
+  run grep -q 'gh issue list --state open --search' "$cmd"
+  assert_success
+  run grep -E 'add-label ready-for-agent|gh issue (close|delete|edit)' "$cmd"
+  assert_failure
+  # Issues of a public repository are public: findings stay in the chat.
+  run grep -q 'Security findings stay in the chat' "$cmd"
+  assert_success
+  # The audit changes nothing in the project.
+  run grep -q '^The audit is read-only' "$cmd"
+  assert_success
+  # Each lens leans on a skill of the mattpocock-skills plugin when it is there.
+  for skill in codebase-design domain-modeling code-review writing-for-agents diagnosing-bugs research; do
+    run grep -q "^| \`$skill\` " "$cmd"
+    assert_success
+  done
+  # The infrastructure checklist of the former Claude-only command is kept.
+  run grep -q 'Terraform / OpenTofu' "$cmd"
+  assert_success
 }
 
 @test "agents may comment on, label and create issues, in claude and opencode alike" {

@@ -10,7 +10,7 @@
 - Debian server hardening: key-only SSH, UFW, Fail2Ban, CrowdSec, sysctl and automatic security updates
 - Managed configs for Git (SSH signing, Git Credential Manager), Zsh, SSH, VS Code and a proto-pinned toolchain
 - AI agent guardrails shared by Claude Code, OpenCode and VS Code Copilot: sandbox, secret deny rules, read-only `kubectl` and `gh`, root-owned managed policy
-- Shared agent skills and commands (Conventional Commits, README, docs, a `/next-task` loop over an English `TODO.md`, with a guided chat for its manual steps, and its `/next-issue` twin over GitHub issues) linked into every tool from `config/skills/` and `config/commands/`
+- Shared agent skills and commands (Conventional Commits, README, docs, a `/next-task` loop over an English `TODO.md`, with a guided chat for its manual steps, its `/next-issue` twin over GitHub issues, and a read-only `/audit` that files its findings as issues) linked into every tool from `config/skills/` and `config/commands/`
 - ShellCheck, yamllint and Bats in CI, plus a Docker integration rig for the Debian setup
 
 ## Prerequisites
