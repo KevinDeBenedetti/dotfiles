@@ -326,6 +326,56 @@ load_admin_check() {
   assert_failure
 }
 
+# Runs the real configure_ssh with the system commands stubbed: the drop-in it
+# renders lands in $DROPIN instead of /etc/ssh/sshd_config.d/.
+render_ssh_dropin() {
+  load_admin_check
+  eval "$(sed -n '/^configure_ssh()/,/^}/p' "$SECURITY_SCRIPT")"
+  DROPIN="$BATS_TEST_TMPDIR/00-hardening.conf"
+  SSH_PORT=22 red="" no_color=""
+  tee() { cat > "$DROPIN"; }
+  rm() { :; }
+  chmod() { :; }
+  systemctl() { :; }
+  sshd() { [ "$1" = -t ]; }
+  configure_ssh
+}
+
+@test "AllowUsers keeps root while root is the only way in" {
+  # alice is in sudo but has no key and is not listed: root login is kept, so
+  # AllowUsers must not shut root out (issue 50).
+  SSH_ALLOWED_USERS="deploy"
+  run render_ssh_dropin
+  assert_success
+  run cat "$BATS_TEST_TMPDIR/00-hardening.conf"
+  assert_line "PermitRootLogin prohibit-password"
+  assert_line "AllowUsers deploy root"
+}
+
+@test "AllowUsers lists root once when the owner already named it" {
+  SSH_ALLOWED_USERS="root deploy"
+  run render_ssh_dropin
+  run cat "$BATS_TEST_TMPDIR/00-hardening.conf"
+  assert_line "AllowUsers root deploy"
+}
+
+@test "AllowUsers leaves root out once a listed admin can log in" {
+  mkdir -p "$BATS_TEST_TMPDIR/alice/.ssh"
+  echo "ssh-ed25519 AAAA test" > "$BATS_TEST_TMPDIR/alice/.ssh/authorized_keys"
+  SSH_ALLOWED_USERS="alice"
+  run render_ssh_dropin
+  run cat "$BATS_TEST_TMPDIR/00-hardening.conf"
+  assert_line "PermitRootLogin no"
+  assert_line "AllowUsers alice"
+}
+
+@test "no AllowUsers line is written when SSH_ALLOWED_USERS is empty" {
+  SSH_ALLOWED_USERS=""
+  run render_ssh_dropin
+  run cat "$BATS_TEST_TMPDIR/00-hardening.conf"
+  refute_line --partial "AllowUsers"
+}
+
 @test "an sshd drop-in that breaks a valid config is moved aside" {
   run grep -F 'mv "$hardening_conf" "${hardening_conf}.rejected"' "$SECURITY_SCRIPT"
   assert_success

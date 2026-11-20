@@ -149,7 +149,9 @@ Two safeguards keep the hardening from locking you out:
   login is turned off only when a non-root member of the `sudo` group has a
   non-empty `~/.ssh/authorized_keys` (and is listed in `SSH_ALLOWED_USERS`
   when that is set). Otherwise the script writes
-  `PermitRootLogin prohibit-password` and warns. Create the user with
+  `PermitRootLogin prohibit-password` and warns; when `SSH_ALLOWED_USERS` is
+  set, `root` is added to `AllowUsers` for as long as that lasts, since
+  `AllowUsers` refuses every user it does not name. Create the user with
   `-u <user>`, then re-run the security profile.
 - **A drop-in that breaks sshd is moved aside.** If `sshd -t` passed before
   the drop-in was written and fails after, the file is renamed to
