@@ -26,6 +26,12 @@ source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/..
 install_apt_key() {
   local url="$1" key_fpr="$2" keyring="$3"
   local key_tmp gnupg_tmp
+  # Without gpg the check below fails as a fingerprint mismatch: say what is
+  # really missing, before anything is downloaded.
+  if ! command -v gpg &>/dev/null; then
+    printf '%b' "${red}[error]${no_color} gpg is not installed (apt package gnupg) — cannot check the apt key from $url.\n"
+    return 1
+  fi
   key_tmp=$(mktemp)
   gnupg_tmp=$(mktemp -d)
   curl -fsSL -o "$key_tmp" "$url"

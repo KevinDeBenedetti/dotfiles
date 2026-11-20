@@ -89,6 +89,22 @@ lite_body() { sed -n '/^install_lite_setup()/,/^}/p' "$1"; }
   [ -n "$check" ] && [ -n "$dearmor" ] && [ "$check" -lt "$dearmor" ]
 }
 
+@test "install_apt_key says gpg is not installed, before any download, when gpg is missing" {
+  # Without gpg the fingerprint check failed with "does not match fingerprint".
+  run bash -c "
+    red='' no_color='' SUDO=''
+    curl() { echo 'curl called'; }
+    command() { if [ \"\$1\" = -v ] && [ \"\$2\" = gpg ]; then return 1; fi; builtin command \"\$@\"; }
+    eval \"\$(sed -n '/^install_apt_key()/,/^}/p' '$DEBIAN_BASE')\"
+    install_apt_key https://example.invalid/key ABCD '$BATS_TEST_TMPDIR/keyring.gpg'
+  "
+  assert_failure
+  assert_output --partial 'gpg is not installed'
+  refute_output --partial 'does not match fingerprint'
+  refute_output --partial 'curl called'
+  [ ! -e "$BATS_TEST_TMPDIR/keyring.gpg" ]
+}
+
 @test "Docker's and HashiCorp's apt keys are installed with a pinned fingerprint" {
   run bash -c "grep -A1 'install_apt_key \"https://download.docker.com' '$DEBIAN_BASE'"
   assert_success
