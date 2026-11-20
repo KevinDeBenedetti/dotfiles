@@ -95,34 +95,12 @@ setup() {
   # (The old form put the pipe on a continuation line: match the pipe itself.)
   run grep -E '\|[[:space:]]*\$SUDO gpg --dearmor' "$K8S_SCRIPT"
   assert_failure
-  run bash -c "sed -n '/^install_apt_key()/,/^}/p' '$K8S_SCRIPT'"
-  assert_success
-  assert_output --partial 'grep -qx "$key_fpr"'
-  assert_output --partial 'END { if (n == 1) print fpr }'
-  assert_output --partial 'return 1'
-  local check dearmor
-  check=$(grep -n 'grep -qx "$key_fpr"' "$K8S_SCRIPT" | cut -d: -f1)
-  dearmor=$(grep -n 'gpg --dearmor < "$key_tmp"' "$K8S_SCRIPT" | cut -d: -f1)
-  [ -n "$check" ] && [ -n "$dearmor" ] && [ "$check" -lt "$dearmor" ]
+  # The check itself is install_apt_key (os/helpers/fetch.sh, tested in fetch.bats).
+  run grep -E 'gpg --dearmor' "$K8S_SCRIPT"
+  assert_failure
   run bash -c "grep -A1 'install_apt_key \"https://pkgs.k8s.io' '$K8S_SCRIPT'"
   assert_success
   assert_output --regexp '"[0-9A-F]{40}" /etc/apt/keyrings/kubernetes-apt-keyring\.gpg'
-}
-
-@test "install_apt_key says gpg is not installed, before any download, when gpg is missing" {
-  # Without gpg the fingerprint check failed with "does not match fingerprint".
-  run bash -c "
-    red='' no_color='' SUDO=''
-    curl() { echo 'curl called'; }
-    command() { if [ \"\$1\" = -v ] && [ \"\$2\" = gpg ]; then return 1; fi; builtin command \"\$@\"; }
-    eval \"\$(sed -n '/^install_apt_key()/,/^}/p' '$K8S_SCRIPT')\"
-    install_apt_key https://example.invalid/key ABCD '$BATS_TEST_TMPDIR/keyring.gpg'
-  "
-  assert_failure
-  assert_output --partial 'gpg is not installed'
-  refute_output --partial 'does not match fingerprint'
-  refute_output --partial 'curl called'
-  assert_file_not_exists "$BATS_TEST_TMPDIR/keyring.gpg"
 }
 
 # load_install_kubectl — source install_kubectl with apt, sudo and the key

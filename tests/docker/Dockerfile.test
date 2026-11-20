@@ -205,10 +205,12 @@ RUN test ! -e /usr/bin/systemctl \
 # Run the two full-mode functions on their own, with every failure fatal: the
 # lite steps need systemd, sshd and netfilter, which a container lacks, and are
 # covered by test-security. A key that fails its fingerprint check fails here.
+# install_apt_key comes from os/helpers/fetch.sh, which the script sources.
 RUN export SUDO="sudo" \
     && sudo apt-get update -qq \
     && bash -euo pipefail -c ' \
       red="" no_color="" SUDO=sudo; \
+      source /home/tester/.dotfiles/os/helpers/fetch.sh; \
       eval "$(sed -n "/^install_configure_crowdsec()/,/^}/p" /home/tester/.dotfiles/os/debian/setup-security.sh)"; \
       eval "$(sed -n "/^install_audit_tools()/,/^}/p" /home/tester/.dotfiles/os/debian/setup-security.sh)"; \
       install_configure_crowdsec; \

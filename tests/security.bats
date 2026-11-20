@@ -159,17 +159,15 @@ setup() {
 }
 
 @test "CrowdSec apt key is checked against a pinned fingerprint before it is trusted" {
+  # install_apt_key (os/helpers/fetch.sh, tested in fetch.bats) does the check;
+  # the repository is written only after it passed.
   run bash -c "sed -n '/^install_configure_crowdsec()/,/^}/p' '$SECURITY_SCRIPT'"
   assert_success
-  assert_output --regexp 'key_fpr="[0-9A-F]{40}"'
-  assert_output --partial 'grep -qx "$key_fpr"'
-  # The file holds that one key only: an appended key would be trusted too.
-  assert_output --partial 'END { if (n == 1) print fpr }'
-  # The check comes before the key is written into the apt keyring.
-  local check dearmor
-  check=$(grep -n 'grep -qx "$key_fpr"' "$SECURITY_SCRIPT" | cut -d: -f1)
-  dearmor=$(grep -n 'gpg --dearmor < "$key_tmp"' "$SECURITY_SCRIPT" | cut -d: -f1)
-  [ -n "$check" ] && [ -n "$dearmor" ] && [ "$check" -lt "$dearmor" ]
+  assert_output --regexp 'install_apt_key https://packagecloud\.io/crowdsec/crowdsec/gpgkey[^|]*"[0-9A-F]{40}" "\$keyring" \|\| return 1'
+  local key list
+  key=$(grep -n 'install_apt_key https://packagecloud.io' "$SECURITY_SCRIPT" | cut -d: -f1)
+  list=$(grep -n 'sources.list.d/crowdsec_crowdsec.list' "$SECURITY_SCRIPT" | cut -d: -f1)
+  [ -n "$key" ] && [ -n "$list" ] && [ "$key" -lt "$list" ]
 }
 
 # --- Fail2Ban config content ---

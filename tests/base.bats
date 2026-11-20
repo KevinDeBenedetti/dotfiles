@@ -71,38 +71,12 @@ lite_body() { sed -n '/^install_lite_setup()/,/^}/p' "$1"; }
   assert_output "0"
 }
 
-@test "the Debian base script trusts an apt key only after its fingerprint check" {
-  # No key goes from curl straight into the keyring any more (2026-11-12).
-  # (The old form put the pipe on a continuation line: match the pipe itself.)
-  run grep -E '\|[[:space:]]*\$SUDO gpg --dearmor' "$DEBIAN_BASE"
+@test "the Debian base script trusts an apt key only through install_apt_key" {
+  # No key goes from curl straight into the keyring (2026-11-12): every key
+  # passes the fingerprint check of install_apt_key (os/helpers/fetch.sh,
+  # tested in fetch.bats).
+  run grep -E 'gpg --dearmor' "$DEBIAN_BASE"
   assert_failure
-  run bash -c "sed -n '/^install_apt_key()/,/^}/p' '$DEBIAN_BASE'"
-  assert_success
-  assert_output --partial 'grep -qx "$key_fpr"'
-  # The file holds that one key only: an appended key would be trusted too.
-  assert_output --partial 'END { if (n == 1) print fpr }'
-  assert_output --partial 'return 1'
-  # The check comes before the key is written into the apt keyring.
-  local check dearmor
-  check=$(grep -n 'grep -qx "$key_fpr"' "$DEBIAN_BASE" | cut -d: -f1)
-  dearmor=$(grep -n 'gpg --dearmor < "$key_tmp"' "$DEBIAN_BASE" | cut -d: -f1)
-  [ -n "$check" ] && [ -n "$dearmor" ] && [ "$check" -lt "$dearmor" ]
-}
-
-@test "install_apt_key says gpg is not installed, before any download, when gpg is missing" {
-  # Without gpg the fingerprint check failed with "does not match fingerprint".
-  run bash -c "
-    red='' no_color='' SUDO=''
-    curl() { echo 'curl called'; }
-    command() { if [ \"\$1\" = -v ] && [ \"\$2\" = gpg ]; then return 1; fi; builtin command \"\$@\"; }
-    eval \"\$(sed -n '/^install_apt_key()/,/^}/p' '$DEBIAN_BASE')\"
-    install_apt_key https://example.invalid/key ABCD '$BATS_TEST_TMPDIR/keyring.gpg'
-  "
-  assert_failure
-  assert_output --partial 'gpg is not installed'
-  refute_output --partial 'does not match fingerprint'
-  refute_output --partial 'curl called'
-  [ ! -e "$BATS_TEST_TMPDIR/keyring.gpg" ]
 }
 
 @test "Docker's and HashiCorp's apt keys are installed with a pinned fingerprint" {

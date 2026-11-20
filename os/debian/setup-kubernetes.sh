@@ -10,37 +10,6 @@ SUDO="${SUDO:-}"
 # Default so `set -u` doesn't trip when run standalone (init.sh exports it)
 FULL_MODE_SETUP="${FULL_MODE_SETUP:-false}"
 
-# install_apt_key <url> <fingerprint> <keyring>
-# Downloads an apt repository key and writes it into <keyring> only when it is
-# the key with that fingerprint (2026-11-12; until then the key was piped from
-# curl straight into `gpg --dearmor`). A rotated or swapped key aborts the run.
-# The file must hold that one key only. Same function as in setup-base.sh
-# (each script runs on its own).
-install_apt_key() {
-  local url="$1" key_fpr="$2" keyring="$3"
-  local key_tmp gnupg_tmp
-  # Without gpg the check below fails as a fingerprint mismatch: say what is
-  # really missing, before anything is downloaded.
-  if ! command -v gpg &>/dev/null; then
-    printf '%b' "${red}[error]${no_color} gpg is not installed (apt package gnupg) — cannot check the apt key from $url.\n"
-    return 1
-  fi
-  key_tmp=$(mktemp)
-  gnupg_tmp=$(mktemp -d)
-  curl -fsSL -o "$key_tmp" "$url"
-  if ! GNUPGHOME="$gnupg_tmp" gpg --show-keys --with-colons "$key_tmp" 2>/dev/null \
-      | awk -F: '$1 == "pub" { n++ } $1 == "fpr" && !fpr { fpr = $10 } END { if (n == 1) print fpr }' \
-      | grep -qx "$key_fpr"; then
-    rm -rf "$key_tmp" "$gnupg_tmp"
-    printf '%b' "${red}[error]${no_color} apt key from $url does not match fingerprint $key_fpr — not trusting it.\n"
-    return 1
-  fi
-  $SUDO install -m 0755 -d "$(dirname "$keyring")"
-  GNUPGHOME="$gnupg_tmp" gpg --dearmor < "$key_tmp" | $SUDO tee "$keyring" > /dev/null
-  rm -rf "$key_tmp" "$gnupg_tmp"
-  $SUDO chmod 644 "$keyring"
-}
-
 load_kernel_modules() {
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Load required kernel modules (overlay, br_netfilter)\n\n"
 
@@ -139,7 +108,8 @@ install_lite_setup() {
   fi
 }
 
-# fetch_verified and install_from_tarball: downloads kept only if their SHA-256 matches.
+# fetch_verified, install_from_tarball and install_apt_key: downloads kept only
+# if their SHA-256 matches, apt keys trusted only with their pinned fingerprint.
 # shellcheck source=../helpers/fetch.sh
 source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/../helpers/fetch.sh"
 
