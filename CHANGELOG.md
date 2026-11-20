@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.14.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.13.1...v0.14.0) (2026-11-20)
+
+
+### Features
+
+* **commands:** add /next-issue to work GitHub issues like /next-task works TODO.md ([b9ba5c0](https://github.com/KevinDeBenedetti/dotfiles/commit/b9ba5c0aaa2346adc7ae86e9442401c764427b07))
+* **commands:** add a repository-wide /audit that files findings as issues ([f066a35](https://github.com/KevinDeBenedetti/dotfiles/commit/f066a35167a5839980cc1a3d2f562534d3af251a))
+
+
+### Bug Fixes
+
+* **claude:** let gh verify TLS in the sandbox so /next-issue can reach GitHub ([b5fdb74](https://github.com/KevinDeBenedetti/dotfiles/commit/b5fdb7422dc1744f48a01a87f7d15a75db54f992))
+* **debian:** report a missing gpg in install_apt_key instead of a fingerprint mismatch ([c6b3241](https://github.com/KevinDeBenedetti/dotfiles/commit/c6b3241da7caa58fd6f26d5813e25223fae3d1f6)), closes [#44](https://github.com/KevinDeBenedetti/dotfiles/issues/44)
+* **hooks:** skip skill hints for owner-run app bash commands ([d13f09e](https://github.com/KevinDeBenedetti/dotfiles/commit/d13f09e48b55dd9ef565f177d4bfc6d79b808329))
+
 ## [0.13.1](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.13.0...v0.13.1) (2026-11-19)
 
 
