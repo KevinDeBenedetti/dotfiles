@@ -927,6 +927,8 @@ todo_layout() {
 # --- ShellCheck reaches every script, with or without a .sh suffix ---
 
 @test "make lint hands every extensionless script under scripts/ to ShellCheck" {
+  # The Docker test-bats image has no make; CI's Bats job and `make test` do.
+  command -v make >/dev/null || skip "make is not installed"
   # A stand-in shellcheck that prints the files it was given.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   printf '#!/bin/bash\nprintf "%%s\\n" "$@"\n' > "$BATS_TEST_TMPDIR/bin/shellcheck"
