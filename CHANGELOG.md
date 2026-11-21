@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.15.0...v0.16.0) (2026-11-21)
+
+
+### Features
+
+* sync triage labels to a project board, and skip Fail2Ban on infra-managed nodes ([3e47a66](https://github.com/KevinDeBenedetti/dotfiles/commit/3e47a6614ee361e30ee0770bfc9ac7b169ed21ab)), closes [#54](https://github.com/KevinDeBenedetti/dotfiles/issues/54) [#57](https://github.com/KevinDeBenedetti/dotfiles/issues/57) [#60](https://github.com/KevinDeBenedetti/dotfiles/issues/60) [#72](https://github.com/KevinDeBenedetti/dotfiles/issues/72)
+
 ## [0.15.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.14.0...v0.15.0) (2026-11-21)
 
 
