@@ -57,10 +57,11 @@ test-security: ## Run security profile tests
 
 .PHONY: lint validate
 
+# The files come from git (tracked, plus new ones not ignored), so copies under
+# gitignored directories such as agent worktrees are never linted.
 lint: ## Run ShellCheck on all shell scripts
-	find . -type f \( -name "*.sh" -o -path "./scripts/*/*" \) \
-		-not -path "*/test_helper/*" -not -name "*.md" \
-		-exec shellcheck --severity=warning --shell=bash --format=gcc {} +
+	git ls-files --cached --others --exclude-standard -- '*.sh' 'scripts/*/*' ':!:*.md' ':!:tests/test_helper' \
+		| xargs shellcheck --severity=warning --shell=bash --format=gcc
 
 validate: ## Validate YAML files with yamllint
 	yamllint --strict .github/workflows/

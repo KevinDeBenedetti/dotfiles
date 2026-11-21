@@ -35,6 +35,27 @@ jobs:
       link-check-paths: 'docs/**/*.md'
       run-docs-link-check: true
 
+  # The Bats suites outside tests/: the reusable workflow runs one directory,
+  # without its sub-directories (those hold the vendored helpers' own suites),
+  # so each extra directory of the Makefile's BATS_DIRS gets a run here.
+  ci-suites:
+    # Same guard as `ci`: skip on the release-please PR and the release commit.
+    if: >-
+      ${{ !startsWith(github.event.head_commit.message, 'chore(main): release')
+      && !(startsWith(github.head_ref, 'release-please')
+           && github.event.pull_request.head.repo.full_name == github.repository
+           && github.event.pull_request.user.login == 'github-actions[bot]') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        tests-dir: [tests/ai/, tests/ollama/]
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@d6c697db2baeaaed7994fca43e2c8bbd49148609 # v0.51.0
+    with:
+      run-shellcheck: false
+      run-actionlint: false
+      run-bats: true
+      bats-tests-dir: ${{ matrix.tests-dir }}
+
   security:
     # Same guard as `ci`: skip on the release-please PR and the release commit.
     if: >-
@@ -80,12 +101,13 @@ jobs:
     # tags) once `ci` and `security` are green on the push to main. always()
     # keeps this running even when those jobs are *skipped* on the release
     # commit (skipped ≠ failure), so the tag is still created.
-    needs: [ci, security]
+    needs: [ci, ci-suites, security]
     if: >-
       ${{ always()
       && github.event_name == 'push'
       && github.ref == 'refs/heads/main'
       && needs.ci.result != 'failure' && needs.ci.result != 'cancelled'
+      && needs.ci-suites.result != 'failure' && needs.ci-suites.result != 'cancelled'
       && needs.security.result != 'failure' && needs.security.result != 'cancelled' }}
     uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@d6c697db2baeaaed7994fca43e2c8bbd49148609 # v0.51.0
     permissions:

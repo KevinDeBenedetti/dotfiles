@@ -42,6 +42,7 @@ See [Oh My Zsh theme](./oh-my-zsh.md) for details.
 | `colored-man-pages` | Colorized `man` output             |
 | `docker`            | Docker completions                 |
 | `docker-compose`    | Docker Compose completions         |
+| `fzf`               | Key bindings, if fzf is installed  |
 | `gh`                | GitHub CLI completions             |
 | `git`               | Git aliases and completions        |
 | `gitignore`         | Fetch `.gitignore` templates       |

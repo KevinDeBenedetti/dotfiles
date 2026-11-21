@@ -173,3 +173,95 @@ run_link_shared_configs() {
   run bash -c "source '$REPO_ROOT/os/helpers/links.sh'; backup_if_exists '$FAKE_HOME/.zshrc'; ls -A '$FAKE_HOME'"
   assert_output ".zshrc"
 }
+
+# --- Every link group of links.sh (AGENTS.md: each config is wired and tested) ---
+
+vscode_user_in_fake_home() {
+  if [ "$(uname -s)" = "Darwin" ]; then
+    echo "$FAKE_HOME/Library/Application Support/Code/User"
+  else
+    echo "$FAKE_HOME/.config/Code/User"
+  fi
+}
+
+@test "link_shared_configs links the shell environment next to the functions" {
+  run run_link_shared_configs
+  assert_success
+  assert_symlink_to "$CONFIG_DIR/shell/env.sh" "$FAKE_HOME/.config/dotfiles/env.sh"
+}
+
+@test "link_shared_configs links the ai-tools and ollama config directories" {
+  run run_link_shared_configs
+  assert_success
+  assert_symlink_to "$CONFIG_DIR/ai-tools" "$FAKE_HOME/.config/ai-tools"
+  assert_symlink_to "$CONFIG_DIR/ollama" "$FAKE_HOME/.config/ollama"
+}
+
+@test "link_shared_configs links every command of scripts/<domain>/ into ~/.local/bin, docs left out" {
+  run run_link_shared_configs
+  assert_success
+  local script count=0
+  for script in "$REPO_ROOT"/scripts/*/*; do
+    [[ "$script" == *.md ]] && continue
+    assert_symlink_to "$CONFIG_DIR/../scripts/${script#"$REPO_ROOT"/scripts/}" "$FAKE_HOME/.local/bin/$(basename "$script")"
+    count=$((count + 1))
+  done
+  [ "$count" -gt 0 ] || fail "no script found under scripts/"
+  run bash -c "ls '$FAKE_HOME/.local/bin' | grep -c '\.md$'"
+  assert_output "0"
+}
+
+@test "link_shared_configs links the Ollama LaunchAgent on macOS only" {
+  run run_link_shared_configs
+  assert_success
+  local plist
+  for plist in "$CONFIG_DIR"/ollama/launchd/*.plist; do
+    if [ "$(uname -s)" = "Darwin" ]; then
+      assert_symlink_to "$plist" "$FAKE_HOME/Library/LaunchAgents/$(basename "$plist")"
+    else
+      assert_not_exists "$FAKE_HOME/Library/LaunchAgents/$(basename "$plist")"
+    fi
+  done
+}
+
+@test "link_shared_configs links the VS Code settings and MCP config when VS Code has a user dir" {
+  local user_dir
+  user_dir=$(vscode_user_in_fake_home)
+  mkdir -p "$user_dir"
+  echo '{"old": true}' > "$user_dir/settings.json"
+  run run_link_shared_configs
+  assert_success
+  assert_symlink_to "$CONFIG_DIR/vscode/settings.json" "$user_dir/settings.json"
+  assert_symlink_to "$CONFIG_DIR/vscode/mcp.json" "$user_dir/mcp.json"
+  # The settings that were there are backed up, not lost.
+  run bash -c "cat '$user_dir'/settings.json.bak.*"
+  assert_output '{"old": true}'
+}
+
+@test "link_shared_configs creates no VS Code user dir on a machine without VS Code" {
+  run run_link_shared_configs
+  assert_success
+  assert_not_exists "$(vscode_user_in_fake_home)"
+}
+
+@test "install_vscode_config creates the user dir and links through links.sh when code is installed" {
+  local user_dir
+  user_dir=$(vscode_user_in_fake_home)
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  # A code stand-in that reports every recommended extension as installed.
+  printf '#!/bin/bash\n[ "$1" = --list-extensions ] && grep -v "//" "%s/vscode/extensions.json" | jq -r ".recommendations[]"\nexit 0\n' "$CONFIG_DIR" > "$BATS_TEST_TMPDIR/bin/code"
+  chmod +x "$BATS_TEST_TMPDIR/bin/code"
+  run env HOME="$FAKE_HOME" PATH="$BATS_TEST_TMPDIR/bin:$PATH" bash -c \
+    "source '$REPO_ROOT/os/helpers/links.sh' && source '$REPO_ROOT/os/helpers/dotfiles.sh' && install_vscode_config '$CONFIG_DIR' '$user_dir'"
+  assert_success
+  assert_symlink_to "$CONFIG_DIR/vscode/settings.json" "$user_dir/settings.json"
+  assert_symlink_to "$CONFIG_DIR/vscode/mcp.json" "$user_dir/mcp.json"
+  refute_output --partial "install-extension"
+}
+
+@test "scripts/symlink.sh links .zshrc and the shared configs into HOME" {
+  run env -u XDG_STATE_HOME HOME="$FAKE_HOME" bash "$REPO_ROOT/scripts/symlink.sh"
+  assert_success
+  assert_symlink_to "$CONFIG_DIR/zsh/.zshrc" "$FAKE_HOME/.zshrc"
+  assert_symlink_to "$CONFIG_DIR/git/.gitconfig" "$FAKE_HOME/.gitconfig"
+}

@@ -40,3 +40,22 @@ install_homebrew() {
   run_homebrew_installer \
     "https://raw.githubusercontent.com/Homebrew/install/${commit}/install.sh" "$sha256"
 }
+
+# load_homebrew_env [prefix...]
+# Put an installed brew on PATH when it is not there yet. The installer writes
+# to /opt/homebrew on Apple Silicon, which the default macOS PATH does not
+# hold: without this, the script that just installed Homebrew cannot run it,
+# and a second run would offer to install it again. Does nothing when brew is
+# already on PATH or installed under none of the prefixes.
+load_homebrew_env() {
+  local prefix
+  command -v brew &>/dev/null && return 0
+  [ "$#" -gt 0 ] || set -- /opt/homebrew /usr/local
+  for prefix in "$@"; do
+    if [ -x "$prefix/bin/brew" ]; then
+      eval "$("$prefix/bin/brew" shellenv)"
+      return 0
+    fi
+  done
+  return 0
+}

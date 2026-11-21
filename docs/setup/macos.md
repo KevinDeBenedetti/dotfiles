@@ -268,7 +268,7 @@ Key aliases defined in `.zshrc` (beyond plugin aliases):
 
 ### fzf Integration
 
-`fzf` is installed by the `base` profile, and the completions step (`-c`) runs its Homebrew installer, which generates `~/.fzf.zsh`. The tracked `.zshrc` does not load that file or the `fzf` Oh My Zsh plugin, so the key bindings below are off until you add `fzf` to `plugins=(…)` in `~/.zshrc` (or source `~/.fzf.zsh` from `~/.zshrc.local`):
+`fzf` is installed by the `base` profile. The tracked `.zshrc` adds the `fzf` Oh My Zsh plugin whenever `fzf` is on `PATH`, which turns on its completion and these key bindings:
 
 | Binding  | Action                                              |
 | -------- | --------------------------------------------------- |
@@ -428,4 +428,4 @@ xcode-select --install
 eval "$(/opt/homebrew/bin/brew shellenv)"
 ```
 
-Add the above line to your `~/.zshrc` if Homebrew is not found in a new shell session.
+The init script and the tracked `.zshrc` both do this themselves when `brew` is installed under `/opt/homebrew` or `/usr/local` but not on `PATH`. Run the line by hand in a shell that loads neither, such as a terminal opened before the dotfiles were linked.

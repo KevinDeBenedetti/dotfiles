@@ -134,6 +134,7 @@ source "$HELPERS_DIR/homebrew.sh"
 install_homebrew_and_report() {
   printf '%b' "\n\n${red}Optional.${no_color} Installs homebrew...\n\n"
   NONINTERACTIVE=1 install_homebrew
+  load_homebrew_env
   printf '%b' "\nhomebrew version installed :\n$(brew --version)\n\n"
 }
 
@@ -153,6 +154,8 @@ if [ -z "$(xcode-select -p 2>/dev/null)" ]; then
   done
 fi
 
+# Homebrew may be installed but off PATH (Apple Silicon, /opt/homebrew).
+load_homebrew_env
 if ! command -v brew &>/dev/null; then
   while true; do
     printf "You need homebrew to run this script. Do you wish to install homebrew? "

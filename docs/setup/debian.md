@@ -376,7 +376,7 @@ The following [Oh My Zsh](https://ohmyz.sh) plugins are enabled in `.zshrc`:
 
 ### fzf Integration
 
-`fzf` is installed by the `base` profile. The tracked `.zshrc` does not load its shell integration, so the key bindings below are off until you add `fzf` to `plugins=(…)` in `~/.zshrc`:
+`fzf` is installed by the `base` profile. The tracked `.zshrc` adds the `fzf` Oh My Zsh plugin whenever `fzf` is on `PATH`, which turns on its completion and these key bindings:
 
 | Binding  | Action                                              |
 | -------- | --------------------------------------------------- |

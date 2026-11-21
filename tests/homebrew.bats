@@ -74,3 +74,46 @@ sha256_of() { { sha256sum "$1" 2>/dev/null || shasum -a 256 "$1"; } | cut -d' ' 
   run grep -rnE 'Homebrew/install/(HEAD|master|main)/' "$REPO_ROOT/os" "$REPO_ROOT/scripts"
   assert_failure 1
 }
+
+# --- load_homebrew_env: brew is found where the installer puts it ---
+
+# A brew stand-in under <prefix>/bin whose `shellenv` puts that bin on PATH,
+# as the real one does.
+fake_brew_prefix() {
+  mkdir -p "$1/bin"
+  printf '#!/bin/bash\n[ "$1" = shellenv ] && echo "export PATH=\\"%s/bin:\\$PATH\\""\n' "$1" > "$1/bin/brew"
+  chmod +x "$1/bin/brew"
+}
+
+@test "load_homebrew_env puts a brew that is installed but not on PATH back on it" {
+  # Apple Silicon: the installer writes /opt/homebrew/bin, which the default
+  # macOS PATH does not hold, so the script that just installed brew cannot
+  # call it.
+  fake_brew_prefix "$BATS_TEST_TMPDIR/opt"
+  PATH="/usr/bin:/bin"
+  run command -v brew
+  assert_failure
+  load_homebrew_env "$BATS_TEST_TMPDIR/missing" "$BATS_TEST_TMPDIR/opt"
+  run command -v brew
+  assert_output "$BATS_TEST_TMPDIR/opt/bin/brew"
+}
+
+@test "load_homebrew_env leaves PATH alone when brew is already on it, or installed nowhere" {
+  fake_brew_prefix "$BATS_TEST_TMPDIR/first"
+  fake_brew_prefix "$BATS_TEST_TMPDIR/second"
+  PATH="$BATS_TEST_TMPDIR/first/bin:/usr/bin:/bin"
+  load_homebrew_env "$BATS_TEST_TMPDIR/second"
+  assert_equal "$PATH" "$BATS_TEST_TMPDIR/first/bin:/usr/bin:/bin"
+  PATH="/usr/bin:/bin"
+  run load_homebrew_env "$BATS_TEST_TMPDIR/missing"
+  assert_success
+}
+
+@test "macOS init.sh looks for an installed brew before offering to install it, and again after" {
+  # Before: a brew off PATH is not installed a second time. After: the fresh
+  # install is usable by the rest of the script.
+  run bash -c "sed -n '/^install_homebrew_and_report()/,/^}/p' '$REPO_ROOT/os/macos/init.sh' | grep -A1 'NONINTERACTIVE=1 install_homebrew\$' | tail -1"
+  assert_output --partial "load_homebrew_env"
+  run bash -c "grep -B3 '^if ! command -v brew' '$REPO_ROOT/os/macos/init.sh' | grep -c '^load_homebrew_env\$'"
+  assert_output "1"
+}

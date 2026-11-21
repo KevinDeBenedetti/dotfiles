@@ -39,7 +39,8 @@ RUN sudo apt-get update \
     && sudo apt-get install -y --no-install-recommends bats jq \
     && sudo rm -rf /var/lib/apt/lists/*
 
-RUN cd /home/tester/.dotfiles && bats tests/
+# The same directories as the Makefile's BATS_DIRS.
+RUN cd /home/tester/.dotfiles && bats tests/ tests/ai/ tests/ollama/
 
 # ---------------------------------------------------------------------------
 # Stage: test-init — validate init.sh flag parsing (no actual installs)
@@ -121,13 +122,14 @@ RUN sudo usermod -aG sudo tester \
     && echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDockerTestKeyNotARealKey000000000000000 tester@test" > "$HOME/.ssh/authorized_keys" \
     && chmod 600 "$HOME/.ssh/authorized_keys"
 
-# Source the script and call each config function individually
-# (systemctl/sshd-t/ufw calls will fail silently — that's expected in Docker)
+# Run the lite security profile. The script guards on its own the service
+# calls that cannot work in a container (systemctl, ufw, sshd -t, sysctl), so
+# any other failure fails the stage: its exit status is not discarded.
 RUN export SUDO="sudo" FULL_MODE_SETUP="false" \
     && sudo mkdir -p /etc/ssh/sshd_config.d /etc/sysctl.d \
     && bash -c ' \
       source /home/tester/.dotfiles/os/debian/setup-security.sh \
-    ' 2>&1 || true
+    ' 2>&1
 
 # Verify SSH hardening config was created with correct settings
 RUN sudo test -f /etc/ssh/sshd_config.d/00-hardening.conf \
@@ -305,9 +307,10 @@ RUN sudo usermod -aG sudo tester \
     && echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDockerTestKeyNotARealKey000000000000000 tester@test" > "$HOME/.ssh/authorized_keys" \
     && chmod 600 "$HOME/.ssh/authorized_keys"
 
-# Run full install in lite mode (all profiles enabled, skip heavy tools)
+# Run full install in lite mode (all profiles enabled, skip heavy tools).
+# A profile that aborts midway fails the stage: the exit status is kept.
 RUN sudo mkdir -p /etc/ssh/sshd_config.d /etc/sysctl.d \
-    && bash /home/tester/.dotfiles/os/debian/init.sh -a -l 2>&1 || true
+    && bash /home/tester/.dotfiles/os/debian/init.sh -a -l 2>&1
 
 # oh-my-zsh comes from init.sh itself (os/helpers/oh-my-zsh.sh), at the commit
 # pinned there: the stage exercises that install instead of pre-installing one.

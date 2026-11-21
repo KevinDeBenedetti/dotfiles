@@ -46,6 +46,13 @@ export PATH="$PROTO_HOME/shims:$PROTO_HOME/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
 
 # brew settings
+# Homebrew is not on the default PATH on Apple Silicon (/opt/homebrew).
+if ! type brew &>/dev/null; then
+  for _brew in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x "$_brew" ]]; then eval "$("$_brew" shellenv)"; break; fi
+  done
+  unset _brew
+fi
 if type brew &>/dev/null; then
   # configure brew fpath
   FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
@@ -63,6 +70,11 @@ fi
 # add common completion
 export COMPLETION_DIR=$HOME/.oh-my-zsh/completions
 # fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src
+
+# fzf key bindings and completion (CTRL-T, CTRL-R, ALT-C). Added here, once
+# PATH is complete, and only where fzf is installed: without it the plugin
+# prints an error at every shell start.
+(( $+commands[fzf] )) && plugins+=(fzf)
 
 source $ZSH/oh-my-zsh.sh
 
