@@ -25,7 +25,7 @@ jobs:
       && !(startsWith(github.head_ref, 'release-please')
            && github.event.pull_request.head.repo.full_name == github.repository
            && github.event.pull_request.user.login == 'github-actions[bot]') }}
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@f2f96b371f0e947bd4dd46169ac80a809dd6a4ff # v0.52.0
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@2182020d9bf285c8183d0736f27262f6782ebe05 # v0.53.0
     with:
       run-shellcheck: true
       run-bats: true
@@ -49,7 +49,7 @@ jobs:
       fail-fast: false
       matrix:
         tests-dir: [tests/ai/, tests/ollama/]
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@f2f96b371f0e947bd4dd46169ac80a809dd6a4ff # v0.52.0
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@2182020d9bf285c8183d0736f27262f6782ebe05 # v0.53.0
     with:
       run-shellcheck: false
       run-actionlint: false
@@ -63,7 +63,7 @@ jobs:
       && !(startsWith(github.head_ref, 'release-please')
            && github.event.pull_request.head.repo.full_name == github.repository
            && github.event.pull_request.user.login == 'github-actions[bot]') }}
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@f2f96b371f0e947bd4dd46169ac80a809dd6a4ff # v0.52.0
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@2182020d9bf285c8183d0736f27262f6782ebe05 # v0.53.0
     permissions:
       contents: read
       actions: read
@@ -79,7 +79,7 @@ jobs:
 
   bot-check:
     if: github.event_name == 'pull_request'
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/check-bot-commits.yml@f2f96b371f0e947bd4dd46169ac80a809dd6a4ff # v0.52.0
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/check-bot-commits.yml@2182020d9bf285c8183d0736f27262f6782ebe05 # v0.53.0
     permissions:
       contents: read
       pull-requests: read
@@ -111,7 +111,7 @@ jobs:
       && needs.ci.result != 'failure' && needs.ci.result != 'cancelled'
       && needs.ci-suites.result != 'failure' && needs.ci-suites.result != 'cancelled'
       && needs.security.result != 'failure' && needs.security.result != 'cancelled' }}
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@f2f96b371f0e947bd4dd46169ac80a809dd6a4ff # v0.52.0
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@2182020d9bf285c8183d0736f27262f6782ebe05 # v0.53.0
     permissions:
       contents: write
       issues: write
