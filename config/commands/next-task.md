@@ -195,7 +195,7 @@ Never write a secret value into `TODO.md` — its location only.
   Changed: <what, in one or two lines>
   Checks:  <commands run> → <result>
   Try it:  <command> → <what success looks like>   (ran it: <output> | yours to run)
-  Commit:  <Conventional Commit message>
+  Commit:  <the task's own Conventional Commit message: its line in the grouped commit, §12>
   Files:   <paths>
   ```
 - The scope is frozen at the start: the candidate tasks (§3), or the first `N`
@@ -225,10 +225,29 @@ picked, and nothing outside `TODO.md` changes unless the owner asks for it.
   and the proposed commit (message and files).
 - **Batch mode**: tasks done, tasks blocked during the run and what each
   needs, `BLOCKED` tasks skipped, checks, the "Try it" lines still the owner's
-  to run, manual steps, recommendations and findings, then a **commit plan**: one commit per task, in order, each with its message and
-  files. Flag the files several tasks changed — `TODO.md` always is, unless
-  git ignores it — and those that already had changes, so the owner stages
-  them hunk by hunk (`git add -p`).
+  to run, manual steps, recommendations and findings, then a **commit plan**:
+  one grouped commit for the whole batch, which the owner can check line by
+  line and stage in one go.
+
+  ```text
+  <type>: <what the batch does, in a few words>
+
+  - <what changed for that task, in one line>
+  - …
+  ```
+
+  One body line per task done; a blocked task gets none. The type is the one
+  with the highest release impact among the tasks' own (`commit-types` skill:
+  a breaking change, then `feat`, then `fix`, `perf`, then the hidden types):
+  one commit is one changelog line, so say which tasks that line leaves out.
+  Then the files of the run, `TODO.md` included unless git ignores it, as one
+  `git add` command, and apart the files that already had changes (§2): those
+  are staged hunk by hunk (`git add -p`).
+
+  Give one commit per task instead only when the owner asks for it: in order,
+  each with its message and its files, flagging the files several tasks
+  changed (`TODO.md` always is). The project's hooks may test the staged
+  content only, so a test is always staged with the change it covers.
 - In both, list the changes that were there before the run (§2) apart: they
   are in no commit.
 - When `🖐 Manual` has open steps, end with `/next-task manual` to take them.

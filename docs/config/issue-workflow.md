@@ -77,6 +77,13 @@ ones, then the lowest number. For each issue, the agent:
 The issue stays open until your commit reaches the default branch: GitHub then
 closes it through the `Fixes` footer. The agent never closes an issue.
 
+After a batch (`/next-issue all`, or a number), the summary proposes one
+grouped commit instead of one per issue: a body line and a `Fixes #<number>`
+footer for each issue done, and a single `git add` for the files of the run.
+Its type is the one with the highest release impact among the issues, since
+one commit gives one changelog line. Ask for one commit per issue when you
+want the changelog to list each of them.
+
 An issue it cannot finish gets a `BLOCKED:` comment and the `needs-info` label
 in place of `ready-for-agent`, and the agent asks what to do. What only you can
 do afterwards (deploy, a secret, a check the agent could not run) becomes a new

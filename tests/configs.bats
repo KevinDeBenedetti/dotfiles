@@ -1031,3 +1031,24 @@ todo_layout() {
   loaded=$(grep -n '^source \$ZSH/oh-my-zsh.sh' "$CONFIG_DIR/zsh/.zshrc" | cut -d: -f1)
   [ "$at" -lt "$loaded" ]
 }
+
+@test "batch mode proposes one grouped commit, in next-issue and next-task alike" {
+  # One commit per issue made the owner pick hunks in the files several issues
+  # share, with hooks that test the staged content only (issue 73).
+  local cmd summary
+  for cmd in next-issue next-task; do
+    summary=$(sed -n '/^## 12\. Summary/,$p' "$CONFIG_DIR/commands/$cmd.md")
+    [ -n "$summary" ] || fail "$cmd.md has no Summary section"
+    run grep -F 'one grouped commit' <<<"$summary"
+    assert_success
+    # The grouped commit takes the type with the highest release impact.
+    run grep -F 'highest release impact' <<<"$summary"
+    assert_success
+    # Per-item commits remain, on request only.
+    run grep -E 'only when the owner asks' <<<"$summary"
+    assert_success
+  done
+  # Every issue of the batch still closes on merge.
+  run bash -c "sed -n '/^## 12\\. Summary/,\$p' '$CONFIG_DIR/commands/next-issue.md' | grep -c 'Fixes #<number>'"
+  [ "$output" -ge 2 ]
+}
