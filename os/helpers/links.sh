@@ -46,6 +46,25 @@ link_with_backup() {
   ln -sfn "$src" "$dest"
 }
 
+# Print VS Code's "User" directory for this platform.
+vscode_user_dir() {
+  if [ "$(uname -s)" = "Darwin" ]; then
+    printf '%s\n' "$HOME/Library/Application Support/Code/User"
+  else
+    printf '%s\n' "$HOME/.config/Code/User"
+  fi
+}
+
+# Link the VS Code user config. $1 = config/ dir, $2 = VS Code "User" dir.
+# extensions.json is not linked: install_vscode_config (dotfiles.sh) reads it.
+link_vscode_configs() {
+  local config_dir="$1" user_dir="$2" name
+  for name in settings.json mcp.json; do
+    [ -f "$config_dir/vscode/$name" ] || continue
+    link_with_backup "$config_dir/vscode/$name" "$user_dir/$name"
+  done
+}
+
 # Link every shared config file into $HOME. $1 = path to the repo's config/ dir.
 link_shared_configs() {
   local config_dir="$1"
@@ -55,6 +74,14 @@ link_shared_configs() {
   if [ -d "$HOME/.oh-my-zsh" ] && [ -f "$theme_src" ]; then
     mkdir -p "$HOME/.oh-my-zsh/custom/themes"
     link_with_backup "$theme_src" "$HOME/.oh-my-zsh/custom/themes/kevin-de-benedetti.zsh-theme"
+  fi
+
+  # VS Code user config (only when VS Code has a user dir: a machine without
+  # VS Code gets none; the init scripts create it when `code` is installed).
+  local vscode_user
+  vscode_user=$(vscode_user_dir)
+  if [ -d "$vscode_user" ]; then
+    link_vscode_configs "$config_dir" "$vscode_user"
   fi
 
   # Proto
@@ -115,8 +142,6 @@ link_shared_configs() {
   #   VS Code     → <User>/prompts/<name>.prompt.md (Copilot prompt files,
   #                 only when VS Code's user dir exists)
   if [ -d "$config_dir/commands" ]; then
-    local vscode_user="$HOME/.config/Code/User"
-    [ "$(uname -s)" = "Darwin" ] && vscode_user="$HOME/Library/Application Support/Code/User"
     mkdir -p "$HOME/.claude/commands" "$HOME/.config/opencode/commands"
     [ -d "$vscode_user" ] && mkdir -p "$vscode_user/prompts"
     local name

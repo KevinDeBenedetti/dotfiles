@@ -74,11 +74,9 @@ install_vscode_config() {
   local config_dir="$1" user_dir="$2"
   command -v code >/dev/null 2>&1 || return 0
 
+  # The links themselves live in links.sh, like every other config.
   mkdir -p "$user_dir"
-  backup_if_exists "$user_dir/settings.json"
-  ln -sf "$config_dir/vscode/settings.json" "$user_dir/settings.json"
-  backup_if_exists "$user_dir/mcp.json"
-  ln -sf "$config_dir/vscode/mcp.json" "$user_dir/mcp.json"
+  link_vscode_configs "$config_dir" "$user_dir"
 
   local installed extension
   installed=$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')

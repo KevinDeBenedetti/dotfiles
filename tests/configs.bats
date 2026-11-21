@@ -36,6 +36,15 @@ setup() {
   assert_file_exists "$CONFIG_DIR/shell/functions.sh"
 }
 
+@test "the configs links.sh links, and no other test names, exist" {
+  local f
+  for f in copilot/hooks/agent-guard.json ollama/launchd/local.ollama-env.plist \
+           opencode/opencode.json ssh/config claude/commands/debug-action.md \
+           claude/commands/explain.md; do
+    assert_file_exists "$CONFIG_DIR/$f"
+  done
+}
+
 @test "config/vscode/settings.json exists" {
   assert_file_exists "$CONFIG_DIR/vscode/settings.json"
 }
@@ -534,7 +543,7 @@ setup() {
   assert_failure
   run grep -cE 'github-workflows/\.github/workflows/[^@]+@[0-9a-f]{40}' \
     "$REPO_ROOT/.github/workflows/ci-cd.yml"
-  assert_output '4'
+  assert_output '5'
 }
 
 @test "no docs dispatch job: the docs hub polls on a cron schedule" {
@@ -560,7 +569,7 @@ setup() {
   run grep -q "allowed-bots: '\[\"github-actions\[bot\]\", \"release-please-global\[bot\]\"\]'" "$wf"
   assert_success
   run grep -c "user.login == 'github-actions\[bot\]'" "$wf"
-  assert_output "2"
+  assert_output "3"
 }
 
 # --- commit/TODO automation moved to the /commit skill ---
@@ -870,6 +879,35 @@ todo_layout() {
   refute_output --partial "|| true"
 }
 
+@test "CI and the Docker bats stage run every Bats directory make test runs" {
+  # BATS_DIRS lists tests/ and its sub-suites; the reusable workflow and a
+  # plain `bats tests/` both stop at the first level.
+  local dirs dir docker_run matrix
+  dirs=$(sed -n 's/^BATS_DIRS := //p' "$REPO_ROOT/Makefile" | sed 's/\$(TESTS_DIR)/tests/g')
+  [ -n "$dirs" ] || fail "BATS_DIRS not found in the Makefile"
+  docker_run=$(grep -E '^RUN .* bats ' "$REPO_ROOT/tests/docker/Dockerfile.test")
+  matrix=$(grep -E '^ +tests-dir: \[' "$REPO_ROOT/.github/workflows/ci-cd.yml")
+  for dir in $dirs; do
+    [[ " $docker_run " == *" $dir "* ]] || fail "the Docker test-bats stage does not run $dir"
+    [ "$dir" = tests/ ] && continue
+    [[ "$matrix" == *"$dir"* ]] || fail "no CI job runs $dir"
+  done
+  # A failing sub-suite holds the release back like the main one.
+  run grep -F "needs.ci-suites.result != 'failure'" "$REPO_ROOT/.github/workflows/ci-cd.yml"
+  assert_success
+}
+
+@test "the Docker stages that run a whole profile keep its exit status" {
+  # `|| true` after the script made these stages pass whatever it did; the
+  # checks that follow only look at files written early.
+  local stage
+  for stage in test-security test-full; do
+    run sed -n "/^FROM base AS $stage\$/,/^FROM /p" "$REPO_ROOT/tests/docker/Dockerfile.test"
+    assert_output --partial "os/debian/"
+    refute_output --partial "|| true"
+  done
+}
+
 @test "a Docker stage runs setup-kubernetes.sh in full mode, from an older kubectl channel" {
   run sed -n '/^FROM base AS test-kubernetes$/,/^FROM /p' "$REPO_ROOT/tests/docker/Dockerfile.test"
   assert_success
@@ -938,9 +976,26 @@ todo_layout() {
   local f
   for f in "$REPO_ROOT"/scripts/*/*; do
     [[ "$f" == *.md ]] && continue
-    assert_line "./scripts/${f#"$REPO_ROOT"/scripts/}"
+    assert_line "scripts/${f#"$REPO_ROOT"/scripts/}"
   done
-  refute_line --regexp '^\./tests/test_helper/'
+  assert_line "os/helpers/links.sh"
+  refute_line --regexp '^tests/test_helper/'
+}
+
+@test "make lint leaves out scripts under gitignored directories" {
+  command -v make >/dev/null || skip "make is not installed"
+  git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1 || skip "not a git checkout"
+  mkdir -p "$BATS_TEST_TMPDIR/bin" "$REPO_ROOT/.scratch"
+  printf '#!/bin/bash\nprintf "%%s\\n" "$@"\n' > "$BATS_TEST_TMPDIR/bin/shellcheck"
+  chmod +x "$BATS_TEST_TMPDIR/bin/shellcheck"
+  # .scratch/ is gitignored: a stale copy of a script there is not this branch's code.
+  local probe="$REPO_ROOT/.scratch/lint-probe-$$.sh"
+  echo '#!/bin/bash' > "$probe"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH" run make -s -C "$REPO_ROOT" --no-print-directory lint
+  rm -f "$probe"
+  assert_success
+  refute_output --partial "lint-probe"
+  assert_line "os/helpers/links.sh"
 }
 
 @test "the prek shellcheck hook matches the extensionless scripts under scripts/" {
@@ -955,4 +1010,24 @@ todo_layout() {
   # Markdown and data files next to them stay out.
   run grep -qE "$pattern" <<<"config/ollama/models.txt"
   assert_failure
+}
+
+@test ".zshrc enables the fzf plugin only where fzf is installed, before oh-my-zsh loads" {
+  command -v zsh >/dev/null || skip "zsh not installed"
+  local line
+  line=$(grep -F 'plugins+=(fzf)' "$CONFIG_DIR/zsh/.zshrc")
+  [ -n "$line" ] || fail "no fzf plugin line in .zshrc"
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  printf '#!/bin/sh\n' > "$BATS_TEST_TMPDIR/bin/fzf"
+  chmod +x "$BATS_TEST_TMPDIR/bin/fzf"
+  run zsh -fc "PATH='$BATS_TEST_TMPDIR/bin'; plugins=(git); $line; print -r -- \$plugins"
+  assert_output "git fzf"
+  # Without fzf the plugin would print an error at every shell start.
+  run zsh -fc "PATH='$BATS_TEST_TMPDIR/empty'; plugins=(git); $line; print -r -- \$plugins"
+  assert_output "git"
+  # The plugin list is read when oh-my-zsh is sourced: the line comes first.
+  local at loaded
+  at=$(grep -nF 'plugins+=(fzf)' "$CONFIG_DIR/zsh/.zshrc" | cut -d: -f1)
+  loaded=$(grep -n '^source \$ZSH/oh-my-zsh.sh' "$CONFIG_DIR/zsh/.zshrc" | cut -d: -f1)
+  [ "$at" -lt "$loaded" ]
 }

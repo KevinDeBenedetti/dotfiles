@@ -14,7 +14,10 @@ VS Code settings, recommended extensions, and MCP server configuration.
 | `config/vscode/mcp.json`        | `<VS Code User>/mcp.json`      | symlink¹                             |
 | `config/vscode/extensions.json` | —                              | read to install each recommendation¹ |
 
-¹ Only when the `code` CLI is on `PATH`. `<VS Code User>` is
+¹ By the init scripts when the `code` CLI is on `PATH` (they create the
+directory), and by `scripts/symlink.sh` when the directory already exists; a
+`settings.json` that was there is kept as `settings.json.bak.<date>`.
+`<VS Code User>` is
 `~/Library/Application Support/Code/User` on macOS and `~/.config/Code/User` on
 Debian. Each extension listed in `extensions.json` is installed with
 `code --install-extension` unless it already is.
