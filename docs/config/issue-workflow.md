@@ -54,15 +54,20 @@ reported to you, not followed.
 ## Project board
 
 Labels show one filter at a time. A GitHub Project gives the single view: a
-board with one column per triage label. This repository's board is the
-project linked in its **Projects** tab.
+board with one column per triage label. This repository's board is project 1
+of the `kevindb-labs` organization: GitHub tells only an organization when a
+card moves, so a board owned by a user could follow the labels but not drive
+them.
 
 A board groups its cards by a single-select field, not by label, so the
-project has a `Stage` field that mirrors the labels. The
-`.github/workflows/project-stage.yml` workflow keeps it in step: on every
-issue opened, reopened, labelled, unlabelled or closed, it adds the issue to
-the project (a new issue lands on the board without a manual step) and sets
-its `Stage`.
+project has a `Stage` field that mirrors the labels, in both directions:
+
+- **Labels to board:** the `.github/workflows/project-stage.yml` workflow runs
+  on every issue opened, reopened, labelled, unlabelled or closed. It adds the
+  issue to the project (a new issue lands on the board without a manual step)
+  and sets its `Stage`.
+- **Board to labels:** moving a card to another column sets the issue's
+  labels within seconds (see [below](#from-the-board-to-the-labels)).
 
 | `Stage` column    | Issue                                                  |
 | ----------------- | ------------------------------------------------------ |
@@ -75,23 +80,68 @@ its `Stage`.
 
 When several triage labels are set, the one that stops the work wins:
 `wontfix`, then `needs-info`, `ready-for-human`, `ready-for-agent`.
-`urgent` is not a column: filter the board with `label:urgent`. The column is
-written by the workflow only; moving a card by hand lasts until the issue's
-next label change.
+`urgent` is not a column: filter the board with `label:urgent`.
 
 Set it up once per repository:
 
-1. Create a project (Board layout) and link it to the repository.
+1. Create a project (Board layout) in the organization and link it to the
+   repository.
 2. Add a single-select field `Stage` with the six options above (case does
    not matter), and group the board by it. A run that cannot find a column
    fails and lists the options the field has.
-3. Create a classic personal access token with the `project` scope only: a
-   project owned by a user accepts neither `GITHUB_TOKEN`, a GitHub App nor a
-   fine-grained token. Store it as the `PROJECT_TOKEN` secret.
-4. Set the `PROJECT_NUMBER` repository variable to the number at the end of
-   the project's URL. The workflow is skipped until it is set.
+3. Create a classic personal access token with the `project` scope only, and
+   store it as the `PROJECT_TOKEN` secret: `GITHUB_TOKEN` cannot write to a
+   project.
+4. Set the `PROJECT_OWNER` repository variable to the organization's login,
+   and `PROJECT_NUMBER` to the number at the end of the project's URL. The
+   workflow is skipped until `PROJECT_NUMBER` is set; without
+   `PROJECT_OWNER`, it looks for the project under the repository's owner.
 5. Run the workflow by hand once (`gh workflow run project-stage.yml`): a
    manual run puts every open issue on the board.
+
+### From the board to the labels
+
+A Cloudflare Worker, in `.github/project-board/`, receives the organization
+webhook's `projects_v2_item` events: Actions cannot trigger on them. On a card
+moved to another column, it reads the issue back from GitHub and updates it in
+one call:
+
+| Card moved to  | Issue                                                             |
+| -------------- | ----------------------------------------------------------------- |
+| an open column | its triage label replaces the others; reopened if closed          |
+| `Won't fix`    | `wontfix` replaces the other triage labels; closed as not planned |
+| `Done`         | loses `wontfix`; closed as completed                              |
+
+Other labels, such as `urgent`, are kept. A card already in step with its
+issue changes nothing: that is how the Worker and the workflow stop, when
+each sees the other's change. An edit of another field, a card cleared to
+no column, cards of other repositories, drafts and pull requests are left
+alone.
+
+Set it up once, after the board:
+
+1. Create a classic personal access token with the `public_repo` and
+   `read:project` scopes, for the Worker. Both tokens are classic: the
+   organization must not restrict classic tokens (its **Personal access
+   tokens** settings).
+2. In `.github/project-board/`, check the `[vars]` of `wrangler.toml`, then
+   deploy and store the two secrets (the webhook secret is a random string,
+   such as the output of `openssl rand -hex 32`):
+
+   ```sh
+   npx wrangler deploy
+   npx wrangler secret put GITHUB_TOKEN
+   npx wrangler secret put WEBHOOK_SECRET
+   ```
+
+3. In the organization's settings, add a webhook: payload URL the Worker's
+   `workers.dev` address, content type `application/json`, the same secret,
+   and the **Project v2 items** event only. GitHub's first delivery is a ping,
+   which the Worker answers with `pong`.
+
+A failed update answers 500: the webhook's **Recent Deliveries** show it,
+and it can be redelivered from there. The Worker's logs are in the Cloudflare
+dashboard.
 
 ## Running issues
 

@@ -1,0 +1,20 @@
+# Cloudflare Worker that sets an issue's labels from its column on the
+# organization's project board (docs/config/issue-workflow.md#from-the-board-to-the-labels).
+# Deploy from this directory: `npx wrangler deploy`.
+# Secrets are never written here: set WEBHOOK_SECRET and GITHUB_TOKEN with
+# `npx wrangler secret put <name>`.
+name = "project-board"
+main = "worker.mjs"
+compatibility_date = "2026-11-01"
+# Only the public *.workers.dev address is used; no route, no custom domain.
+workers_dev = true
+
+[vars]
+PROJECT_OWNER = "kevindb-labs"
+PROJECT_NUMBER = "1"
+# Issues of these repositories only (comma-separated owner/name): the Worker
+# never labels an issue whose repository does not use the triage labels.
+REPOSITORIES = "KevinDeBenedetti/dotfiles"
+
+[observability]
+enabled = true

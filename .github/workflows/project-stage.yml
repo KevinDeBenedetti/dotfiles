@@ -2,11 +2,13 @@
 # added to the project and its Stage field set from its label, by
 # .github/scripts/project-stage.sh (docs/config/issue-workflow.md#project-board).
 #
-# Needs the PROJECT_NUMBER repository variable and the PROJECT_TOKEN secret, a
-# classic personal access token with the `project` scope: GITHUB_TOKEN and
-# GitHub Apps cannot write to a project owned by a user. The job is skipped
+# Needs the PROJECT_NUMBER repository variable (PROJECT_OWNER too when the
+# project is not the repository owner's) and the PROJECT_TOKEN secret, a
+# classic personal access token with the `project` scope. The job is skipped
 # until PROJECT_NUMBER is set; with the variable set and no secret, it fails
 # and names the secret. A manual run syncs every open issue (backfill).
+# The other direction, from a card moved on the board to the labels, is the
+# Cloudflare Worker in .github/project-board/.
 ---
 name: Project board
 
@@ -40,15 +42,14 @@ jobs:
           persist-credentials: false
           sparse-checkout: .github/scripts
 
-      # The event reaches the script through env only: an issue can be opened
-      # by anyone, and nothing of it is interpolated into the command.
+      # Only the issue's id reaches the script, through env: an issue can be
+      # opened by anyone, and nothing of it is interpolated into the command.
+      # The script reads the issue's labels and state back from GitHub.
       - name: Sync
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          PROJECT_OWNER: ${{ github.repository_owner }}
+          PROJECT_OWNER: ${{ vars.PROJECT_OWNER || github.repository_owner }}
           PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
           ISSUE_ID: ${{ github.event.issue.node_id }}
-          ISSUE_STATE: ${{ github.event.issue.state == 'closed' && 'CLOSED' || 'OPEN' }}
-          LABELS: ${{ toJson(github.event.issue.labels.*.name) }}
         run: bash .github/scripts/project-stage.sh

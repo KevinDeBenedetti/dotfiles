@@ -5,13 +5,16 @@
 # project first: a new issue lands on the board without a manual step.
 #
 # Run by .github/workflows/project-stage.yml. Env:
-#   PROJECT_OWNER   login of the user owning the project
+#   PROJECT_OWNER   login of the user or organization owning the project
 #   PROJECT_NUMBER  the project's number (its URL ends with it)
 #   ISSUE_ID        node id of the issue; empty: sync every open issue
-#   ISSUE_STATE     OPEN or CLOSED (with ISSUE_ID)
-#   LABELS          JSON array of the issue's label names (with ISSUE_ID)
-# gh reads its token from GH_TOKEN: a classic PAT with the `project` scope,
-# since GITHUB_TOKEN and GitHub Apps cannot write to a user-owned project.
+# gh reads its token from GH_TOKEN: a classic PAT with the `project` scope.
+#
+# The issue's labels and state are read back from GitHub, not taken from the
+# event: a board move (.github/project-board/) changes an issue in one go but
+# fires one event per label, and every run must write the column the issue
+# has now. An item already in its column is not written again, so the board
+# Worker gets no edit to answer.
 set -euo pipefail
 
 # stage_for LABELS_JSON STATE: the Stage column of an issue. When several
@@ -41,13 +44,13 @@ load_project() {
   # shellcheck disable=SC2016 # GraphQL variables, not shell ones.
   project=$(gh api graphql -F owner="$PROJECT_OWNER" -F number="$PROJECT_NUMBER" -f query='
     query($owner: String!, $number: Int!) {
-      user(login: $owner) {
+      repositoryOwner(login: $owner) { ... on ProjectV2Owner {
         projectV2(number: $number) {
           id
           field(name: "Stage") { ... on ProjectV2SingleSelectField { id options { id name } } }
         }
-      }
-    }' --jq '.data.user.projectV2')
+      } }
+    }' --jq '.data.repositoryOwner.projectV2')
   PROJECT_ID=$(jq -r '.id // empty' <<<"$project")
   FIELD_ID=$(jq -r '.field.id // empty' <<<"$project")
   OPTIONS=$(jq -c '.field.options // []' <<<"$project")
@@ -55,10 +58,27 @@ load_project() {
   [[ -n "$FIELD_ID" ]] || fail "Project $PROJECT_NUMBER of $PROJECT_OWNER has no single-select field named Stage"
 }
 
-# sync_issue ID STATE LABELS_JSON
+# sync_issue ID: adds the issue to the board, reading its labels and state in
+# the same call, then writes its column at once. Reading them any earlier
+# would leave time for a card dragged meanwhile to be overwritten by a stale
+# column, which the board Worker would then turn back into labels.
 sync_issue() {
-  local issue="$1" stage option item
-  stage=$(stage_for "$3" "$2")
+  local issue="$1" item_row item current_option state labels stage option
+  # Adding an issue already on the board returns its existing item.
+  # shellcheck disable=SC2016
+  item_row=$(gh api graphql -f projectId="$PROJECT_ID" -f contentId="$issue" -f query='
+    mutation($projectId: ID!, $contentId: ID!) {
+      addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) { item {
+        id stage: fieldValueByName(name: "Stage") { ... on ProjectV2ItemFieldSingleSelectValue { optionId } }
+        content { ... on Issue { state labels(first: 100) { nodes { name } } } }
+      } }
+    }' --jq '.data.addProjectV2ItemById.item
+      | [.id, (.stage.optionId // ""), .content.state, (.content.labels.nodes | map(.name) | tojson)]
+      | join("\u001f")')
+  # A unit separator, not a tab: read merges consecutive tabs, and would shift
+  # the fields of an item that has no column yet.
+  IFS=$'\x1f' read -r item current_option state labels <<<"$item_row"
+  stage=$(stage_for "$labels" "$state")
   # Matched without regard to case or surrounding spaces: "Needs Triage" typed
   # in the project's UI is the same column.
   option=$(jq -r --arg s "$stage" \
@@ -66,12 +86,10 @@ sync_issue() {
     <<<"$OPTIONS")
   [[ -n "$option" ]] || fail "The Stage field of project $PROJECT_NUMBER has no '$stage' option ($(jq -r \
     'if length == 0 then "it has no options yet" else "it has: " + (map("'"'"'\(.name)'"'"'") | join(", ")) end' <<<"$OPTIONS"))"
-  # Adding an issue already on the board returns its existing item.
-  # shellcheck disable=SC2016
-  item=$(gh api graphql -f projectId="$PROJECT_ID" -f contentId="$issue" -f query='
-    mutation($projectId: ID!, $contentId: ID!) {
-      addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) { item { id } }
-    }' --jq '.data.addProjectV2ItemById.item.id')
+  if [[ "$current_option" == "$option" ]]; then
+    echo "$issue → $stage (already there)"
+    return
+  fi
   # shellcheck disable=SC2016
   gh api graphql -f projectId="$PROJECT_ID" -f itemId="$item" -f fieldId="$FIELD_ID" -f optionId="$option" -f query='
     mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
@@ -88,14 +106,13 @@ main() {
   [[ -n "${GH_TOKEN:-}" ]] || fail "GH_TOKEN is empty: set the PROJECT_TOKEN secret (classic token, project scope)"
   load_project
   if [[ -n "${ISSUE_ID:-}" ]]; then
-    sync_issue "$ISSUE_ID" "${ISSUE_STATE:-OPEN}" "${LABELS:-[]}"
+    sync_issue "$ISSUE_ID"
     return
   fi
   local issue
   while IFS= read -r issue; do
-    sync_issue "$(jq -r .id <<<"$issue")" "$(jq -r .state <<<"$issue")" "$(jq -c .labels <<<"$issue")"
-  done < <(gh issue list --state open --limit 1000 --json id,state,labels \
-    --jq '[.[] | {id, state, labels: [.labels[].name]}]' | jq -c '.[]')
+    sync_issue "$issue"
+  done < <(gh issue list --state open --limit 1000 --json id --jq '.[].id')
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

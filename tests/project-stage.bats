@@ -24,9 +24,15 @@ setup() {
 echo "$*" | tr -s '\n ' ' ' >> "$GH_LOG"; echo >> "$GH_LOG"
 case "$*" in
   *"projectV2(number"*) printf '%s\n' "$FIELD_JSON" ;;
-  *addProjectV2ItemById*) echo "ITEM_${ISSUE_ID_SEEN:-1}" ;;
+  # The issue as it is now: its entry in ISSUES_JSON, else ISSUE_NODE.
+  *addProjectV2ItemById*)
+    id=$(grep -o 'contentId=[^ ]*' <<<"$*" | cut -d= -f2)
+    jq -nr --arg id "$id" --arg opt "${CURRENT_OPTION:-}" \
+      --argjson issues "${ISSUES_JSON:-[]}" --argjson one "${ISSUE_NODE:-{\"state\":\"OPEN\",\"labels\":[]\}}" \
+      '(first($issues[] | select(.id == $id)) // $one) as $i
+       | ["ITEM_1", $opt, $i.state, ($i.labels | tojson)] | join("\u001f")' ;;
   *updateProjectV2ItemFieldValue*) : ;;
-  "issue list"*) printf '%s\n' "${ISSUES_JSON:-[]}" ;;
+  "issue list"*) jq -r '.[].id' <<<"${ISSUES_JSON:-[]}" ;;
 esac
 SH
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
@@ -64,7 +70,8 @@ stage() {
 }
 
 @test "one issue is added to the board and its Stage set" {
-  ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='["needs-info","urgent"]' run bash "$SCRIPT"
+  export ISSUE_NODE='{"state":"OPEN","labels":["needs-info","urgent"]}'
+  ISSUE_ID=I_42 run bash "$SCRIPT"
   assert_success
   assert_output --partial "I_42 → Needs info"
   run cat "$GH_LOG"
@@ -72,6 +79,38 @@ stage() {
   assert_line --partial "number=3"
   assert_line --regexp 'projectId=PVT_1 -f contentId=I_42 .*addProjectV2ItemById'
   assert_line --regexp 'itemId=ITEM_1 -f fieldId=FIELD_1 -f optionId=OPT_INFO .*updateProjectV2ItemFieldValue'
+}
+
+@test "the issue is read back from GitHub, never taken from the event" {
+  # Runs queued behind a board move carry the labels of their own event: each
+  # one must write the issue's column as it is now.
+  export ISSUE_NODE='{"state":"CLOSED","labels":["ready-for-agent"]}'
+  ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='["needs-info"]' run bash "$SCRIPT"
+  assert_success
+  assert_output --partial "I_42 → Done"
+  run cat "$GH_LOG"
+  # Read in the call that adds the item, right before the write: a card
+  # dragged meanwhile is not overwritten by a stale column.
+  assert_line --regexp 'contentId=I_42 .*addProjectV2ItemById.*content \{ \.\.\. on Issue \{ state labels'
+  run grep -c 'node(id' "$GH_LOG"
+  assert_output "0"
+}
+
+@test "an item already in its column is not written again" {
+  # Writing it would send the board Worker one more edit to answer.
+  export ISSUE_NODE='{"state":"OPEN","labels":["needs-info"]}' CURRENT_OPTION=OPT_INFO
+  ISSUE_ID=I_42 run bash "$SCRIPT"
+  assert_success
+  assert_output --partial "I_42 → Needs info (already there)"
+  run grep -c updateProjectV2ItemFieldValue "$GH_LOG"
+  assert_output "0"
+}
+
+@test "the project is looked up under a user or an organization alike" {
+  ISSUE_ID=I_42 PROJECT_OWNER=labs run bash "$SCRIPT"
+  assert_success
+  run cat "$GH_LOG"
+  assert_line --regexp 'owner=labs .*repositoryOwner\(login: \$owner\) \{ \.\.\. on ProjectV2Owner'
 }
 
 @test "without an issue, every open issue is synced (backfill)" {
@@ -89,7 +128,8 @@ stage() {
 
 @test "a Stage field without the column fails and names it" {
   export FIELD_JSON='{"id":"PVT_1","field":{"id":"FIELD_1","options":[{"id":"OPT_TRIAGE","name":"Needs triage"}]}}'
-  ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='["needs-info"]' run bash "$SCRIPT"
+  export ISSUE_NODE='{"state":"OPEN","labels":["needs-info"]}'
+  ISSUE_ID=I_42 run bash "$SCRIPT"
   assert_failure
   assert_output --partial "::error::The Stage field of project 3 has no 'Needs info' option"
   run grep -c updateProjectV2ItemFieldValue "$GH_LOG"
@@ -98,7 +138,7 @@ stage() {
 
 @test "a column matches its option whatever the case and surrounding spaces" {
   export FIELD_JSON='{"id":"PVT_1","field":{"id":"FIELD_1","options":[{"id":"OPT_TRIAGE","name":" needs Triage "}]}}'
-  ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='[]' run bash "$SCRIPT"
+  ISSUE_ID=I_42 run bash "$SCRIPT"
   assert_success
   assert_output --partial "I_42 → Needs triage"
   run grep -c 'optionId=OPT_TRIAGE' "$GH_LOG"
@@ -107,19 +147,19 @@ stage() {
 
 @test "a missing column lists the options the Stage field has" {
   export FIELD_JSON='{"id":"PVT_1","field":{"id":"FIELD_1","options":[{"id":"A","name":"Todo"},{"id":"B","name":"In Progress"}]}}'
-  ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='[]' run bash "$SCRIPT"
+  ISSUE_ID=I_42 run bash "$SCRIPT"
   assert_failure
   assert_output --partial "::error::The Stage field of project 3 has no 'Needs triage' option (it has: 'Todo', 'In Progress')"
   # A Stage field just created in the UI has no options at all.
   export FIELD_JSON='{"id":"PVT_1","field":{"id":"FIELD_1","options":[]}}'
-  ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='[]' run bash "$SCRIPT"
+  ISSUE_ID=I_42 run bash "$SCRIPT"
   assert_failure
   assert_output --partial "::error::The Stage field of project 3 has no 'Needs triage' option (it has no options yet)"
 }
 
 @test "a project without a Stage field fails before anything is added" {
   export FIELD_JSON='{"id":"PVT_1","field":null}'
-  ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='[]' run bash "$SCRIPT"
+  ISSUE_ID=I_42 run bash "$SCRIPT"
   assert_failure
   assert_output --partial "::error::Project 3 of owner has no single-select field named Stage"
   run grep -c addProjectV2ItemById "$GH_LOG"
