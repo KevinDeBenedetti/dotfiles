@@ -19,6 +19,10 @@ FULL_MODE_SETUP="${FULL_MODE_SETUP:-false}"
 # shellcheck source=../helpers/fetch.sh
 source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/../helpers/fetch.sh"
 
+# is_infra_managed: the steps the infra repo owns on its nodes step aside.
+# shellcheck source=../helpers/infra.sh
+source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/../helpers/infra.sh"
+
 # Configurable via env vars (set before sourcing or in init.sh)
 SSH_PORT="${SSH_PORT:-22}"
 SSH_ALLOWED_USERS="${SSH_ALLOWED_USERS:-}"
@@ -50,16 +54,15 @@ has_admin_ssh_login() {
 
 configure_ssh() {
   # A node managed by the infra repo (Ansible role `common`) owns sshd: it
-  # writes /etc/ssh/sshd_config.d/00-infra-hardening.conf with the port the
+  # writes its sshd drop-in ($INFRA_MARKER, os/helpers/infra.sh) with the port the
   # Hetzner firewall and UFW open. 00-hardening.conf sorts BEFORE it, and sshd
   # keeps the FIRST value it reads for each keyword, so on an `init.sh` re-run
   # this step would move sshd to $SSH_PORT — off the only reachable port. Leave
   # sshd to Ansible there, and drop this script's own drop-ins so they stop
   # shadowing the infra one at the next sshd restart (the `common` role removes
   # them too, common_sshd_foreign_dropins, but only while it can still log in).
-  local infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"
-  if [[ -f "$infra_conf" ]]; then
-    printf '%b' "\n\n${red}[security] =>${no_color} sshd is managed by the infra repo ($infra_conf): skipping SSH hardening.\n\n"
+  if is_infra_managed; then
+    printf '%b' "\n\n${red}[security] =>${no_color} sshd is managed by the infra repo ($INFRA_MARKER): skipping SSH hardening.\n\n"
     $SUDO rm -f /etc/ssh/sshd_config.d/00-hardening.conf /etc/ssh/sshd_config.d/99-hardening.conf
     return 0
   fi
@@ -187,11 +190,10 @@ install_configure_ufw() {
   # from the Hetzner firewall or the `host_firewall` role. This step would
   # `ufw --force reset` and re-enable UFW with 22/80/443 only: the WireGuard
   # port, 6443, 8472 and infra's SSH port gone, kubectl and SSH over the VPN
-  # with them, until an Ansible run that could no longer connect. Same marker
-  # as configure_ssh: the infra sshd drop-in means the node is theirs.
-  local infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"
-  if [[ -f "$infra_conf" ]]; then
-    printf '%b' "\n\n${red}[security] =>${no_color} firewall managed by the infra repo ($infra_conf): skipping UFW.\n\n"
+  # with them, until an Ansible run that could no longer connect. The infra
+  # sshd drop-in means the node is theirs (is_infra_managed, os/helpers/infra.sh).
+  if is_infra_managed; then
+    printf '%b' "\n\n${red}[security] =>${no_color} firewall managed by the infra repo ($INFRA_MARKER): skipping UFW.\n\n"
     return 0
   fi
 
@@ -226,6 +228,15 @@ install_configure_ufw() {
 # Fail2Ban
 # ──────────────────────────────────────────────
 install_configure_fail2ban() {
+  # Not on a node managed by the infra repo: UFW is skipped there (see
+  # install_configure_ufw), so `banaction = ufw` below could not apply a ban,
+  # and the jail would watch $SSH_PORT instead of the port the infra drop-in
+  # sets. The infra repo runs those nodes without Fail2Ban on purpose.
+  if is_infra_managed; then
+    printf '%b' "\n\n${red}[security] =>${no_color} node managed by the infra repo ($INFRA_MARKER): skipping Fail2Ban.\n\n"
+    return 0
+  fi
+
   printf '%b' "\n\n${red}[security] =>${no_color} Install and configure Fail2Ban\n\n"
 
   # python3-systemd is only a Recommends of fail2ban, but `backend = systemd`

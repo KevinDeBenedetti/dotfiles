@@ -189,6 +189,8 @@ loopback only. Publish a service on purpose with an explicit address
 `python3-systemd` is installed with it: the `systemd` backend needs it, and it
 is only a Recommends of the `fail2ban` package.
 
+> On a node managed by the infra repository (same marker as for Docker, `/etc/ssh/sshd_config.d/00-infra-hardening.conf`), the script skips SSH hardening, UFW and Fail2Ban: sshd and the firewall belong to that repository's Ansible, and a jail whose ban action is UFW could not ban anyone where UFW is not installed. The other hardening steps still run.
+
 #### Sysctl hardening (`/etc/sysctl.d/99-security.conf`)
 
 **Network:**

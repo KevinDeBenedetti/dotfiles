@@ -15,6 +15,10 @@ FULL_MODE_SETUP="${FULL_MODE_SETUP:-false}"
 # shellcheck source=../helpers/fetch.sh
 source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/../helpers/fetch.sh"
 
+# is_infra_managed: the steps the infra repo owns on its nodes step aside.
+# shellcheck source=../helpers/infra.sh
+source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/../helpers/infra.sh"
+
 # Install Git Credential Manager from a pinned release .deb. The SHA-256 of
 # each architecture's .deb is pinned here: following `latest` and checking it
 # against the digest of the same release let a compromised release through.
@@ -53,11 +57,10 @@ install_lite_setup() {
   # the infra `common` role removes Docker on every run (since 2026-11-04),
   # and Docker's iptables rules forward published ports around the host
   # firewall's input chain. A re-run here would put Docker back, with those
-  # rules, until the next Ansible run. Same marker as configure_ssh: the infra
-  # sshd drop-in means the node is theirs.
-  local infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"
-  if [[ -f "$infra_conf" ]]; then
-    printf '%b' "${red}[base]${no_color} Node managed by the infra repo ($infra_conf) — skipping Docker.\n"
+  # rules, until the next Ansible run. The infra sshd drop-in means the node
+  # is theirs (is_infra_managed, os/helpers/infra.sh).
+  if is_infra_managed; then
+    printf '%b' "${red}[base]${no_color} Node managed by the infra repo ($INFRA_MARKER) — skipping Docker.\n"
   elif ! command -v docker &>/dev/null; then
     $SUDO apt-get install -y --no-install-recommends \
       ca-certificates \

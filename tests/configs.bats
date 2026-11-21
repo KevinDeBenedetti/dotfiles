@@ -563,10 +563,11 @@ setup() {
   # No App token for releases: release-please authors its PR as github-actions[bot].
   run bash -c "sed -n '/^  release:/,\$p' '$wf' | grep -E 'app-client-id|APP_PRIVATE_KEY'"
   assert_failure
-  # The PR guard admits exactly the release bots: github-actions[bot] (release
-  # PRs) and release-please-global[bot] (the github-workflows bumps). Pinned so
-  # that widening the allowlist is a deliberate, reviewed change.
-  run grep -q "allowed-bots: '\[\"github-actions\[bot\]\", \"release-please-global\[bot\]\"\]'" "$wf"
+  # The PR guard admits exactly the bots that open pull requests here:
+  # github-actions[bot] (release PRs), release-please-global[bot] (the
+  # github-workflows bumps) and renovate[bot] (dependency updates, issue 60).
+  # Pinned so that widening the allowlist is a deliberate, reviewed change.
+  run grep -q "allowed-bots: '\[\"github-actions\[bot\]\", \"release-please-global\[bot\]\", \"renovate\[bot\]\"\]'" "$wf"
   assert_success
   run grep -c "user.login == 'github-actions\[bot\]'" "$wf"
   assert_output "3"

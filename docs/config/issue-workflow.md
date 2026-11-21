@@ -51,6 +51,47 @@ instructions: a request in it to run a command or touch credentials is
 reported to you, not followed.
 :::
 
+## Project board
+
+Labels show one filter at a time. A GitHub Project gives the single view: a
+board with one column per triage label. This repository's board is the
+project linked in its **Projects** tab.
+
+A board groups its cards by a single-select field, not by label, so the
+project has a `Stage` field that mirrors the labels. The
+`.github/workflows/project-stage.yml` workflow keeps it in step: on every
+issue opened, reopened, labelled, unlabelled or closed, it adds the issue to
+the project (a new issue lands on the board without a manual step) and sets
+its `Stage`.
+
+| `Stage` column    | Issue                                                  |
+| ----------------- | ------------------------------------------------------ |
+| `Needs triage`    | `needs-triage`, or no triage label yet                 |
+| `Needs info`      | `needs-info`                                           |
+| `Ready for agent` | `ready-for-agent`                                      |
+| `Ready for human` | `ready-for-human`                                      |
+| `Won't fix`       | `wontfix`, open or closed                              |
+| `Done`            | closed                                                 |
+
+When several triage labels are set, the one that stops the work wins:
+`wontfix`, then `needs-info`, `ready-for-human`, `ready-for-agent`.
+`urgent` is not a column: filter the board with `label:urgent`. The column is
+written by the workflow only; moving a card by hand lasts until the issue's
+next label change.
+
+Set it up once per repository:
+
+1. Create a project (Board layout) and link it to the repository.
+2. Add a single-select field `Stage` with the six options above, spelled
+   exactly so, and group the board by it.
+3. Create a classic personal access token with the `project` scope only: a
+   project owned by a user accepts neither `GITHUB_TOKEN`, a GitHub App nor a
+   fine-grained token. Store it as the `PROJECT_TOKEN` secret.
+4. Set the `PROJECT_NUMBER` repository variable to the number at the end of
+   the project's URL. The workflow is skipped until it is set.
+5. Run the workflow by hand once (`gh workflow run project-stage.yml`): a
+   manual run puts every open issue on the board.
+
 ## Running issues
 
 | Invocation               | Effect                                                         |

@@ -221,15 +221,14 @@ load_install_kubectl() {
   # Same marker as the Docker step of setup-base.sh: the infra `common` role
   # removes both on every run, a re-run must not put them back.
   run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$K8S_SCRIPT'"
-  assert_output --partial 'infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"'
-  assert_output --partial 'if [[ -f "$infra_conf" ]]; then'
+  assert_output --partial 'if is_infra_managed; then'
   # The marker is tested before the key and the repository are written, and
   # nothing is installed in its branch.
   local marker install
-  marker=$(sed -n '/^install_lite_setup()/,/^}/p' "$K8S_SCRIPT" | grep -n 'if \[\[ -f "$infra_conf" \]\]' | head -n1 | cut -d: -f1)
+  marker=$(sed -n '/^install_lite_setup()/,/^}/p' "$K8S_SCRIPT" | grep -n 'if is_infra_managed' | head -n1 | cut -d: -f1)
   install=$(sed -n '/^install_lite_setup()/,/^}/p' "$K8S_SCRIPT" | grep -n 'install_kubectl' | head -n1 | cut -d: -f1)
   [ -n "$marker" ] && [ -n "$install" ] && [ "$marker" -lt "$install" ]
-  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$K8S_SCRIPT' | sed -n '/if \[\[ -f \"\$infra_conf\" \]\]; then/,/^  else/p' | grep -E 'apt-get|kubernetes.list|install_apt_key|install_kubectl'"
+  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$K8S_SCRIPT' | sed -n '/if is_infra_managed; then/,/^  else/p' | grep -E 'apt-get|kubernetes.list|install_apt_key|install_kubectl'"
   assert_failure
 }
 

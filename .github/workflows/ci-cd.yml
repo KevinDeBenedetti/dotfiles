@@ -87,8 +87,10 @@ jobs:
       # release-please opens its release PRs with GITHUB_TOKEN, i.e. as this
       # bot; allow it so the "chore(main): release x.y.z" PR passes the guard.
       # release-please-global[bot] opens the github-workflows bumps, on each
-      # of its releases (its propagate-release job).
-      allowed-bots: '["github-actions[bot]", "release-please-global[bot]"]'
+      # of its releases (its propagate-release job). renovate[bot] opens the
+      # dependency updates that renovate.json describes, once the Renovate
+      # GitHub App is installed on this repository (issue 79).
+      allowed-bots: '["github-actions[bot]", "release-please-global[bot]", "renovate[bot]"]'
 
   # ── Release (release-please) ───────────────────────────────────────────────
   # Config & manifest live in .github/release/. v0.1.0 has shipped, so the

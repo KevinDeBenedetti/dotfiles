@@ -28,14 +28,13 @@ lite_body() { sed -n '/^install_lite_setup()/,/^}/p' "$1"; }
   # Same marker as configure_ssh and the UFW step of setup-security.sh: the
   # infra `common` role removes Docker on every run, a re-run must not put it back.
   run lite_body "$DEBIAN_BASE"
-  assert_output --partial 'infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"'
-  assert_output --partial 'if [[ -f "$infra_conf" ]]; then'
+  assert_output --partial 'if is_infra_managed; then'
   # The marker is tested before the Docker apt source is written, and the
   # install sits in the branch after it.
-  marker=$(lite_body "$DEBIAN_BASE" | grep -n 'if \[\[ -f "$infra_conf" \]\]' | head -n1 | cut -d: -f1)
+  marker=$(lite_body "$DEBIAN_BASE" | grep -n 'if is_infra_managed' | head -n1 | cut -d: -f1)
   docker_source=$(lite_body "$DEBIAN_BASE" | grep -n 'sources.list.d/docker.list' | head -n1 | cut -d: -f1)
   [ -n "$marker" ] && [ -n "$docker_source" ] && [ "$marker" -lt "$docker_source" ]
-  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$DEBIAN_BASE' | sed -n '/if \[\[ -f \"\$infra_conf\" \]\]; then/,/^  elif/p' | grep -E 'apt-get|docker.list|usermod'"
+  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$DEBIAN_BASE' | sed -n '/if is_infra_managed; then/,/^  elif/p' | grep -E 'apt-get|docker.list|usermod'"
   assert_failure
 }
 

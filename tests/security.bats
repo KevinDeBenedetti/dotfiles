@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 
-# Tests for setup-security.sh script structure and function definitions.
-# These tests validate the script without running it on the host —
-# they check syntax, function presence, and generated config content.
+# Tests for setup-security.sh. Nothing runs on the host: the SSH, UFW and
+# Fail2Ban steps are run for real with their system commands stubbed and the
+# files they render are read back; the other steps are checked in the source.
 
 setup() {
   DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
@@ -100,30 +100,34 @@ setup() {
 
 # --- SSH hardening config content ---
 
-@test "SSH config disables root login" {
-  # Off by default; key-only root is the fallback when no other admin exists.
-  run grep -F 'local permit_root="no"' "$SECURITY_SCRIPT"
+@test "the rendered SSH drop-in hardens sshd on the configured port" {
+  mkdir -p "$BATS_TEST_TMPDIR/alice/.ssh"
+  echo "ssh-ed25519 AAAA test" > "$BATS_TEST_TMPDIR/alice/.ssh/authorized_keys"
+  SSH_PORT=2222
+  run render_ssh_dropin
   assert_success
+  run cat "$BATS_TEST_TMPDIR/00-hardening.conf"
+  assert_line "Port 2222"
+  assert_line "PermitRootLogin no"
+  assert_line "PasswordAuthentication no"
+  assert_line "PermitEmptyPasswords no"
+  assert_line "MaxAuthTries 3"
+  assert_line "X11Forwarding no"
+  assert_line "AllowTcpForwarding no"
+  assert_line "ClientAliveInterval 300"
+  # Every setting line is a single "Keyword value" pair sshd can parse.
+  run grep -Ev '^(#.*|[A-Za-z0-9]+ [^ ].*)?$' "$BATS_TEST_TMPDIR/00-hardening.conf"
+  assert_failure
 }
 
-@test "SSH config disables password auth" {
-  run grep 'PasswordAuthentication no' "$SECURITY_SCRIPT"
+@test "the SSH drop-in is written to 00-hardening.conf, private, and sshd restarted" {
+  run render_ssh_dropin
   assert_success
-}
-
-@test "SSH config limits auth tries to 3" {
-  run grep 'MaxAuthTries 3' "$SECURITY_SCRIPT"
-  assert_success
-}
-
-@test "SSH config disables X11 forwarding" {
-  run grep 'X11Forwarding no' "$SECURITY_SCRIPT"
-  assert_success
-}
-
-@test "SSH config sets idle timeout" {
-  run grep 'ClientAliveInterval 300' "$SECURITY_SCRIPT"
-  assert_success
+  run cat "$BATS_TEST_TMPDIR/calls"
+  assert_line "tee /etc/ssh/sshd_config.d/00-hardening.conf"
+  assert_line "chmod 600 /etc/ssh/sshd_config.d/00-hardening.conf"
+  assert_line "rm -f /etc/ssh/sshd_config.d/99-hardening.conf"
+  assert_line "systemctl restart sshd"
 }
 
 @test "SSH drop-in sorts first so earlier drop-ins cannot override it" {
@@ -170,47 +174,40 @@ setup() {
   [ -n "$key" ] && [ -n "$list" ] && [ "$key" -lt "$list" ]
 }
 
-# --- Fail2Ban config content ---
-
-@test "Fail2Ban config uses systemd backend" {
-  run grep 'backend  = systemd' "$SECURITY_SCRIPT"
-  assert_success
-}
-
-@test "Fail2Ban config uses ufw banaction" {
-  run grep 'banaction = ufw' "$SECURITY_SCRIPT"
-  assert_success
-}
-
-@test "Fail2Ban config enables sshd jail" {
-  run grep 'enabled  = true' "$SECURITY_SCRIPT"
-  assert_success
-}
-
 # --- SSH port consistency (sshd drop-in / ufw / fail2ban) ---
 # A custom SSH_PORT must reach all three places, or the firewall/jail protect
 # the wrong port. These guard against re-hardcoding a literal port anywhere.
 
-@test "SSH port is parameterized via \$SSH_PORT in the sshd drop-in" {
-  run grep -F 'Port $SSH_PORT' "$SECURITY_SCRIPT"
+@test "ufw opens the configured SSH port, after denying incoming by default" {
+  SUDO="" SSH_PORT=2222 red="" no_color=""
+  load_infra_marker
+  eval "$(sed -n '/^install_configure_ufw()/,/^}/p' "$SECURITY_SCRIPT")"
+  apt-get() { :; }
+  ufw() { echo "ufw $*" >> "$BATS_TEST_TMPDIR/calls"; }
+  run install_configure_ufw
   assert_success
+  run cat "$BATS_TEST_TMPDIR/calls"
+  assert_line "ufw allow 2222/tcp comment SSH"
+  assert_line "ufw default deny incoming"
+  refute_line --regexp '^ufw allow 22(/tcp)?( |$)'
+  local deny allow enable
+  deny=$(grep -n 'default deny incoming' "$BATS_TEST_TMPDIR/calls" | cut -d: -f1)
+  allow=$(grep -n 'allow 2222/tcp' "$BATS_TEST_TMPDIR/calls" | cut -d: -f1)
+  enable=$(grep -n 'force enable' "$BATS_TEST_TMPDIR/calls" | cut -d: -f1)
+  [ "$deny" -lt "$allow" ] && [ "$allow" -lt "$enable" ]
 }
 
-@test "ufw allows the configured \$SSH_PORT" {
-  run grep -F 'ufw allow "$SSH_PORT/tcp"' "$SECURITY_SCRIPT"
+@test "UFW is left out on a node managed by the infra repo" {
+  SUDO="" SSH_PORT=22 red="" no_color=""
+  load_infra_marker
+  touch "$INFRA_MARKER"
+  eval "$(sed -n '/^install_configure_ufw()/,/^}/p' "$SECURITY_SCRIPT")"
+  apt-get() { echo "apt-get $*" >> "$BATS_TEST_TMPDIR/calls"; }
+  ufw() { echo "ufw $*" >> "$BATS_TEST_TMPDIR/calls"; }
+  run install_configure_ufw
   assert_success
-}
-
-@test "fail2ban sshd jail watches the configured \$SSH_PORT" {
-  run grep -F 'port     = $SSH_PORT' "$SECURITY_SCRIPT"
-  assert_success
-}
-
-@test "fail2ban sshd jail does not hardcode the SSH port" {
-  # Regression guard for the original bug: port = ssh (or a literal number)
-  # ignored a custom SSH_PORT.
-  run grep -E '^port[[:space:]]+=[[:space:]]+(ssh|[0-9]+)[[:space:]]*$' "$SECURITY_SCRIPT"
-  assert_failure
+  assert_output --partial "skipping UFW"
+  assert_file_not_exists "$BATS_TEST_TMPDIR/calls"
 }
 
 # --- Sysctl hardening content ---
@@ -263,14 +260,14 @@ setup() {
   assert_failure
 }
 
-# --- Fail2Ban dependencies ---
-
-@test "fail2ban is installed with python3-systemd for its systemd backend" {
-  run grep -E 'apt-get install .*fail2ban python3-systemd' "$SECURITY_SCRIPT"
-  assert_success
-}
-
 # --- SSH lockout safeguards ---
+
+# Defines is_infra_managed (os/helpers/infra.sh) with its marker moved into
+# the test's temp dir: absent unless a test touches "$INFRA_MARKER".
+load_infra_marker() {
+  INFRA_MARKER="$BATS_TEST_TMPDIR/00-infra-hardening.conf"
+  source "$REPO_ROOT/os/helpers/infra.sh"
+}
 
 # Defines has_admin_ssh_login from the script (without running the script)
 # with getent and the sudo prefix stubbed: root and alice are in group sudo,
@@ -286,13 +283,6 @@ load_admin_check() {
     esac
   }
   eval "$(sed -n '/^has_admin_ssh_login()/,/^}/p' "$SECURITY_SCRIPT")"
-}
-
-@test "root login is disabled only when a sudo user can log in with a key" {
-  run grep -F 'PermitRootLogin ${permit_root}' "$SECURITY_SCRIPT"
-  assert_success
-  run grep -F 'permit_root="prohibit-password"' "$SECURITY_SCRIPT"
-  assert_success
 }
 
 @test "has_admin_ssh_login fails when only root has keys" {
@@ -327,17 +317,31 @@ load_admin_check() {
 }
 
 # Runs the real configure_ssh with the system commands stubbed: the drop-in it
-# renders lands in $DROPIN instead of /etc/ssh/sshd_config.d/.
+# renders lands in $DROPIN instead of /etc/ssh/sshd_config.d/ and each stubbed
+# call is logged in $CALLS. `sshd -t` answers $SSHD_T, one word per call
+# ("ok" or "bad", the last one repeating): "ok bad" is a config the drop-in
+# broke. The infra marker is $INFRA_MARKER, a path in the test's temp dir.
 render_ssh_dropin() {
   load_admin_check
+  load_infra_marker
   eval "$(sed -n '/^configure_ssh()/,/^}/p' "$SECURITY_SCRIPT")"
   DROPIN="$BATS_TEST_TMPDIR/00-hardening.conf"
-  SSH_PORT=22 red="" no_color=""
-  tee() { cat > "$DROPIN"; }
-  rm() { :; }
-  chmod() { :; }
-  systemctl() { :; }
-  sshd() { [ "$1" = -t ]; }
+  CALLS="$BATS_TEST_TMPDIR/calls"
+  SSH_PORT="${SSH_PORT:-22}" red="" no_color=""
+  # Unquoted on purpose: SSHD_T is split into one answer per word.
+  # shellcheck disable=SC2206
+  local sshd_t=(${SSHD_T:-ok}) sshd_t_calls=0
+  tee() { echo "tee $*" >> "$CALLS"; cat > "$DROPIN"; }
+  rm() { echo "rm $*" >> "$CALLS"; }
+  mv() { echo "mv $*" >> "$CALLS"; }
+  chmod() { echo "chmod $*" >> "$CALLS"; }
+  systemctl() { echo "systemctl $*" >> "$CALLS"; }
+  sshd() {
+    [ "$1" = -t ] || return 1
+    local answer="${sshd_t[$sshd_t_calls]:-${sshd_t[${#sshd_t[@]}-1]}}"
+    sshd_t_calls=$((sshd_t_calls + 1))
+    [ "$answer" = ok ]
+  }
   configure_ssh
 }
 
@@ -377,11 +381,105 @@ render_ssh_dropin() {
 }
 
 @test "an sshd drop-in that breaks a valid config is moved aside" {
-  run grep -F 'mv "$hardening_conf" "${hardening_conf}.rejected"' "$SECURITY_SCRIPT"
+  SSHD_T="ok bad"
+  run render_ssh_dropin
+  assert_failure
+  assert_output --partial "moved to /etc/ssh/sshd_config.d/00-hardening.conf.rejected"
+  run cat "$BATS_TEST_TMPDIR/calls"
+  assert_line "mv /etc/ssh/sshd_config.d/00-hardening.conf /etc/ssh/sshd_config.d/00-hardening.conf.rejected"
+  refute_line "systemctl restart sshd"
+}
+
+@test "the drop-in is kept, and sshd not restarted, where sshd -t fails either way" {
+  # A container has no host keys: sshd -t fails before the write too, which
+  # says nothing about the drop-in.
+  SSHD_T="bad"
+  run render_ssh_dropin
   assert_success
-  # Only when sshd -t passed before the write (a container fails it either way).
-  run grep -F 'sshd_ok_before=true' "$SECURITY_SCRIPT"
+  assert_output --partial "sshd -t fails on this host, before and after"
+  run cat "$BATS_TEST_TMPDIR/calls"
+  refute_line --partial "mv "
+  refute_line "systemctl restart sshd"
+}
+
+# --- Nodes managed by the infra repo ---
+
+# Runs the real install_configure_fail2ban with the system commands stubbed:
+# the jail it renders lands in $JAIL and each stubbed call is logged in $CALLS.
+# The infra marker is $INFRA_MARKER, a path in the test's temp dir.
+render_fail2ban_jail() {
+  SUDO="" SSH_PORT=2222 red="" no_color=""
+  JAIL="$BATS_TEST_TMPDIR/jail.local"
+  CALLS="$BATS_TEST_TMPDIR/calls"
+  load_infra_marker
+  eval "$(sed -n '/^install_configure_fail2ban()/,/^}/p' "$SECURITY_SCRIPT")"
+  tee() { cat > "$JAIL"; }
+  apt-get() { echo "apt-get $*" >> "$CALLS"; }
+  systemctl() { echo "systemctl $*" >> "$CALLS"; }
+  fail2ban-client() { :; }
+  install_configure_fail2ban
+}
+
+@test "is_infra_managed follows the infra sshd drop-in marker" {
+  load_infra_marker
+  run is_infra_managed
+  assert_failure
+  load_infra_marker
+  touch "$INFRA_MARKER"
+  run is_infra_managed
   assert_success
+}
+
+@test "the infra marker defaults to the sshd drop-in the infra repo writes" {
+  run bash -c "unset INFRA_MARKER; source '$REPO_ROOT/os/helpers/infra.sh'; echo \"\$INFRA_MARKER\""
+  assert_output "/etc/ssh/sshd_config.d/00-infra-hardening.conf"
+}
+
+@test "the marker path is written once, in the shared helper" {
+  run grep -rlF '00-infra-hardening.conf' "$REPO_ROOT/os"
+  assert_output "$REPO_ROOT/os/helpers/infra.sh"
+}
+
+@test "SSH hardening is left out on a node managed by the infra repo" {
+  # Its own drop-ins are dropped too: they sort before the infra one and would
+  # win at the next sshd restart.
+  load_infra_marker
+  touch "$INFRA_MARKER"
+  run render_ssh_dropin
+  assert_success
+  assert_output --partial "skipping SSH hardening"
+  assert_file_not_exists "$BATS_TEST_TMPDIR/00-hardening.conf"
+  run cat "$BATS_TEST_TMPDIR/calls"
+  assert_output "rm -f /etc/ssh/sshd_config.d/00-hardening.conf /etc/ssh/sshd_config.d/99-hardening.conf"
+}
+
+@test "Fail2Ban renders a ufw jail on the configured port on a standalone host" {
+  run render_fail2ban_jail
+  assert_success
+  run cat "$BATS_TEST_TMPDIR/jail.local"
+  assert_line "banaction = ufw"
+  assert_line "port     = 2222"
+  assert_line "backend  = systemd"
+  assert_line "enabled  = true"
+  # One port line, the configured one: no leftover literal or "ssh".
+  run grep -c '^port ' "$BATS_TEST_TMPDIR/jail.local"
+  assert_output "1"
+  run cat "$BATS_TEST_TMPDIR/calls"
+  # python3-systemd: the systemd backend cannot start without it.
+  assert_line --regexp '^apt-get install .*fail2ban python3-systemd$'
+  assert_line "systemctl restart fail2ban"
+}
+
+@test "Fail2Ban is left out on a node managed by the infra repo (issue 54)" {
+  # UFW is skipped there, so a jail with banaction = ufw could not ban anyone,
+  # and it would watch \$SSH_PORT, not the port the infra drop-in sets.
+  load_infra_marker
+  touch "$INFRA_MARKER"
+  run render_fail2ban_jail
+  assert_success
+  assert_output --partial "skipping Fail2Ban"
+  assert_file_not_exists "$BATS_TEST_TMPDIR/jail.local"
+  assert_file_not_exists "$BATS_TEST_TMPDIR/calls"
 }
 
 # --- Lite vs full mode ---

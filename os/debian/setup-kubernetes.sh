@@ -97,12 +97,10 @@ install_lite_setup() {
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Install kubectl\n\n"
   # On a node the infra repo manages, its Ansible `common` role removes the
   # pkgs.k8s.io repository and kubectl on every run (k3s ships its own). A
-  # re-run here would put both back until the next Ansible run. Same marker as
-  # the Docker step of setup-base.sh: the infra sshd drop-in means the node is
-  # theirs.
-  local infra_conf="/etc/ssh/sshd_config.d/00-infra-hardening.conf"
-  if [[ -f "$infra_conf" ]]; then
-    printf '%b' "${red}[kubernetes]${no_color} Node managed by the infra repo ($infra_conf) — skipping kubectl.\n"
+  # re-run here would put both back until the next Ansible run. The infra sshd
+  # drop-in means the node is theirs (is_infra_managed, os/helpers/infra.sh).
+  if is_infra_managed; then
+    printf '%b' "${red}[kubernetes]${no_color} Node managed by the infra repo ($INFRA_MARKER) — skipping kubectl.\n"
   else
     install_kubectl
   fi
@@ -112,6 +110,10 @@ install_lite_setup() {
 # if their SHA-256 matches, apt keys trusted only with their pinned fingerprint.
 # shellcheck source=../helpers/fetch.sh
 source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/../helpers/fetch.sh"
+
+# is_infra_managed: the steps the infra repo owns on its nodes step aside.
+# shellcheck source=../helpers/infra.sh
+source "$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P )/../helpers/infra.sh"
 
 # Install helm from a pinned release. The SHA-256 of each architecture's
 # tarball is pinned here, so neither a script nor a checksum fetched at install
