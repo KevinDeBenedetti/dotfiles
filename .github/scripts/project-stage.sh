@@ -59,8 +59,13 @@ load_project() {
 sync_issue() {
   local issue="$1" stage option item
   stage=$(stage_for "$3" "$2")
-  option=$(jq -r --arg s "$stage" '.[] | select(.name == $s) | .id' <<<"$OPTIONS")
-  [[ -n "$option" ]] || fail "The Stage field of project $PROJECT_NUMBER has no '$stage' option"
+  # Matched without regard to case or surrounding spaces: "Needs Triage" typed
+  # in the project's UI is the same column.
+  option=$(jq -r --arg s "$stage" \
+    'first(.[] | select((.name | ascii_downcase | gsub("^\\s+|\\s+$"; "")) == ($s | ascii_downcase)) | .id) // empty' \
+    <<<"$OPTIONS")
+  [[ -n "$option" ]] || fail "The Stage field of project $PROJECT_NUMBER has no '$stage' option ($(jq -r \
+    'if length == 0 then "it has no options yet" else "it has: " + (map("'"'"'\(.name)'"'"'") | join(", ")) end' <<<"$OPTIONS"))"
   # Adding an issue already on the board returns its existing item.
   # shellcheck disable=SC2016
   item=$(gh api graphql -f projectId="$PROJECT_ID" -f contentId="$issue" -f query='

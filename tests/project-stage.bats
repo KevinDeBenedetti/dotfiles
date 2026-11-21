@@ -96,6 +96,27 @@ stage() {
   assert_output "0"
 }
 
+@test "a column matches its option whatever the case and surrounding spaces" {
+  export FIELD_JSON='{"id":"PVT_1","field":{"id":"FIELD_1","options":[{"id":"OPT_TRIAGE","name":" needs Triage "}]}}'
+  ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='[]' run bash "$SCRIPT"
+  assert_success
+  assert_output --partial "I_42 → Needs triage"
+  run grep -c 'optionId=OPT_TRIAGE' "$GH_LOG"
+  assert_output "1"
+}
+
+@test "a missing column lists the options the Stage field has" {
+  export FIELD_JSON='{"id":"PVT_1","field":{"id":"FIELD_1","options":[{"id":"A","name":"Todo"},{"id":"B","name":"In Progress"}]}}'
+  ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='[]' run bash "$SCRIPT"
+  assert_failure
+  assert_output --partial "::error::The Stage field of project 3 has no 'Needs triage' option (it has: 'Todo', 'In Progress')"
+  # A Stage field just created in the UI has no options at all.
+  export FIELD_JSON='{"id":"PVT_1","field":{"id":"FIELD_1","options":[]}}'
+  ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='[]' run bash "$SCRIPT"
+  assert_failure
+  assert_output --partial "::error::The Stage field of project 3 has no 'Needs triage' option (it has no options yet)"
+}
+
 @test "a project without a Stage field fails before anything is added" {
   export FIELD_JSON='{"id":"PVT_1","field":null}'
   ISSUE_ID=I_42 ISSUE_STATE=OPEN LABELS='[]' run bash "$SCRIPT"

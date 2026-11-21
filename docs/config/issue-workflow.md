@@ -82,8 +82,9 @@ next label change.
 Set it up once per repository:
 
 1. Create a project (Board layout) and link it to the repository.
-2. Add a single-select field `Stage` with the six options above, spelled
-   exactly so, and group the board by it.
+2. Add a single-select field `Stage` with the six options above (case does
+   not matter), and group the board by it. A run that cannot find a column
+   fails and lists the options the field has.
 3. Create a classic personal access token with the `project` scope only: a
    project owned by a user accepts neither `GITHUB_TOKEN`, a GitHub App nor a
    fine-grained token. Store it as the `PROJECT_TOKEN` secret.
