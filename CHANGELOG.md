@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.14.0...v0.15.0) (2026-11-21)
+
+
+### Features
+
+* **commands:** propose one grouped commit after a batch ([11cc18c](https://github.com/KevinDeBenedetti/dotfiles/commit/11cc18c759509a3ffb3261139d1a11713a36aaab)), closes [#73](https://github.com/KevinDeBenedetti/dotfiles/issues/73)
+
+
+### Bug Fixes
+
+* **debian:** keep root in AllowUsers while root login is the only way in ([7ac11d1](https://github.com/KevinDeBenedetti/dotfiles/commit/7ac11d16cc7f72e718f2984985c3213e582ef1c2)), closes [#50](https://github.com/KevinDeBenedetti/dotfiles/issues/50)
+* **git:** drop the machine-specific credential helper from the tracked .gitconfig ([88243e7](https://github.com/KevinDeBenedetti/dotfiles/commit/88243e76ae5fa106a2adfc2fef38c98386477771)), closes [#61](https://github.com/KevinDeBenedetti/dotfiles/issues/61)
+* second batch of audit findings ([b6d20db](https://github.com/KevinDeBenedetti/dotfiles/commit/b6d20dbe08672ff8dd679df58e84362d4480c97d)), closes [#53](https://github.com/KevinDeBenedetti/dotfiles/issues/53) [#55](https://github.com/KevinDeBenedetti/dotfiles/issues/55) [#56](https://github.com/KevinDeBenedetti/dotfiles/issues/56) [#58](https://github.com/KevinDeBenedetti/dotfiles/issues/58) [#67](https://github.com/KevinDeBenedetti/dotfiles/issues/67) [#69](https://github.com/KevinDeBenedetti/dotfiles/issues/69)
+
 ## [0.14.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.13.1...v0.14.0) (2026-11-20)
 
 
