@@ -74,7 +74,7 @@ jobs:
     # there is nothing to inherit. Re-add an explicit allow-list only if the
     # reusable workflow starts requiring a passed secret.
     with:
-      run-node-audit: false # no Node.js project
+      run-node-audit: false # no npm dependencies (the board Worker has none)
       run-codeql: false     # shell scripts are not supported by CodeQL
 
   bot-check:
