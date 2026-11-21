@@ -75,8 +75,10 @@ grounded recommendations and five security findings for triage.
 3. A task that blocks is marked and reported, and the run goes on with the
    tasks that do not depend on it. The blockers are put to you once, at the
    end.
-4. It ends with the summary and a commit plan — one commit per task, in order,
-   flagging the files several tasks changed.
+4. It ends with the summary and a commit plan: one grouped commit for the
+   batch, with one body line per task and a single `git add` for its files.
+   Its type is the one with the highest release impact among the tasks. Ask
+   for one commit per task when you want the changelog to list each of them.
 5. When `🖐 Manual` has open steps, it asks whether to go through them now and,
    on a yes, continues with the guided session [below](#manual-steps).
 

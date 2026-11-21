@@ -206,7 +206,7 @@ content of gitignored files.
   Changed: <what, in one or two lines>
   Checks:  <commands run> → <result>
   Try it:  <command> → <what success looks like>   (ran it: <output> | yours to run)
-  Commit:  <Conventional Commit message, with Fixes #<number>>
+  Commit:  <the issue's own Conventional Commit message: its line in the grouped commit, §12>
   Files:   <paths>
   ```
 - The scope is frozen at the start: the candidates (§3), or the first `N` of
@@ -247,10 +247,32 @@ the project changes unless the owner asks for it.
   filed, security findings, and the proposed commit (message and files).
 - **Batch mode**: issues done, issues blocked and what each needs, `needs-info`
   issues skipped, checks, the "Try it" lines still the owner's to run,
-  follow-ups, recommendations and findings, then a **commit plan**: one commit
-  per issue, in order, each with its message, its `Fixes #<number>` footer and
-  its files. Flag the files several issues changed, and those that already had
-  changes, so the owner stages them hunk by hunk (`git add -p`).
+  follow-ups, recommendations and findings, then a **commit plan**:
+  one grouped commit for the whole batch, which the owner can check line by
+  line and stage in one go.
+
+  ```text
+  <type>: <what the batch does, in a few words>
+
+  - #<number> <what changed for that issue, in one line>
+  - #<number> …
+
+  Fixes #<number>
+  Fixes #<number>
+  ```
+
+  One body line and one `Fixes #<number>` footer per issue done; a blocked
+  issue gets neither. The type is the one with the highest release impact
+  among the issues' own (`commit-types` skill: a breaking change, then `feat`,
+  then `fix`, `perf`, then the hidden types): one commit is one changelog
+  line, so say which issues that line leaves out. Then the files of the run,
+  as one `git add` command, and apart the files that already had changes
+  (§2): those are staged hunk by hunk (`git add -p`).
+
+  Give one commit per issue instead only when the owner asks for it: in order,
+  each with its message, its `Fixes #<number>` footer and its files, flagging
+  the files several issues changed. The project's hooks may test the staged
+  content only, so a test is always staged with the change it covers.
 - In both, list the changes that were there before the run (§2) apart: they
   are in no commit.
 - When `ready-for-human` issues are open, end with `/next-issue manual`.
