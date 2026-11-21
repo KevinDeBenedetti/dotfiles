@@ -20,14 +20,16 @@ reaches each tool). It is the counterpart of `/next-task`, which works a local
 
 ## Labels
 
-The state of an issue is its label. Create them once per repository:
+The state of an issue is its label. Create them once per repository, with the
+same names, colors and descriptions everywhere (`--force` updates a label that
+already exists):
 
 ```sh
-gh label create ready-for-agent --description "Approved and specified for an agent"
-gh label create ready-for-human --description "Only the owner can do it"
-gh label create needs-info --description "Blocked: waiting for the owner"
-gh label create needs-triage --description "Not evaluated yet"
-gh label create urgent --description "Goes first"
+gh label create needs-triage    --force --color FBCA04 --description "Not evaluated yet: the owner triages"
+gh label create needs-info      --force --color D876E3 --description "Blocked: waiting for the owner's answer"
+gh label create ready-for-agent --force --color 0E8A16 --description "Approved and specified: /next-issue works it"
+gh label create ready-for-human --force --color 1D76DB --description "Only the owner can do it: /next-issue manual"
+gh label create urgent          --force --color B60205 --description "Goes first among the ready-for-agent issues"
 ```
 
 | Label             | Meaning                                       | Worked by              |
