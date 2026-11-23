@@ -35,19 +35,20 @@ See [Oh My Zsh theme](./oh-my-zsh.md) for details.
 
 ## Plugins
 
-| Plugin              | Description                        |
-| ------------------- | ---------------------------------- |
-| `aliases`           | Manage shell aliases               |
-| `brew`              | Homebrew completions and helpers   |
-| `colored-man-pages` | Colorized `man` output             |
-| `docker`            | Docker completions                 |
-| `docker-compose`    | Docker Compose completions         |
-| `fzf`               | Key bindings, if fzf is installed  |
-| `gh`                | GitHub CLI completions             |
-| `git`               | Git aliases and completions        |
-| `gitignore`         | Fetch `.gitignore` templates       |
-| `rsync`             | Rsync aliases                      |
-| `sudo`              | Double-tap `ESC` to prepend `sudo` |
+| Plugin              | Description                                  |
+| ------------------- | -------------------------------------------- |
+| `aliases`           | Manage shell aliases                         |
+| `brew`              | Homebrew completions and helpers             |
+| `colored-man-pages` | Colorized `man` output                       |
+| `direnv`            | Loads `.envrc` files, if direnv is installed |
+| `docker`            | Docker completions                           |
+| `docker-compose`    | Docker Compose completions                   |
+| `fzf`               | Key bindings, if fzf is installed            |
+| `gh`                | GitHub CLI completions                       |
+| `git`               | Git aliases and completions                  |
+| `gitignore`         | Fetch `.gitignore` templates                 |
+| `rsync`             | Rsync aliases                                |
+| `sudo`              | Double-tap `ESC` to prepend `sudo`           |
 
 ## Aliases
 
@@ -58,11 +59,32 @@ See [Oh My Zsh theme](./oh-my-zsh.md) for details.
 | `cs`    | `cheat_glow`                                   | Render a cheat sheet with glow    |
 | `hs`    | `history \| grep`                              | Search history                    |
 | `hsi`   | `history \| grep -i`                           | Case-insensitive history search   |
-| `dsp`   | `docker system prune -a -f`                    | Prune all unused Docker data      |
 | `lad`   | `lazydocker`                                   | Open Lazydocker TUI               |
 | `lag`   | `lazygit`                                      | Open Lazygit TUI                  |
 | `pubip` | `dig +short txt ch whoami.cloudflare @1.0.0.1` | Print public IP                   |
 | `bcu`   | Upgrade all outdated casks                     | Reinstall outdated Homebrew casks |
+
+### Docker
+
+| Alias         | Command                     | Description                                               |
+| ------------- | --------------------------- | --------------------------------------------------------- |
+| `dc`          | `docker compose`            | Docker Compose                                            |
+| `dcu`         | `docker compose up -d`      | Start the services in the background                      |
+| `dcd`         | `docker compose down`       | Stop and remove the services                              |
+| `dcl`         | `docker compose logs -f`    | Follow the services' logs                                 |
+| `dsp`         | `docker system prune -a -f` | Prune all unused Docker data                              |
+| `dvp`         | `docker volume prune -a -f` | Prune all unused volumes                                  |
+| `docker-nuke` | Stop and remove everything  | ⚠️ Deletes **every** container, image, volume and network |
+
+### VPN
+
+| Alias   | Command      |
+| ------- | ------------ |
+| `vup`   | `vpn up`     |
+| `vdown` | `vpn down`   |
+| `vpns`  | `vpn status` |
+
+See the `vpn` function in [Shell](./shell.md).
 
 ### Kubernetes
 

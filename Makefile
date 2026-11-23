@@ -70,7 +70,7 @@ validate: ## Validate YAML files with yamllint
 # Docker
 # ──────────────────────────────────────────────────────────────────────────────
 
-.PHONY: docker-build docker-test-bats docker-test-init docker-test-dotfiles docker-test-base docker-test-security docker-test-security-full docker-test-kubernetes docker-test-full
+.PHONY: docker-build docker-test-bats docker-test-init docker-test-dotfiles docker-test-base docker-test-security docker-test-security-full docker-test-security-infra docker-test-kubernetes docker-test-full
 
 docker-build: ## Build all Docker test stages
 	docker-compose -f $(DOCKER_COMPOSE) build
@@ -92,6 +92,9 @@ docker-test-security: ## Run security profile and verify configs in Docker
 
 docker-test-security-full: ## Install CrowdSec and the audit tools (full-mode security) in Docker
 	docker build -f $(DOCKER_FILE) --target test-security-full -t dotfiles-test-security-full .
+
+docker-test-security-infra: ## Run init.sh's security profile on a node the infra repo manages, in Docker
+	docker build -f $(DOCKER_FILE) --target test-security-infra -t dotfiles-test-security-infra .
 
 docker-test-kubernetes: ## Run setup-kubernetes.sh on a bare system, then in full mode from an old kubectl channel, in Docker
 	docker build -f $(DOCKER_FILE) --target test-kubernetes -t dotfiles-test-kubernetes .

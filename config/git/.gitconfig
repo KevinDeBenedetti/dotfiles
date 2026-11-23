@@ -19,8 +19,10 @@
 	defaultBranch = main
 [pull]
 	rebase = true
+[rebase]
+	autoStash = true
 
-# Signature SSH
+# SSH signing
 [commit]
 	gpgsign = true
 [tag]
@@ -30,19 +32,18 @@
 [gpg "ssh"]
 	allowedSignersFile = ~/.ssh/allowed_signers
 
-# Authentification HTTPS via GCM
+# HTTPS authentication through Git Credential Manager
 [credential]
 	helper =
 	helper = manager
 [credential "https://dev.azure.com"]
 	useHttpPath = true
 
-# Les remotes SSH existantes passent en HTTPS (donc par GCM)
+# Existing SSH remotes go over HTTPS (so through GCM)
 [url "https://github.com/"]
 	insteadOf = git@github.com:
 
-# Overrides propres à la machine (non versionnés)
+# Machine-specific overrides (not versioned). Keep this section last: git keeps
+# the last value it reads, so the local file can override any setting above.
 [include]
 	path = ~/.gitconfig.local
-[rebase]
-	autoStash = true

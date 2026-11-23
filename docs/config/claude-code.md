@@ -23,7 +23,9 @@ User-level Claude Code settings and the system-wide managed policy.
 > (`config/opencode/opencode.json` → `permission`) and VS Code Copilot
 > (`config/copilot/hooks/agent-guard.sh`, see [VS Code](./vscode.md)) mirror
 > its denies (commit/push, mutating kubectl, secrets) and asks — update all
-> three together.
+> three together. `tests/agent-hooks.bats` fails when one of this file's Bash
+> denies is missing from OpenCode or from the Copilot guard, or when a file
+> denied for reading can still be edited.
 
 ## Project instructions (`AGENTS.md` / `CLAUDE.md`)
 

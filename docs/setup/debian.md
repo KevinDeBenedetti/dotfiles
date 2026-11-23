@@ -46,15 +46,16 @@ cd ~/.dotfiles
 
 ## Flags
 
-| Flag            | Description                                                   |
-| --------------- | ------------------------------------------------------------- |
-| `-a`            | Full install: all profiles + dotfiles + completions + cleanup |
-| `-p <profiles>` | Comma-separated list of profiles (e.g. `base,kubernetes`)     |
-| `-d`            | Link dotfiles into `$HOME`                                    |
-| `-c`            | Install zsh CLI completions                                   |
-| `-l`            | Lite mode — skip optional/heavy packages                      |
-| `-r`            | Remove bootstrap temp directory after install                 |
-| `-h`            | Print help                                                    |
+| Flag            | Description                                                         |
+| --------------- | ------------------------------------------------------------------- |
+| `-a`            | Full install: all profiles + dotfiles + completions + cleanup       |
+| `-p <profiles>` | Comma-separated list of profiles (e.g. `base,kubernetes`)           |
+| `-d`            | Link dotfiles into `$HOME`                                          |
+| `-c`            | Install zsh CLI completions                                         |
+| `-l`            | Lite mode — skip optional/heavy packages                            |
+| `-r`            | Remove bootstrap temp directory after install                       |
+| `-u <user>`     | Create a non-root sudo user before the security profile hardens SSH |
+| `-h`            | Print help                                                          |
 
 > At least one flag is required. Running without flags prints help and exits.
 
@@ -113,11 +114,13 @@ Hardens the system using a layered approach. Activated with `-p security` or inc
 
 Set these before invoking the script to customize security behaviour:
 
-| Variable            | Default | Description                                               |
-| ------------------- | ------- | --------------------------------------------------------- |
-| `SSH_PORT`          | `22`    | TCP port sshd listens on                                  |
-| `SSH_ALLOWED_USERS` | *(all)* | Space-separated list of users permitted to log in via SSH |
-| `HARDEN_TMP`        | `false` | Remount `/tmp` as a `noexec` tmpfs capped at 1G (opt-in)  |
+| Variable            | Default | Description                                                               |
+| ------------------- | ------- | ------------------------------------------------------------------------- |
+| `SSH_PORT`          | `22`    | TCP port sshd listens on                                                  |
+| `SSH_ALLOWED_USERS` | *(all)* | Space-separated list of users permitted to log in via SSH                 |
+| `SSH_NOPASSWD`      | `false` | Give the user created by `-u` passwordless sudo                           |
+| `COPY_ROOT_SSH_KEY` | `true`  | Add root's `authorized_keys` to the user created by `-u`, keeping its own |
+| `HARDEN_TMP`        | `false` | Remount `/tmp` as a `noexec` tmpfs capped at 1G (opt-in)                  |
 
 ```sh
 # Example: custom port + restrict SSH to a single user
@@ -147,12 +150,14 @@ Two safeguards keep the hardening from locking you out:
 
 - **Root login stays on (key only) until another admin can log in.** Root
   login is turned off only when a non-root member of the `sudo` group has a
-  non-empty `~/.ssh/authorized_keys` (and is listed in `SSH_ALLOWED_USERS`
-  when that is set). Otherwise the script writes
+  non-empty `~/.ssh/authorized_keys`, can run `sudo` (a password set, or a
+  `NOPASSWD` rule) and is listed in `SSH_ALLOWED_USERS` when that is set.
+  Otherwise the script writes
   `PermitRootLogin prohibit-password` and warns; when `SSH_ALLOWED_USERS` is
   set, `root` is added to `AllowUsers` for as long as that lasts, since
   `AllowUsers` refuses every user it does not name. Create the user with
-  `-u <user>`, then re-run the security profile.
+  `-u <user>` (with `SSH_NOPASSWD=true`, or set its password with
+  `sudo passwd <user>`), then re-run the security profile.
 - **A drop-in that breaks sshd is moved aside.** If `sshd -t` passed before
   the drop-in was written and fails after, the file is renamed to
   `00-hardening.conf.rejected`, sshd is not restarted and the run stops
@@ -167,6 +172,9 @@ Default policy: deny all incoming, allow all outgoing. Rules added:
 | `$SSH_PORT/tcp` | TCP      | SSH (respects custom port) |
 | `80/tcp`        | TCP      | HTTP                       |
 | `443/tcp`       | TCP      | HTTPS                      |
+
+UFW is reset only on its first run, while it is inactive: re-running the
+security profile adds these rules again and keeps those you added since.
 
 ::: warning
 Docker writes its own iptables rules ahead of UFW's, so UFW does **not** filter
@@ -328,7 +336,7 @@ The `-d` step also creates the following stub files if they do not already exist
 
 ### SSH allowed signers
 
-If `~/.ssh/id_rsa.pub` exists, the script automatically creates `~/.ssh/allowed_signers` for local SSH commit signature verification.
+The script adds the signing key (`user.signingkey`, else the first `~/.ssh/id_*.pub`, ed25519 first) to `~/.ssh/allowed_signers` for local SSH commit signature verification, keeping any other signer in the file.
 
 ## Completions
 
@@ -364,17 +372,18 @@ A custom Oh My Zsh theme `kevin-de-benedetti` is linked from `config/oh-my-zsh/`
 
 The following [Oh My Zsh](https://ohmyz.sh) plugins are enabled in `.zshrc`:
 
-| Plugin              | What it provides                                                                 |
-| ------------------- | -------------------------------------------------------------------------------- |
-| `aliases`           | `als` command — lists all active aliases with descriptions                       |
-| `colored-man-pages` | ANSI colour for `man` pages — much easier to read                                |
-| `docker`            | Docker CLI completion and aliases (`dbl`, `dcin`, `dps`, etc.)                   |
-| `docker-compose`    | `docker compose` completion and shorthand aliases (`dcup`, `dcdown`, etc.)       |
-| `gh`                | GitHub CLI (`gh`) shell completion                                               |
-| `git`               | Extensive Git aliases (`gst`, `gco`, `glog`, `gcmsg`, etc.) and branch in prompt |
-| `gitignore`         | `gi <lang>` — fetches a `.gitignore` template from gitignore.io                  |
-| `rsync`             | Aliases for common rsync patterns (`rsync-copy`, `rsync-move`, etc.)             |
-| `sudo`              | Double-press `ESC` to prepend `sudo` to the current or previous command          |
+| Plugin              | What it provides                                                                                   |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| `aliases`           | `als` command — lists all active aliases with descriptions                                         |
+| `colored-man-pages` | ANSI colour for `man` pages — much easier to read                                                  |
+| `direnv`            | Loads `.envrc` files if [direnv](https://direnv.net) is installed (not by these scripts on Debian) |
+| `docker`            | Docker CLI completion and aliases (`dbl`, `dcin`, `dps`, etc.)                                     |
+| `docker-compose`    | `docker compose` completion and shorthand aliases (`dcup`, `dcdown`, etc.)                         |
+| `gh`                | GitHub CLI (`gh`) shell completion                                                                 |
+| `git`               | Extensive Git aliases (`gst`, `gco`, `glog`, `gcmsg`, etc.) and branch in prompt                   |
+| `gitignore`         | `gi <lang>` — fetches a `.gitignore` template from gitignore.io                                    |
+| `rsync`             | Aliases for common rsync patterns (`rsync-copy`, `rsync-move`, etc.)                               |
+| `sudo`              | Double-press `ESC` to prepend `sudo` to the current or previous command                            |
 
 ### fzf Integration
 
@@ -449,7 +458,7 @@ Create `~/.gitconfig.local` — it is `[include]`d at the bottom of `.gitconfig`
 
 ### SSH commit signing
 
-When `~/.ssh/id_rsa.pub` exists the dotfiles install creates `~/.ssh/allowed_signers` automatically. This allows Git to verify signed commits locally with `git log --show-signature`.
+The dotfiles install adds the signing key to `~/.ssh/allowed_signers`: the key in `user.signingkey`, else the first of `~/.ssh/id_ed25519.pub`, `id_ecdsa.pub` and `id_rsa.pub`. It updates that key's line only, keeping any other signer in the file. This allows Git to verify signed commits locally with `git log --show-signature`.
 
 ## SSH Client Configuration
 
@@ -488,14 +497,14 @@ pin-latest    = "global" # record the resolved "latest" version globally
 ### Managing tool versions
 
 ```sh
-# Install / pin a specific version
+# Install a specific version
 proto install node 22
 
-# Use a version in the current directory only
-proto use python 3.12 --local
+# Install a version and pin it in the current directory only (./.prototools)
+proto install python 3.12 --pin local
 
-# List all tools managed by proto
-proto list
+# List the configured tools and whether each is installed
+proto status
 
 # Upgrade proto itself
 proto upgrade

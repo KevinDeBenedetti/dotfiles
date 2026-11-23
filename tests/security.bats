@@ -1,8 +1,9 @@
 #!/usr/bin/env bats
 
-# Tests for setup-security.sh. Nothing runs on the host: the SSH, UFW and
-# Fail2Ban steps are run for real with their system commands stubbed and the
-# files they render are read back; the other steps are checked in the source.
+# Tests for setup-security.sh. Nothing runs on the host: the SSH, UFW,
+# Fail2Ban, sysctl and unattended-upgrades steps are run for real with their
+# system commands stubbed and the files they render are read back; the other
+# steps are checked in the source.
 
 setup() {
   DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
@@ -197,6 +198,43 @@ setup() {
   [ "$deny" -lt "$allow" ] && [ "$allow" -lt "$enable" ]
 }
 
+@test "a re-run keeps the rules of an active UFW: it resets an inactive one only" {
+  # Rules added by hand since the first run (a VPN port, an app port) must
+  # survive a re-run of the security profile.
+  SUDO="" SSH_PORT=22 red="" no_color=""
+  load_infra_marker
+  eval "$(sed -n '/^install_configure_ufw()/,/^}/p' "$SECURITY_SCRIPT")"
+  apt-get() { :; }
+  ufw() {
+    echo "ufw $*" >> "$BATS_TEST_TMPDIR/calls"
+    [ "$1" = status ] && echo "Status: $UFW_STATE"
+    return 0
+  }
+  UFW_STATE=active run install_configure_ufw
+  assert_success
+  # ufw translates its output: the state is read in the C locale.
+  run cat "$BATS_TEST_TMPDIR/calls"
+  refute_line --partial "reset"
+  rm "$BATS_TEST_TMPDIR/calls"
+  ufw() {
+    echo "ufw $*" >> "$BATS_TEST_TMPDIR/calls"
+    if [ "$1" = status ]; then
+      if [ "${LC_ALL:-}" = C ]; then echo "Status: $UFW_STATE"; else echo "État : ${UFW_STATE/active/actif}"; fi
+    fi
+    return 0
+  }
+  UFW_STATE=active LC_ALL=fr_FR.UTF-8 run install_configure_ufw
+  assert_success
+  run cat "$BATS_TEST_TMPDIR/calls"
+  refute_line --partial "reset"
+  # The configured rules are still applied: `ufw allow` is idempotent.
+  assert_line "ufw allow 22/tcp comment SSH"
+  rm "$BATS_TEST_TMPDIR/calls"
+  UFW_STATE=inactive run install_configure_ufw
+  run cat "$BATS_TEST_TMPDIR/calls"
+  assert_line "ufw --force reset"
+}
+
 @test "UFW is left out on a node managed by the infra repo" {
   SUDO="" SSH_PORT=22 red="" no_color=""
   load_infra_marker
@@ -210,54 +248,84 @@ setup() {
   assert_file_not_exists "$BATS_TEST_TMPDIR/calls"
 }
 
-# --- Sysctl hardening content ---
+# --- Sysctl hardening and unattended-upgrades (behaviour) ---
 
-@test "sysctl disables IP forwarding" {
-  run grep 'net.ipv4.ip_forward = 0' "$SECURITY_SCRIPT"
-  assert_success
+# render_hardening FUNCTION: runs that function of the script with `tee`
+# writing each file under $ETC (named after its path's last part) and every
+# other command logged to $CALLS, in place of the real system.
+render_hardening() {
+  ETC="$BATS_TEST_TMPDIR/etc" CALLS="$BATS_TEST_TMPDIR/calls"
+  mkdir -p "$ETC"
+  SUDO="" red="" no_color=""
+  eval "$(sed -n "/^$1()/,/^}$/p" "$SECURITY_SCRIPT")"
+  tee() { echo "tee $*" >> "$CALLS"; cat > "$ETC/${1##*/}"; }
+  apt-get() { echo "apt-get $*" >> "$CALLS"; }
+  sysctl() { echo "sysctl $*" >> "$CALLS"; }
+  "$1"
 }
 
-@test "sysctl enables SYN cookies" {
-  run grep 'net.ipv4.tcp_syncookies = 1' "$SECURITY_SCRIPT"
-  assert_success
-}
-
-@test "sysctl enables reverse path filtering" {
-  run grep 'net.ipv4.conf.all.rp_filter = 1' "$SECURITY_SCRIPT"
-  assert_success
-}
-
-@test "sysctl disables ICMP redirects" {
-  run grep 'net.ipv4.conf.all.accept_redirects = 0' "$SECURITY_SCRIPT"
-  assert_success
-}
-
-# --- Unattended upgrades content ---
-
-@test "unattended-upgrades disables automatic reboot" {
-  run grep 'Automatic-Reboot "false"' "$SECURITY_SCRIPT"
-  assert_success
-}
-
-@test "unattended-upgrades enables daily update check" {
-  run grep 'Update-Package-Lists "1"' "$SECURITY_SCRIPT"
-  assert_success
-}
-
-@test "unattended-upgrades matches Debian's security archive by label" {
-  # The Ubuntu-style "${distro_id}:${distro_codename}-security" origin matches
-  # nothing on Debian.
-  run grep -F 'codename=${distro_codename}-security,label=Debian-Security' "$SECURITY_SCRIPT"
-  assert_success
-  run bash -c "grep -v '^ *#' '$SECURITY_SCRIPT' | grep -F '\"\${distro_id}:\${distro_codename}-security\"'"
+@test "the rendered sysctl file hardens the network stack, then is loaded" {
+  render_hardening configure_sysctl_hardening
+  run cat "$ETC/99-security.conf"
+  assert_line 'net.ipv4.ip_forward = 0'
+  assert_line 'net.ipv4.tcp_syncookies = 1'
+  assert_line 'net.ipv4.conf.all.rp_filter = 1'
+  assert_line 'net.ipv4.conf.all.accept_redirects = 0'
+  assert_line 'kernel.kptr_restrict = 2'
+  # Every setting is a `key = value` line sysctl can read.
+  run grep -vE '^(#.*)?$|^[a-z0-9_.]+ = [0-9]+$' "$ETC/99-security.conf"
   assert_failure
+  run cat "$CALLS"
+  assert_line "tee /etc/sysctl.d/99-security.conf"
+  assert_line "sysctl --system"
+}
+
+@test "unattended-upgrades checks daily and installs security patches only, never rebooting" {
+  render_hardening install_configure_unattended_upgrades
+  run cat "$ETC/20auto-upgrades"
+  assert_line 'APT::Periodic::Update-Package-Lists "1";'
+  assert_line 'APT::Periodic::Unattended-Upgrade "1";'
+  run cat "$ETC/52dotfiles-unattended-upgrades"
+  assert_line 'Unattended-Upgrade::Automatic-Reboot "false";'
+  # Debian's security archive is matched by label: the Ubuntu-style
+  # "${distro_id}:${distro_codename}-security" origin matches nothing there.
+  assert_output --partial '"origin=Debian,codename=${distro_codename}-security,label=Debian-Security";'
+  refute_output --partial '"${distro_id}:${distro_codename}-security"'
+  run cat "$CALLS"
+  assert_line --partial "apt-get install -y --no-install-recommends unattended-upgrades"
 }
 
 @test "unattended-upgrades clears the packaged origins and leaves the conffile alone" {
-  run grep -F '#clear Unattended-Upgrade::Origins-Pattern;' "$SECURITY_SCRIPT"
-  assert_success
-  run grep -F 'tee /etc/apt/apt.conf.d/50unattended-upgrades' "$SECURITY_SCRIPT"
-  assert_failure
+  render_hardening install_configure_unattended_upgrades
+  run cat "$ETC/52dotfiles-unattended-upgrades"
+  assert_line '#clear Unattended-Upgrade::Origins-Pattern;'
+  assert_line '#clear Unattended-Upgrade::Allowed-Origins;'
+  # 50unattended-upgrades is a dpkg conffile: editing it makes every package
+  # upgrade prompt about it.
+  assert_file_not_exists "$ETC/50unattended-upgrades"
+}
+
+@test "the AppArmor boot options are added to GRUB once, however often the profile runs" {
+  # Before a reboot, /proc/cmdline does not show them yet: the guard must read
+  # the file it edits.
+  ROOT="$BATS_TEST_TMPDIR/root" red="" no_color=""
+  mkdir -p "$ROOT/etc/default"
+  echo 'GRUB_CMDLINE_LINUX="quiet"' > "$ROOT/etc/default/grub"
+  # Every command run through $SUDO acts under $ROOT instead of /. GNU sed
+  # syntax (`sed -i` with no suffix): gsed where sed is BSD's.
+  in_root() {
+    local a=() x
+    for x in "$@"; do a+=("${x//\/etc\//$ROOT/etc/}"); done
+    [ "${a[0]}" = sed ] && command -v gsed >/dev/null && a[0]=gsed
+    "${a[@]}"
+  }
+  apt-get() { :; }; update-grub() { :; }; systemctl() { :; }; aa-enforce() { :; }; aa-status() { :; }
+  SUDO=in_root
+  eval "$(sed -n '/^configure_apparmor()/,/^}$/p' "$SECURITY_SCRIPT")"
+  configure_apparmor > /dev/null
+  configure_apparmor > /dev/null
+  run cat "$ROOT/etc/default/grub"
+  assert_output 'GRUB_CMDLINE_LINUX="quiet apparmor=1 security=apparmor"'
 }
 
 # --- SSH lockout safeguards ---
@@ -269,9 +337,11 @@ load_infra_marker() {
   source "$REPO_ROOT/os/helpers/infra.sh"
 }
 
-# Defines has_admin_ssh_login from the script (without running the script)
-# with getent and the sudo prefix stubbed: root and alice are in group sudo,
-# alice's authorized_keys is $ALICE_KEYS.
+# Defines has_admin_ssh_login and can_escalate from the script (without
+# running the script) with getent, passwd and sudo stubbed: root and alice are
+# in group sudo, alice's authorized_keys is under $BATS_TEST_TMPDIR/alice.
+# alice's password status is $ALICE_PASSWD (`passwd -S`: P usable, L locked,
+# NP none; P by default) and `sudo -l -U alice` prints $ALICE_SUDO_L.
 load_admin_check() {
   SUDO=""
   SSH_ALLOWED_USERS="${SSH_ALLOWED_USERS:-}"
@@ -282,7 +352,9 @@ load_admin_check() {
       "passwd root") echo "root:x:0:0::/root:/bin/bash" ;;
     esac
   }
-  eval "$(sed -n '/^has_admin_ssh_login()/,/^}/p' "$SECURITY_SCRIPT")"
+  passwd() { [ "$1 $2" = "-S alice" ] && echo "alice ${ALICE_PASSWD:-P} 01/01/2026 0 99999 7 -1"; }
+  sudo() { [ "$*" = "-l -U alice" ] && printf '%s\n' "${ALICE_SUDO_L:-    (ALL : ALL) ALL}"; }
+  eval "$(sed -n '/^can_escalate()/,/^}/p;/^has_admin_ssh_login()/,/^}/p' "$SECURITY_SCRIPT")"
 }
 
 @test "has_admin_ssh_login fails when only root has keys" {
@@ -305,6 +377,33 @@ load_admin_check() {
   load_admin_check
   run has_admin_ssh_login
   assert_failure
+}
+
+@test "has_admin_ssh_login ignores a sudo user who cannot escalate" {
+  # init.sh -u creates the user with --disabled-password: without a NOPASSWD
+  # rule, sudo asks for a password the account does not have.
+  mkdir -p "$BATS_TEST_TMPDIR/alice/.ssh"
+  echo "ssh-ed25519 AAAA test" > "$BATS_TEST_TMPDIR/alice/.ssh/authorized_keys"
+  load_admin_check
+  local status
+  for status in L NP; do
+    ALICE_PASSWD=$status run has_admin_ssh_login
+    assert_failure
+  done
+  # A NOPASSWD rule is a way up without a password; one limited to a few
+  # commands is not a way to root.
+  ALICE_PASSWD=L ALICE_SUDO_L="    (ALL) NOPASSWD: ALL" run has_admin_ssh_login
+  assert_success
+  ALICE_PASSWD=L ALICE_SUDO_L="    (ALL) NOPASSWD: /usr/bin/systemctl" run has_admin_ssh_login
+  assert_failure
+}
+
+@test "root login stays key-only while the only sudo user cannot escalate" {
+  mkdir -p "$BATS_TEST_TMPDIR/alice/.ssh"
+  echo "ssh-ed25519 AAAA test" > "$BATS_TEST_TMPDIR/alice/.ssh/authorized_keys"
+  ALICE_PASSWD=L render_ssh_dropin
+  run cat "$DROPIN"
+  assert_line "PermitRootLogin prohibit-password"
 }
 
 @test "has_admin_ssh_login ignores a sudo user left out of SSH_ALLOWED_USERS" {

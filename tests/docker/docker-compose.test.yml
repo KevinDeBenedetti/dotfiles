@@ -41,6 +41,13 @@ services:
       dockerfile: tests/docker/Dockerfile.test
       target: test-security-full
 
+  # Security profile on a node the infra repo manages (SSH, UFW, Fail2Ban skipped)
+  test-security-infra:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+      target: test-security-infra
+
   # setup-kubernetes.sh: fresh install, then full mode moving kubectl off an old channel
   test-kubernetes:
     build:

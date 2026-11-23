@@ -1,6 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/configuration-options.json",
   "extends": ["config:recommended"],
+  "description": "Updates arrive once a week, the hooks and the toolchain grouped, so the first run after installation does not open one pull request per pin, each with the full CI.",
+  "schedule": ["before 6am on monday"],
   "customManagers": [
     {
       "customType": "regex",
@@ -33,7 +35,17 @@
   ],
   "packageRules": [
     {
-      "description": "github-workflows pins move with each of its releases: its propagate-release job opens the pull request, merged once its checks pass, so Renovate would only duplicate it.",
+      "description": "The prek hooks in one pull request.",
+      "matchFileNames": ["prek.toml"],
+      "groupName": "prek hooks"
+    },
+    {
+      "description": "The proto toolchain (bun, node, pnpm, yarn…) in one pull request.",
+      "matchFileNames": ["config/proto/.prototools"],
+      "groupName": "proto toolchain"
+    },
+    {
+      "description": "github-workflows pins, in the workflows and in prek.toml, move with each of its releases: its propagate-release job opens the pull request, merged once its checks pass, so Renovate would only duplicate it.",
       "matchPackageNames": ["KevinDeBenedetti/github-workflows"],
       "enabled": false
     },

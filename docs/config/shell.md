@@ -69,6 +69,16 @@ Encode a string to base64.
 b64e <string>
 ```
 
+#### `brewsuggest`
+
+List a curated set of Homebrew CLI tools, marking those already installed (✓)
+and missing (○), then print the `brew install` command for the missing ones.
+Needs Homebrew.
+
+```sh
+brewsuggest
+```
+
 #### `browser`
 
 Launch the [browsh](https://www.brow.sh) terminal web browser via Docker.
@@ -94,6 +104,25 @@ Print TLS certificate details for a domain.
 ```sh
 check_cert <url>
 ```
+
+#### `cleanmac`
+
+Reclaim disk space on macOS. A dry run by default: it shows what each target
+would free and deletes nothing until given `--yes`.
+
+```sh
+cleanmac                 # dry run: reclaimable space per target
+cleanmac --yes           # clean every target
+cleanmac --yes caches    # clean only the given target(s)
+```
+
+| Target   | Cleans                                                     |
+| -------- | ---------------------------------------------------------- |
+| `caches` | User cache files (`~/Library/Caches`)                      |
+| `logs`   | User log files (`~/Library/Logs`)                          |
+| `trash`  | ⚠️ Empties the Trash (`~/.Trash`)                          |
+| `brew`   | Homebrew cache and outdated versions                       |
+| `dns`    | Flushes the DNS resolver cache, purges stale VPN resolvers |
 
 #### `dks`
 

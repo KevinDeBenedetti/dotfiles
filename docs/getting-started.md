@@ -52,13 +52,16 @@ cd ~/.dotfiles
 
 ## Flags
 
-| Flag            | Description                                                   |
-| --------------- | ------------------------------------------------------------- |
-| `-a`            | Full install: all profiles + dotfiles + completions + cleanup |
-| `-p <profiles>` | Comma-separated list of profiles (e.g. `base,python`)         |
-| `-d`            | Link dotfiles into `$HOME` only                               |
-| `-c`            | Install zsh CLI completions                                   |
-| `-l`            | Lite mode — skip optional/heavy packages                      |
+| Flag            | Description                                                                      |
+| --------------- | -------------------------------------------------------------------------------- |
+| `-a`            | Full install: all profiles + dotfiles + completions + cleanup                    |
+| `-p <profiles>` | Comma-separated list of profiles (e.g. `base,python`)                            |
+| `-d`            | Link dotfiles into `$HOME` only                                                  |
+| `-c`            | Install zsh CLI completions                                                      |
+| `-l`            | Lite mode — skip optional/heavy packages                                         |
+| `-r`            | Remove the bootstrap temp directory after install                                |
+| `-u <user>`     | Debian only: create a non-root sudo user (see [Debian](./setup/debian.md#flags)) |
+| `-h`            | Print help                                                                       |
 
 ## What gets installed
 

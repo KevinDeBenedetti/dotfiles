@@ -48,6 +48,18 @@ setup() {
   assert_output --partial "python"
 }
 
+@test "init.sh fails on an unknown flag or a missing argument, after printing help" {
+  # Automation must see a typo as a failure: only -h is a successful exit.
+  local os
+  for os in macos debian; do
+    run bash "$REPO_ROOT/os/$os/init.sh" -x
+    assert_failure 2
+    assert_output --partial "This script aims to install"
+    run bash "$REPO_ROOT/os/$os/init.sh" -p
+    assert_failure 2
+  done
+}
+
 # --- Debian init.sh ---
 
 @test "debian init.sh -h prints help and exits 0" {
@@ -108,37 +120,109 @@ setup() {
   assert_failure
 }
 
-# A sudo stand-in: logs every command it is given and lets them all succeed,
-# except `test -f`, which answers for a root-only path this user cannot stat.
-fake_sudo_for_setup_user() {
-  mkdir -p "$BATS_TEST_TMPDIR/bin"
-  cat > "$BATS_TEST_TMPDIR/bin/fakesudo" <<STUB
+# A sudo stand-in that runs the commands it is given inside $FAKE_ROOT: a path
+# under /root/ maps to $FAKE_ROOT/root/, and the account steps (adduser,
+# usermod, chown) are only logged. getent answers deploy's home: $USER_HOME.
+fake_root_for_setup_user() {
+  FAKE_ROOT="$BATS_TEST_TMPDIR/fsroot"
+  USER_HOME="${USER_HOME:-$FAKE_ROOT/srv/deploy}"
+  mkdir -p "$FAKE_ROOT/root/.ssh" "$BATS_TEST_TMPDIR/bin"
+  cat > "$BATS_TEST_TMPDIR/bin/rootsudo" <<STUB
 #!/bin/bash
 echo "\$*" >> "$BATS_TEST_TMPDIR/sudo.log"
-if [ "\$1" = test ]; then [ "\${ROOT_HAS_KEYS:-}" = 1 ]; fi
+case "\$1" in adduser|usermod|chown) exit 0 ;; esac
+args=()
+for a in "\$@"; do args+=("\${a//\/root\//$FAKE_ROOT/root/}"); done
+exec "\${args[@]}"
 STUB
+  printf '#!/bin/bash\n[ "$1 $2" = "passwd deploy" ] && echo "deploy:x:1000:1000::%s:/bin/bash"\n' "$USER_HOME" > "$BATS_TEST_TMPDIR/bin/getent"
   printf '#!/bin/bash\nexit 0\n' > "$BATS_TEST_TMPDIR/bin/id"
-  chmod +x "$BATS_TEST_TMPDIR/bin/fakesudo" "$BATS_TEST_TMPDIR/bin/id"
+  chmod +x "$BATS_TEST_TMPDIR/bin/rootsudo" "$BATS_TEST_TMPDIR/bin/getent" "$BATS_TEST_TMPDIR/bin/id"
   PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+}
+
+run_setup_user() {
+  CREATE_USER=deploy SUDO=rootsudo run bash "$REPO_ROOT/os/debian/setup-user.sh"
 }
 
 @test "setup-user.sh copies root's authorized_keys when only root can read /root" {
   # /root is mode 700: a sudo user cannot see the file, so the check has to go
   # through sudo like the copy does.
-  fake_sudo_for_setup_user
-  ROOT_HAS_KEYS=1 CREATE_USER=deploy SUDO=fakesudo run bash "$REPO_ROOT/os/debian/setup-user.sh"
+  fake_root_for_setup_user
+  printf 'ssh-ed25519 AAAAroot root@vps\n' > "$FAKE_ROOT/root/.ssh/authorized_keys"
+  run_setup_user
   assert_success
-  assert_output --partial "SSH authorized_keys copied from root."
   run cat "$BATS_TEST_TMPDIR/sudo.log"
   assert_line "test -f /root/.ssh/authorized_keys"
-  assert_line "cp /root/.ssh/authorized_keys /home/deploy/.ssh/authorized_keys"
+  # The home comes from the passwd database, not from /home/<user>.
+  run cat "$USER_HOME/.ssh/authorized_keys"
+  assert_output "ssh-ed25519 AAAAroot root@vps"
+}
+
+@test "a re-run keeps the user's own keys and adds root's missing ones once" {
+  fake_root_for_setup_user
+  printf 'ssh-ed25519 AAAAroot root@vps\nssh-ed25519 AAAAnew root@laptop\n' > "$FAKE_ROOT/root/.ssh/authorized_keys"
+  mkdir -p "$USER_HOME/.ssh"
+  # The user's own key, saved without a final newline.
+  printf 'ssh-ed25519 AAAAroot root@vps\nssh-ed25519 AAAAmine deploy@phone' > "$USER_HOME/.ssh/authorized_keys"
+  run_setup_user
+  assert_success
+  run_setup_user
+  assert_success
+  run cat "$USER_HOME/.ssh/authorized_keys"
+  assert_output $'ssh-ed25519 AAAAroot root@vps\nssh-ed25519 AAAAmine deploy@phone\nssh-ed25519 AAAAnew root@laptop'
+}
+
+@test "every key of root's file is added: the last one without a newline, a CRLF one once" {
+  fake_root_for_setup_user
+  printf 'ssh-ed25519 AAAAone root@vps\r\nssh-ed25519 AAAAlast root@vps' > "$FAKE_ROOT/root/.ssh/authorized_keys"
+  run_setup_user
+  run_setup_user
+  run cat "$USER_HOME/.ssh/authorized_keys"
+  assert_output $'ssh-ed25519 AAAAone root@vps\nssh-ed25519 AAAAlast root@vps'
 }
 
 @test "setup-user.sh skips the key copy when root has no authorized_keys" {
-  fake_sudo_for_setup_user
-  CREATE_USER=deploy SUDO=fakesudo run bash "$REPO_ROOT/os/debian/setup-user.sh"
+  fake_root_for_setup_user
+  rmdir "$FAKE_ROOT/root/.ssh"
+  run_setup_user
   assert_success
   assert_output --partial "skipping key copy"
-  run grep -c '^cp ' "$BATS_TEST_TMPDIR/sudo.log"
-  assert_output "0"
+  [ ! -e "$USER_HOME/.ssh" ] || fail "a key directory was created with no key to put in it"
+}
+
+# --- macOS toolchain profiles ---
+
+@test "macOS sets up proto and its pinned versions before the toolchain profiles" {
+  # setup-javascript.sh and setup-python.sh call `proto install`, which reads
+  # ~/.proto/.prototools: both must exist first, with or without the base
+  # profile (-p javascript alone on a fresh Mac).
+  local init="$REPO_ROOT/os/macos/init.sh" block
+  block=$(sed -n '/^# Proto for the toolchain profiles$/,/^fi$/p' "$init")
+  [ -n "$block" ] || fail "no proto block for the toolchain profiles in $init"
+  assert_equal "$(grep -c 'INSTALL_JAVASCRIPT' <<<"$block")" 1
+  run grep -F 'bash "$HELPERS_DIR/proto.sh"' <<<"$block"
+  assert_success
+  run grep -F 'link_with_backup "$CONFIG_DIR/proto/.prototools" "$HOME/.proto/.prototools"' <<<"$block"
+  assert_success
+  local proto_line js_line py_line
+  proto_line=$(grep -n '^# Proto for the toolchain profiles$' "$init" | cut -d: -f1)
+  js_line=$(grep -n 'setup-javascript.sh' "$init" | head -n1 | cut -d: -f1)
+  py_line=$(grep -n 'setup-python.sh' "$init" | head -n1 | cut -d: -f1)
+  [ "$proto_line" -lt "$js_line" ] && [ "$proto_line" -lt "$py_line" ]
+}
+
+# --- Documented flags ---
+
+@test "every flag init.sh parses has a row in its platform docs and in getting-started" {
+  local os flags flag missing=()
+  for os in debian macos; do
+    flags=$(sed -n 's/^while getopts \([a-z:]*\) flag; do$/\1/p' "$REPO_ROOT/os/$os/init.sh" | tr -d ':' | fold -w1)
+    [ -n "$flags" ] || fail "no getopts line in os/$os/init.sh"
+    for flag in $flags; do
+      grep -qE "^\| \`-$flag[\` ]" "$REPO_ROOT/docs/setup/$os.md" || missing+=("$os.md:-$flag")
+      grep -qE "^\| \`-$flag[\` ]" "$REPO_ROOT/docs/getting-started.md" || missing+=("getting-started.md:-$flag")
+    done
+  done
+  [ "${#missing[@]}" -eq 0 ] || fail "undocumented flags: ${missing[*]}"
 }

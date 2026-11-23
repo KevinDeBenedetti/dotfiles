@@ -9,7 +9,8 @@ Global [proto](https://moonrepo.dev/proto) toolchain configuration.
 ## Installation
 
 `os/helpers/proto.sh` installs proto (run automatically with the `base`
-profile, and on Debian also when linking dotfiles). It downloads the release tarball of the
+profile and, on macOS, before the `javascript` and `python` profiles; on Debian
+also when linking dotfiles). It downloads the release tarball of the
 version pinned in the script from GitHub, checks it against the SHA-256 pinned
 next to it, and installs `proto` and `proto-shim` into `~/.proto/bin`. No
 installer script is fetched. Builds are pinned for Linux and macOS, x86_64 and
@@ -36,7 +37,8 @@ All tool versions are declared in `config/proto/.prototools`, which is symlinked
 
 Every tool is pinned to an exact version in `.prototools`, the source of truth
 for the numbers; the `# renovate:` comments there mark the pins Renovate is
-configured to bump.
+configured to bump. It bumps them together, in one "proto toolchain" pull
+request opened on Monday mornings (`renovate.json`).
 
 | Tool     | Version                          |
 | -------- | -------------------------------- |
@@ -64,9 +66,12 @@ configured to bump.
 # Install all tools defined in .prototools
 proto install
 
-# Upgrade all tools to their latest version
-proto upgrade
+# List the configured tools and whether each is installed
+proto status
 
-# List installed tool versions
-proto list
+# Check the configured tools for newer versions
+proto outdated
+
+# Upgrade proto itself (the tools move with .prototools)
+proto upgrade
 ```

@@ -284,13 +284,16 @@ kbp() {
 		;;
 	*)
 		local pids
-		pids=$(lsof -ti :"$1" 2>/dev/null)
+		# The listening socket only: a bare `:PORT` also matches the clients
+		# connected to it (a browser on localhost:3000).
+		pids=$(lsof -ti tcp:"$1" -sTCP:LISTEN 2>/dev/null)
 		if [ -z "$pids" ]; then
 			echo "No process found listening on port $1."
 			return 1
 		fi
-		# shellcheck disable=SC2086
-		kill -9 $pids
+		# One PID per line, handed over by xargs: zsh, which sources this file,
+		# does not split an unquoted $pids into words.
+		printf '%s\n' "$pids" | xargs kill -9
 		;;
 	esac
 }

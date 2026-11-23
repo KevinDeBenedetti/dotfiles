@@ -9,20 +9,52 @@
 red="${red:-}"
 no_color="${no_color:-}"
 
-# Create the SSH allowed_signers file so local commit signatures verify.
+# Create or update the SSH allowed_signers file so local commit signatures
+# verify. The key is the one git signs with (user.signingkey: a path, or a
+# literal `key::`/`ssh-…` key), else the first ~/.ssh/id_*.pub, ed25519 first.
+# Only this key's line is replaced: the other signers in the file stay.
 create_allowed_signers() {
-  local signing_key="$HOME/.ssh/id_rsa.pub"
   local allowed_signers="$HOME/.ssh/allowed_signers"
-  local git_email
+  local git_email configured key="" candidate key_id
   git_email=$(git config --global user.email 2>/dev/null || echo "contact@kevindb.dev")
-  if [ -f "$signing_key" ]; then
-    mkdir -p "$HOME/.ssh"
-    printf '%s %s\n' "$git_email" "$(tr -d '\r' < "$signing_key" | tr -d '\n')" > "$allowed_signers"
-    chmod 600 "$allowed_signers"
-    printf '%b' "${red}[git]${no_color} SSH allowed_signers file created at $allowed_signers\n"
-  else
-    printf '%b' "${red}[warning]${no_color} No SSH public key found — skipping allowed_signers setup.\n"
+  configured=$(git config --global user.signingkey 2>/dev/null || true)
+  case "$configured" in
+    "") ;;
+    key::*) key="${configured#key::}" ;;
+    ssh-* | ecdsa-* | sk-*) key="$configured" ;;
+    *)
+      # git also takes the private key's path: its .pub is the one to read,
+      # never the private key itself.
+      configured="${configured/#\~/$HOME}"
+      [[ "$configured" == *.pub ]] || configured="$configured.pub"
+      [ -f "$configured" ] && key=$(tr -d '\r' < "$configured" | tr -d '\n') ;;
+  esac
+  if [ -z "$key" ]; then
+    for candidate in id_ed25519 id_ecdsa id_rsa; do
+      if [ -f "$HOME/.ssh/$candidate.pub" ]; then
+        key=$(tr -d '\r' < "$HOME/.ssh/$candidate.pub" | tr -d '\n')
+        break
+      fi
+    done
   fi
+  if [ -z "$key" ]; then
+    printf '%b' "${red}[warning]${no_color} No SSH public key found — skipping allowed_signers setup.\n"
+    return 0
+  fi
+
+  mkdir -p "$HOME/.ssh"
+  # A line is this key's when it carries the same type and base64 blob, after
+  # the principals and any options (namespaces="git", …).
+  key_id=$(awk '{ print $1 " " $2 }' <<<"$key")
+  {
+    if [ -f "$allowed_signers" ]; then
+      awk -v id="$key_id" '{ for (i = 2; i < NF; i++) if ($i " " $(i + 1) == id) next; print }' "$allowed_signers"
+    fi
+    printf '%s %s\n' "$git_email" "$key"
+  } > "$allowed_signers.new"
+  mv "$allowed_signers.new" "$allowed_signers"
+  chmod 600 "$allowed_signers"
+  printf '%b' "${red}[git]${no_color} SSH allowed_signers updated at $allowed_signers\n"
 }
 
 # Create the gitignored per-machine override stubs (only if they don't exist).
