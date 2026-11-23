@@ -63,6 +63,15 @@ domain allowlist, no unsandboxed commands, and bypass-permissions mode disabled.
 
 ## What it contains
 
+### Attribution
+
+`"attribution": {"commit": "", "pr": ""}` turns off the footer Claude Code
+adds by default: the `Co-Authored-By` trailer on commits and the
+"Generated with Claude Code" line on pull request descriptions. Both keys
+must be present: a missing key falls back to the default footer. Issues and
+comments have no setting; the "no AI attribution" rule in `AGENTS.md`
+covers them.
+
 ### Permissions
 
 `permissions.defaultMode` is `auto`: a classifier reviews routine actions
