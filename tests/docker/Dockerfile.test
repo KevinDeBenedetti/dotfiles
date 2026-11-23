@@ -235,6 +235,45 @@ RUN command -v lynis \
     && echo "Audit tools verified"
 
 # ---------------------------------------------------------------------------
+# Stage: test-security-infra — init.sh's security profile on a node the infra
+# repository manages: its sshd drop-in (os/helpers/infra.sh) marks the node,
+# and SSH hardening, UFW and Fail2Ban are left to Ansible there.
+# ---------------------------------------------------------------------------
+FROM base AS test-security-infra
+
+# No ufw and no fail2ban pre-seeded: the run must not install them.
+RUN sudo apt-get update \
+    && sudo apt-get install -y --no-install-recommends \
+      openssh-server \
+      unattended-upgrades \
+      apt-listchanges \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+# The infra drop-in, next to a drop-in left by an earlier run of this
+# repository's hardening, which the run must remove.
+RUN sudo mkdir -p /etc/ssh/sshd_config.d /etc/sysctl.d \
+    && echo "Port 2222" | sudo tee /etc/ssh/sshd_config.d/00-infra-hardening.conf > /dev/null \
+    && echo "Port 22" | sudo tee /etc/ssh/sshd_config.d/00-hardening.conf > /dev/null
+
+# The whole entry point, so the helpers are sourced as on a real node. A
+# profile that aborts midway fails the stage: the exit status is kept.
+RUN bash /home/tester/.dotfiles/os/debian/init.sh -p security -l 2>&1
+
+# sshd, the firewall and Fail2Ban are the infra repository's.
+RUN sudo test -f /etc/ssh/sshd_config.d/00-infra-hardening.conf \
+    && ! sudo test -e /etc/ssh/sshd_config.d/00-hardening.conf \
+    && ! dpkg -s ufw > /dev/null 2>&1 \
+    && ! sudo test -e /etc/fail2ban/jail.local \
+    && ! dpkg -s fail2ban > /dev/null 2>&1 \
+    && echo "Infra-managed node: SSH hardening, UFW and Fail2Ban skipped"
+
+# The rest of the hardening still applies.
+RUN test -f /etc/sysctl.d/99-security.conf \
+    && test -f /etc/apt/apt.conf.d/20auto-upgrades \
+    && test -f /etc/apt/apt.conf.d/52dotfiles-unattended-upgrades \
+    && echo "Infra-managed node: sysctl and unattended-upgrades applied"
+
+# ---------------------------------------------------------------------------
 # Stage: test-kubernetes — os/debian/setup-kubernetes.sh run on its own: first
 # a fresh install on the bare image (no gpg, no kubectl), then in full mode
 # (kubectl, helm, k9s) on a system that still has kubectl from an end-of-life

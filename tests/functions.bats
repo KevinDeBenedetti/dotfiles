@@ -125,6 +125,40 @@ setup() {
   assert_output --partial "No process found"
 }
 
+# stub_port_tools: lsof answers two PIDs, only for a listening TCP socket on
+# the port, and kill logs instead of killing. Both are on PATH, so xargs and
+# zsh find them too.
+stub_port_tools() {
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat > "$BATS_TEST_TMPDIR/bin/lsof" <<'STUB'
+#!/bin/sh
+echo "lsof $*" >> "$KBP_LOG"
+[ "$*" = "-ti tcp:3000 -sTCP:LISTEN" ] && printf '101\n202\n'
+exit 0
+STUB
+  printf '#!/bin/sh\necho "kill $*" >> "$KBP_LOG"\n' > "$BATS_TEST_TMPDIR/bin/kill"
+  chmod +x "$BATS_TEST_TMPDIR/bin/lsof" "$BATS_TEST_TMPDIR/bin/kill"
+  export KBP_LOG="$BATS_TEST_TMPDIR/kbp.log" PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+}
+
+@test "kbp kills every process listening on the port, and only those, in bash and zsh" {
+  stub_port_tools
+  # bash: the function as the tests load it. `kill` is a builtin there, so the
+  # PIDs must go through a command on PATH for the stub to see them.
+  run kbp 3000
+  assert_success
+  run cat "$KBP_LOG"
+  assert_line "lsof -ti tcp:3000 -sTCP:LISTEN"
+  assert_line "kill -9 101 202"
+  # zsh, which sources the file from .zshrc: it does not split `$pids`.
+  command -v zsh >/dev/null || skip "zsh is not installed"
+  rm "$KBP_LOG"
+  run zsh -c "source '$REPO_ROOT/config/shell/functions.sh'; kbp 3000"
+  assert_success
+  run cat "$KBP_LOG"
+  assert_line "kill -9 101 202"
+}
+
 # --- check_cert ---
 
 @test "check_cert -h prints help" {

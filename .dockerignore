@@ -1,1 +1,48 @@
+# The test image copies the whole build context (tests/docker/Dockerfile.test,
+# COPY . …): keep out what git ignores, so a local build sees the tracked files
+# only, as CI's checkout does. Unlike .gitignore, a pattern here matches at the
+# root of the context only: `**/` repeats it at any depth.
 .git
+
+# Machine-specific local overrides
+.zshrc.local
+.gitconfig.local
+env.local.sh
+**/.zshrc.local
+**/.gitconfig.local
+**/env.local.sh
+config/ssh/config.d/
+
+# Local state and private keys
+.ollama/
+**/.ollama/
+id_ed25519
+id_rsa
+id_ecdsa
+**/id_ed25519
+**/id_rsa
+**/id_ecdsa
+*.pem
+*.key
+*.p12
+*.pfx
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+
+# Local secrets of any tool (dotenv, wrangler dev)
+.env*
+.dev.vars*
+**/.env*
+**/.dev.vars*
+
+# Editor, agent and build leftovers
+.DS_Store
+**/.DS_Store
+.claude/
+**/.claude/
+TODO.md
+.scratch/
+.wrangler/
+**/.wrangler/

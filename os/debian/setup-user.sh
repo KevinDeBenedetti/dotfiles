@@ -6,14 +6,15 @@
 # Environment variables:
 #   CREATE_USER         Username to create (required)
 #   SSH_NOPASSWD        Grant passwordless sudo — true|false (default: false)
-#   COPY_ROOT_SSH_KEY   Copy /root/.ssh/authorized_keys to the new user (default: true)
+#   COPY_ROOT_SSH_KEY   Add the keys of /root/.ssh/authorized_keys to the new
+#                       user's, keeping its own (default: true)
 #   SUDO                sudo prefix, e.g. "sudo" (default: empty = running as root)
 #
 # NOTE: the user is created with --disabled-password (key-only login). When
 # SSH_NOPASSWD is not "true", sudo will prompt for a password the account does
 # not have, so the user cannot escalate until you run `sudo passwd <user>`.
-# Since setup-security.sh later disables root login, set a password OR pass
-# SSH_NOPASSWD=true to avoid locking yourself out of admin access.
+# setup-security.sh keeps root login (key only) until then: set a password OR
+# pass SSH_NOPASSWD=true, then re-run it to turn root login off.
 # =============================================================================
 
 set -euo pipefail
@@ -58,12 +59,33 @@ if [[ "${COPY_ROOT_SSH_KEY}" == "true" ]]; then
   # Through $SUDO, like the copy: /root is mode 700, so a sudo user running
   # this script cannot see the file itself.
   if $SUDO test -f /root/.ssh/authorized_keys; then
-    $SUDO mkdir -p "/home/${CREATE_USER}/.ssh"
-    $SUDO cp /root/.ssh/authorized_keys "/home/${CREATE_USER}/.ssh/authorized_keys"
-    $SUDO chown -R "${CREATE_USER}:${CREATE_USER}" "/home/${CREATE_USER}/.ssh"
-    $SUDO chmod 700 "/home/${CREATE_USER}/.ssh"
-    $SUDO chmod 600 "/home/${CREATE_USER}/.ssh/authorized_keys"
-    printf '%b' "${red}[user]${no_color} SSH authorized_keys copied from root.\n"
+    # The home the passwd database gives, which is not always /home/<user>.
+    user_home=$(getent passwd "${CREATE_USER}" | cut -d: -f6)
+    user_home="${user_home:-/home/${CREATE_USER}}"
+    user_keys="${user_home}/.ssh/authorized_keys"
+    $SUDO mkdir -p "${user_home}/.ssh"
+    $SUDO touch "$user_keys"
+    # Root's keys are added to the user's, never copied over them: on a re-run,
+    # the keys the user added since stay. A file saved without a final newline
+    # gets one first, so the next key does not land on its last line.
+    if $SUDO test -s "$user_keys" && [ -n "$($SUDO tail -c 1 "$user_keys")" ]; then
+      echo | $SUDO tee -a "$user_keys" > /dev/null
+    fi
+    added=0
+    # `|| [ -n "$key" ]`: a last key with no final newline counts too; the CR
+    # of a file saved on Windows is dropped, or the key would never match.
+    while IFS= read -r key || [ -n "$key" ]; do
+      key="${key%$'\r'}"
+      [[ -z "$key" || "$key" == \#* ]] && continue
+      if ! $SUDO grep -qxF -- "$key" "$user_keys"; then
+        printf '%s\n' "$key" | $SUDO tee -a "$user_keys" > /dev/null
+        added=$((added + 1))
+      fi
+    done < <($SUDO cat /root/.ssh/authorized_keys)
+    $SUDO chown -R "${CREATE_USER}:${CREATE_USER}" "${user_home}/.ssh"
+    $SUDO chmod 700 "${user_home}/.ssh"
+    $SUDO chmod 600 "$user_keys"
+    printf '%b' "${red}[user]${no_color} SSH authorized_keys: ${added} key(s) from root added, the user's own kept.\n"
   else
     printf '%b' "${red}[user]${no_color} /root/.ssh/authorized_keys not found — skipping key copy.\n"
   fi
@@ -86,8 +108,9 @@ if [[ "${SSH_NOPASSWD}" == "true" ]]; then
 else
   # The user was created with --disabled-password and is in the sudo group, but
   # sudo prompts for a password the account does not have — so it can never
-  # escalate until one is set. setup-security.sh then disables root login, which
-  # would lock admin access entirely. Warn loudly and tell the operator how to fix.
+  # escalate until one is set. setup-security.sh keeps root login (key only)
+  # until it can (can_escalate), so admin access is not lost, but root stays
+  # the way in. Warn loudly and tell the operator how to fix.
   printf '%b' "${red}[warning]${no_color} '${CREATE_USER}' has no password and cannot run sudo yet.\n"
   printf '%b' "${red}[warning]${no_color} Set one with: ${red}sudo passwd ${CREATE_USER}${no_color} (or re-run with SSH_NOPASSWD=true for passwordless sudo).\n"
 fi

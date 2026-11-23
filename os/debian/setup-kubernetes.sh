@@ -126,6 +126,12 @@ install_helm() {
   # renovate: datasource=github-releases depName=helm/helm
   local version="v4.3.2"
   local arch sha256
+  # Already at the pinned version: nothing to do. At another one (the pin
+  # moved since), the release below replaces it.
+  if [ "$(helm version --template '{{.Version}}' 2>/dev/null)" = "$version" ]; then
+    printf '%b' "${red}[kubernetes]${no_color} helm $version already installed — skipping.\n"
+    return 0
+  fi
   arch=$(dpkg --print-architecture)
   case "$arch" in
     amd64) sha256="d1c0278d46beab79582d7e50f5b3dc206944ba8e577cde618513fd07daa53983" ;;
@@ -147,6 +153,12 @@ install_k9s() {
   local arch sha256
   # renovate: datasource=github-releases depName=derailed/k9s
   local version="v0.51.0"
+  # Already at the pinned version: nothing to do. At another one (the pin
+  # moved since), the release below replaces it.
+  if [ "$(k9s version -s 2>/dev/null | awk '$1 == "Version" { print $2 }')" = "$version" ]; then
+    printf '%b' "${red}[kubernetes]${no_color} k9s $version already installed — skipping.\n"
+    return 0
+  fi
   arch=$(dpkg --print-architecture)
   case "$arch" in
     amd64) sha256="56b539a509eb2d6357cf4f575ed38c089f0e4880c95f79a70196b54f14954908" ;;
@@ -160,19 +172,12 @@ install_k9s() {
 }
 
 install_additional_setup() {
+  # Each skips itself when already at its pinned version.
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Install helm\n\n"
-  if ! command -v helm &>/dev/null; then
-    install_helm
-  else
-    printf '%b' "${red}[kubernetes]${no_color} helm already installed — skipping.\n"
-  fi
+  install_helm
 
   printf '%b' "\n\n${red}[kubernetes] =>${no_color} Install k9s\n\n"
-  if ! command -v k9s &>/dev/null; then
-    install_k9s
-  else
-    printf '%b' "${red}[kubernetes]${no_color} k9s already installed — skipping.\n"
-  fi
+  install_k9s
 }
 
 

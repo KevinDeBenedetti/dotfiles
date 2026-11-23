@@ -35,8 +35,20 @@ HARDEN_TMP="${HARDEN_TMP:-false}"
 # SSH Hardening
 # ──────────────────────────────────────────────
 
+# can_escalate USER: succeeds when USER can actually run sudo: a usable
+# password (`passwd -S` status P) or a NOPASSWD rule for every command. `init.sh -u` creates the
+# user with --disabled-password, and without SSH_NOPASSWD=true sudo asks it for
+# a password it does not have.
+can_escalate() {
+  local user="$1"
+  [ "$($SUDO passwd -S "$user" 2>/dev/null | cut -d' ' -f2)" = P ] && return 0
+  # A NOPASSWD rule for every command: one limited to a few is no way to root.
+  grep -qE 'NOPASSWD: *ALL *$' <<<"$($SUDO sudo -l -U "$user" 2>/dev/null)"
+}
+
 # Succeeds when a non-root member of the sudo group has a non-empty
-# authorized_keys and, when SSH_ALLOWED_USERS is set, is listed in it.
+# authorized_keys, can escalate (can_escalate) and, when SSH_ALLOWED_USERS is
+# set, is listed in it.
 has_admin_ssh_login() {
   local members user home
   members=$(getent group sudo 2>/dev/null | cut -d: -f4 | tr ',' ' ')
@@ -47,7 +59,7 @@ has_admin_ssh_login() {
     fi
     home=$(getent passwd "$user" | cut -d: -f6)
     [[ -n "$home" ]] || continue
-    $SUDO test -s "$home/.ssh/authorized_keys" && return 0
+    $SUDO test -s "$home/.ssh/authorized_keys" && can_escalate "$user" && return 0
   done
   return 1
 }
@@ -78,14 +90,14 @@ configure_ssh() {
   $SUDO rm -f /etc/ssh/sshd_config.d/99-hardening.conf
 
   # Root login is only turned off when another way in exists: a member of the
-  # sudo group with a non-empty authorized_keys, allowed by AllowUsers when it
-  # is set. Otherwise root keeps key-only login (passwords stay off), so a VPS
-  # provisioned with root's key alone is not locked out.
+  # sudo group with a non-empty authorized_keys who can run sudo, allowed by
+  # AllowUsers when it is set. Otherwise root keeps key-only login (passwords
+  # stay off), so a VPS provisioned with root's key alone is not locked out.
   local permit_root="no"
   if ! has_admin_ssh_login; then
     permit_root="prohibit-password"
-    printf '%b' "${red}[warning]${no_color} No sudo user with SSH keys found — keeping root login (key only).\n"
-    printf '%b' "${red}[warning]${no_color} Create one with init.sh -u <user>, then re-run to disable root login.\n"
+    printf '%b' "${red}[warning]${no_color} No sudo user with SSH keys who can run sudo found — keeping root login (key only).\n"
+    printf '%b' "${red}[warning]${no_color} Create one with init.sh -u <user> (SSH_NOPASSWD=true, or set its password), then re-run to disable root login.\n"
   fi
 
   # Build AllowUsers directive if env var is set. AllowUsers shuts out every
@@ -203,8 +215,13 @@ install_configure_ufw() {
 
   # ufw needs a real netfilter backend (NET_ADMIN); these are best-effort so the
   # run still completes in containers / unprivileged environments.
-  # Reset rules (non-interactive)
-  $SUDO ufw --force reset || true
+  # Reset only a UFW that is not running yet: on a re-run, an active UFW keeps
+  # the rules added by hand since (a VPN port, an app port); the rules below
+  # are added again, which `ufw allow` does without duplicating them.
+  # Read in the C locale: ufw translates its output ("État : actif").
+  if ! grep -q '^Status: active' <<<"$(LC_ALL=C $SUDO ufw status 2>/dev/null)"; then
+    $SUDO ufw --force reset || true
+  fi
 
   # Default policies: deny incoming, allow outgoing
   $SUDO ufw default deny incoming || true
@@ -503,13 +520,14 @@ configure_apparmor() {
 
   $SUDO apt-get install -y --no-install-recommends apparmor apparmor-utils
 
-  # Enable AppArmor on boot
-  if ! grep -q "apparmor=1" /proc/cmdline 2>/dev/null; then
-    if [ -f /etc/default/grub ]; then
-      $SUDO sed -i 's|GRUB_CMDLINE_LINUX="\(.*\)"|GRUB_CMDLINE_LINUX="\1 apparmor=1 security=apparmor"|' /etc/default/grub
-      $SUDO update-grub 2>/dev/null || true
-      printf '%b' "${red}[security]${no_color} AppArmor boot parameters added to GRUB.\n"
-    fi
+  # Enable AppArmor on boot. The file it edits is checked too: before the next
+  # reboot, /proc/cmdline does not show options added by an earlier run.
+  if ! grep -q "apparmor=1" /proc/cmdline 2>/dev/null \
+    && $SUDO test -f /etc/default/grub \
+    && ! $SUDO grep -q "apparmor=1" /etc/default/grub; then
+    $SUDO sed -i 's|GRUB_CMDLINE_LINUX="\(.*\)"|GRUB_CMDLINE_LINUX="\1 apparmor=1 security=apparmor"|' /etc/default/grub
+    $SUDO update-grub 2>/dev/null || true
+    printf '%b' "${red}[security]${no_color} AppArmor boot parameters added to GRUB.\n"
   fi
 
   $SUDO systemctl enable apparmor || true

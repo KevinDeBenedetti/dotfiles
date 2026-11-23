@@ -101,9 +101,13 @@ while getopts hacdlp:r flag; do
       [[ ",$OPTARG," =~ ",python," ]] && INSTALL_PYTHON="true";;
     r)
       REMOVE_TMP_CONTENT="true";;
-    h | *)
+    h)
       print_help
       exit 0;;
+    *)
+      # An unknown flag or a missing argument (getopts names it above).
+      print_help
+      exit 2;;
   esac
 done
 
@@ -239,6 +243,22 @@ if [[ "$INSTALL_EXTRAS" = "true" ]]; then
 fi
 
 
+# Shared symlink helpers (backup_if_exists, link_with_backup, link_shared_configs)
+# shellcheck source=../helpers/links.sh
+source "$HELPERS_DIR/links.sh"
+
+# Proto for the toolchain profiles
+# setup-javascript.sh and setup-python.sh install through proto, at the
+# versions pinned in ~/.proto/.prototools: both must be there first, even
+# without the base profile (proto.sh skips an existing install) and before the
+# dotfiles step links the rest.
+if [[ "$INSTALL_JAVASCRIPT" = "true" || "$INSTALL_PYTHON" = "true" ]]; then
+  bash "$HELPERS_DIR/proto.sh"
+  mkdir -p "$HOME/.proto"
+  link_with_backup "$CONFIG_DIR/proto/.prototools" "$HOME/.proto/.prototools"
+fi
+
+
 # Install javascript profile
 if [[ "$INSTALL_JAVASCRIPT" = "true" ]]; then
   printf '%b' "\n${red}${i}.${no_color} Install javascript profile\n\n"
@@ -266,9 +286,6 @@ if [[ "$INSTALL_AI" = "true" ]]; then
 fi
 
 
-# Shared symlink helpers (backup_if_exists, link_with_backup, link_shared_configs)
-# shellcheck source=../helpers/links.sh
-source "$HELPERS_DIR/links.sh"
 # Shared "link dotfiles" post-steps (create_allowed_signers, create_local_stubs,
 # install_vscode_config) — kept in sync with os/debian/init.sh.
 # shellcheck source=../helpers/dotfiles.sh

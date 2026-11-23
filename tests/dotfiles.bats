@@ -63,6 +63,55 @@ mode_of() {
   assert_not_exists "$FAKE_HOME/.ssh/allowed_signers"
 }
 
+@test "create_allowed_signers uses git's signing key, else any id_*.pub, ed25519 first" {
+  mkdir -p "$FAKE_HOME/.ssh"
+  git config --file "$GITCONFIG" user.email "dev@example.com"
+  # An ed25519-only machine.
+  echo 'ssh-ed25519 AAAAed dev@laptop' > "$FAKE_HOME/.ssh/id_ed25519.pub"
+  run_helper create_allowed_signers
+  run cat "$FAKE_HOME/.ssh/allowed_signers"
+  assert_output "dev@example.com ssh-ed25519 AAAAed dev@laptop"
+  # The key git signs with wins over the id_* files.
+  echo 'ssh-ed25519 AAAAwork dev@work' > "$FAKE_HOME/.ssh/work.pub"
+  git config --file "$GITCONFIG" user.signingkey "~/.ssh/work.pub"
+  : > "$FAKE_HOME/.ssh/allowed_signers"
+  run_helper create_allowed_signers
+  run cat "$FAKE_HOME/.ssh/allowed_signers"
+  assert_output "dev@example.com ssh-ed25519 AAAAwork dev@work"
+}
+
+@test "create_allowed_signers never writes a private key: a private key path means its .pub" {
+  mkdir -p "$FAKE_HOME/.ssh"
+  echo 'PRIVATE KEY MATERIAL' > "$FAKE_HOME/.ssh/id_work"
+  echo 'ssh-ed25519 AAAAwork dev@work' > "$FAKE_HOME/.ssh/id_work.pub"
+  git config --file "$GITCONFIG" user.email "dev@example.com"
+  git config --file "$GITCONFIG" user.signingkey "~/.ssh/id_work"
+  run_helper create_allowed_signers
+  run cat "$FAKE_HOME/.ssh/allowed_signers"
+  assert_output "dev@example.com ssh-ed25519 AAAAwork dev@work"
+}
+
+@test "create_allowed_signers recognises its own line when it carries options" {
+  mkdir -p "$FAKE_HOME/.ssh"
+  echo 'ssh-ed25519 AAAAmine me@laptop' > "$FAKE_HOME/.ssh/id_ed25519.pub"
+  echo 'me@example.com namespaces="git" ssh-ed25519 AAAAmine me@laptop' > "$FAKE_HOME/.ssh/allowed_signers"
+  git config --file "$GITCONFIG" user.email "me@example.com"
+  run_helper create_allowed_signers
+  run grep -c AAAAmine "$FAKE_HOME/.ssh/allowed_signers"
+  assert_output "1"
+}
+
+@test "create_allowed_signers keeps the other signers and updates its own line" {
+  mkdir -p "$FAKE_HOME/.ssh"
+  echo 'ssh-ed25519 AAAAmine me@laptop' > "$FAKE_HOME/.ssh/id_ed25519.pub"
+  printf 'friend@example.com ssh-ed25519 AAAAfriend\nold@example.com ssh-ed25519 AAAAmine me@laptop\n' > "$FAKE_HOME/.ssh/allowed_signers"
+  git config --file "$GITCONFIG" user.email "me@example.com"
+  run_helper create_allowed_signers
+  run_helper create_allowed_signers
+  run cat "$FAKE_HOME/.ssh/allowed_signers"
+  assert_output $'friend@example.com ssh-ed25519 AAAAfriend\nme@example.com ssh-ed25519 AAAAmine me@laptop'
+}
+
 # --- create_local_stubs ---
 
 @test "create_local_stubs creates the three per-machine override files" {

@@ -34,11 +34,14 @@ the host. Set them in `~/.gitconfig.local` (see
 
 ### Push & pull
 
-| Setting                  | Value    | Description                          |
-| ------------------------ | -------- | ------------------------------------ |
-| `push.default`           | `simple` | Push current branch to its upstream  |
-| `pull.rebase`            | `true`   | Rebase instead of merge on pull      |
-| `branch.autosetuprebase` | `always` | Auto-rebase on new tracking branches |
+| Setting                  | Value    | Description                                            |
+| ------------------------ | -------- | ------------------------------------------------------ |
+| `push.default`           | `simple` | Push current branch to its upstream                    |
+| `push.autoSetupRemote`   | `true`   | First push of a new branch sets its upstream           |
+| `pull.rebase`            | `true`   | Rebase instead of merge on pull                        |
+| `branch.autosetuprebase` | `always` | Auto-rebase on new tracking branches                   |
+| `branch.autoSetupMerge`  | `simple` | Track a remote branch of the same name only            |
+| `rebase.autoStash`       | `true`   | Stash local changes around a rebase, then reapply them |
 
 ### Signing
 
@@ -90,7 +93,7 @@ Settings that differ per machine (identity, signing key, etc.) go in `~/.gitconf
   signingkey = ~/.ssh/id_ed25519.pub
 ```
 
-This file is included at the bottom of `.gitconfig`:
+This file is included at the bottom of `.gitconfig`, after every setting, so it can override any of them (git keeps the last value it reads):
 
 ```ini
 [include]

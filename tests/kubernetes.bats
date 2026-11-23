@@ -1,11 +1,10 @@
 #!/usr/bin/env bats
 
-# Tests for setup-kubernetes.sh script structure and function wiring.
-# Like security.bats, most validate the script statically (syntax, function
-# presence, lite-vs-full wiring) without running heavy installs on the host.
-# The "Verified downloads" section at the end runs the download functions for
-# real, with curl stubbed and a temp directory as the install target.
-# They close the gap where only the lite path was exercised by the Docker stages.
+# Tests for setup-kubernetes.sh. The lite/full dispatch, the infra-node branch
+# and the kubectl, helm and k9s installs run for real, with the commands they
+# call stubbed and a temp directory as the install target, so nothing heavy
+# runs on the host. They close the gap where only the lite path was exercised
+# by the Docker stages.
 
 setup() {
   DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
@@ -57,25 +56,40 @@ setup() {
 
 # --- Lite vs full mode wiring ---
 
-@test "lite setup loads kernel modules and installs kubectl" {
-  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$K8S_SCRIPT'"
-  assert_success
-  assert_output --partial "load_kernel_modules"
-  assert_output --partial "kubectl"
+# run_setup [FULL_MODE_SETUP]: the script's top level (its default and the
+# lite/full dispatch), with every install step stubbed to log its name.
+run_setup() {
+  local dispatch
+  dispatch=$(sed -n '/^# Install lite setup$/,$p' "$K8S_SCRIPT")
+  [ -n "$dispatch" ] || fail "the lite/full dispatch was not found in $K8S_SCRIPT"
+  run bash -c "set -euo pipefail
+    $(grep '^FULL_MODE_SETUP=' "$K8S_SCRIPT")
+    $(sed -n '/^install_lite_setup()/,/^}$/p;/^install_additional_setup()/,/^}$/p' "$K8S_SCRIPT")
+    load_kernel_modules() { echo load_kernel_modules; }
+    install_kubectl() { echo install_kubectl; }
+    install_helm() { echo install_helm; }
+    install_k9s() { echo install_k9s; }
+    is_infra_managed() { [ -n \"\${INFRA:-}\" ]; }
+    command() { return 1; }
+    red= no_color= INFRA_MARKER=marker
+    $dispatch" -- "$@"
 }
 
-@test "full (additional) setup installs helm and k9s" {
-  # The full-mode path was never exercised by the lite Docker stages.
-  run bash -c "sed -n '/^install_additional_setup()/,/^}/p' '$K8S_SCRIPT'"
+@test "lite setup loads kernel modules and installs kubectl, and stops there by default" {
+  run_setup
   assert_success
-  assert_output --partial "helm"
-  assert_output --partial "k9s"
+  assert_line load_kernel_modules
+  assert_line install_kubectl
+  refute_line install_helm
+  refute_line install_k9s
 }
 
-@test "full mode is gated on FULL_MODE_SETUP variable" {
-  run grep 'FULL_MODE_SETUP' "$K8S_SCRIPT"
+@test "full mode (FULL_MODE_SETUP=true) installs helm and k9s on top" {
+  FULL_MODE_SETUP=true run_setup
   assert_success
-  assert_output --partial '"true"'
+  assert_line install_kubectl
+  assert_line install_helm
+  assert_line install_k9s
 }
 
 @test "FULL_MODE_SETUP has a default so set -u does not trip standalone" {
@@ -220,16 +234,11 @@ load_install_kubectl() {
 @test "the lite setup leaves kubectl and its apt repository off a node managed by the infra repo" {
   # Same marker as the Docker step of setup-base.sh: the infra `common` role
   # removes both on every run, a re-run must not put them back.
-  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$K8S_SCRIPT'"
-  assert_output --partial 'if is_infra_managed; then'
-  # The marker is tested before the key and the repository are written, and
-  # nothing is installed in its branch.
-  local marker install
-  marker=$(sed -n '/^install_lite_setup()/,/^}/p' "$K8S_SCRIPT" | grep -n 'if is_infra_managed' | head -n1 | cut -d: -f1)
-  install=$(sed -n '/^install_lite_setup()/,/^}/p' "$K8S_SCRIPT" | grep -n 'install_kubectl' | head -n1 | cut -d: -f1)
-  [ -n "$marker" ] && [ -n "$install" ] && [ "$marker" -lt "$install" ]
-  run bash -c "sed -n '/^install_lite_setup()/,/^}/p' '$K8S_SCRIPT' | sed -n '/if is_infra_managed; then/,/^  else/p' | grep -E 'apt-get|kubernetes.list|install_apt_key|install_kubectl'"
-  assert_failure
+  INFRA=1 run_setup
+  assert_success
+  assert_line load_kernel_modules
+  refute_line install_kubectl
+  assert_output --partial "skipping kubectl"
 }
 
 @test "load_kernel_modules writes its config on a system with no /etc/sysctl.d yet" {
@@ -275,6 +284,10 @@ stub_downloads_and_load_helm_functions() {
     cp "$FAKE_DOWNLOAD" "$out"
   }
   dpkg() { echo "${FAKE_ARCH:-amd64}"; }
+  # The installed helm and k9s report $HELM_VERSION and $K9S_VERSION; none by
+  # default, whatever the host has.
+  helm() { [ -n "${HELM_VERSION:-}" ] && [ "$1" = version ] && echo "$HELM_VERSION"; }
+  k9s() { [ -n "${K9S_VERSION:-}" ] && [ "$1 $2" = "version -s" ] && printf 'Version  %s\nCommit   abc\n' "$K9S_VERSION"; }
   # Keep the functions' temp dirs inside the test's own directory.
   export TMPDIR="$BATS_TEST_TMPDIR"
   source "$REPO_ROOT/os/helpers/fetch.sh"
@@ -335,6 +348,27 @@ fake_helm_tarball() {
   assert_failure
   assert_output --partial "armhf"
   assert_file_not_exists "$BATS_TEST_TMPDIR/curl.log"
+}
+
+@test "helm and k9s are reinstalled when the pin moves, and left alone at the pinned version" {
+  # A Renovate bump must reach the machines already set up.
+  stub_downloads_and_load_helm_functions
+  install_from_tarball() { echo "install_from_tarball $*"; }
+  install_deb_verified() { echo "install_deb_verified $*"; }
+  local helm_pin k9s_pin
+  helm_pin=$(sed -n '/^install_helm()/,/^}$/s/^  local version="\(.*\)"$/\1/p' "$K8S_SCRIPT")
+  k9s_pin=$(sed -n '/^install_k9s()/,/^}$/s/^  local version="\(.*\)"$/\1/p' "$K8S_SCRIPT")
+  HELM_VERSION=v0.0.1 run install_helm
+  assert_line --partial "install_from_tarball --sudo helm https://get.helm.sh/helm-$helm_pin-"
+  HELM_VERSION=$helm_pin run install_helm
+  assert_success
+  refute_line --partial "install_from_tarball"
+  assert_output --partial "already installed"
+  K9S_VERSION=v0.0.1 run install_k9s
+  assert_line --partial "install_deb_verified k9s"
+  K9S_VERSION=$k9s_pin run install_k9s
+  assert_success
+  refute_line --partial "install_deb_verified"
 }
 
 @test "k9s no longer follows the latest release" {

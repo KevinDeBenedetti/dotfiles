@@ -205,8 +205,6 @@
       "git commit *": "deny",
       "git push": "deny",
       "git push *": "deny",
-      "git reset*": "deny",
-      "git rebase*": "deny",
       "gh repo delete*": "deny",
       "kubectl apply*": "deny",
       "kubectl delete*": "deny",
@@ -235,7 +233,12 @@
       "kubectl get secret *": "deny",
       "kubectl get secret/*": "deny",
       "kubectl get secrets": "deny",
-      "kubectl get secrets *": "deny"
+      "kubectl get secrets *": "deny",
+      "kubectl * get secret": "deny",
+      "kubectl * get secret *": "deny",
+      "kubectl * get secret/*": "deny",
+      "kubectl * get secrets": "deny",
+      "kubectl * get secrets *": "deny"
     },
     "read": {
       "*": "allow",
@@ -268,8 +271,12 @@
       "~/.ssh/**": "deny",
       "~/.aws/**": "deny",
       "~/.gnupg/**": "deny",
+      "~/.netrc": "deny",
+      "~/.npmrc": "deny",
       "~/.claude/.credentials.json": "deny",
+      "~/.kube/config": "deny",
       "~/.config/dotfiles/env.local.sh": "deny",
+      "~/.config/opencode/llm-api-key": "deny",
       "~/.dotfiles/**": "deny"
     }
   },

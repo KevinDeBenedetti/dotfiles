@@ -63,7 +63,7 @@ cd ~/.dotfiles
 
 Core CLI tools installed via Homebrew. Split into lite (always) and additional (full mode only).
 
-> **[proto](https://moonrepo.dev/proto)** is installed from a pinned, SHA-256-checked release tarball (not Homebrew, no installer script) by `os/helpers/proto.sh`, which runs automatically with the `base` profile. All tool versions are declared in `config/proto/.prototools` (symlinked to `~/.proto/.prototools`).
+> **[proto](https://moonrepo.dev/proto)** is installed from a pinned, SHA-256-checked release tarball (not Homebrew, no installer script) by `os/helpers/proto.sh`, which runs automatically with the `base`, `javascript` and `python` profiles. Before the `javascript` and `python` profiles install anything, the script also links `config/proto/.prototools`, so the pinned versions apply even with `-p javascript` alone. All tool versions are declared in `config/proto/.prototools` (symlinked to `~/.proto/.prototools`).
 
 **Lite:**
 
@@ -228,18 +228,19 @@ A custom Oh My Zsh theme `kevin-de-benedetti` is linked from `config/oh-my-zsh/`
 
 The following [Oh My Zsh](https://ohmyz.sh) plugins are enabled in `.zshrc`. Plugins must be listed **before** `source $ZSH/oh-my-zsh.sh`.
 
-| Plugin              | What it provides                                                                  |
-| ------------------- | --------------------------------------------------------------------------------- |
-| `aliases`           | `als` command — lists all active aliases with descriptions                        |
-| `brew`              | Brew completion and `bubo`/`bubc`/`bubu` update aliases                           |
-| `colored-man-pages` | ANSI colour for `man` pages — much easier to read                                 |
-| `docker`            | Docker CLI completion and aliases (`dbl`, `dcin`, `dco`, `dps`, etc.)             |
-| `docker-compose`    | `docker compose` completion and shorthand aliases (`dco`, `dcup`, `dcdown`, etc.) |
-| `gh`                | GitHub CLI (`gh`) shell completion                                                |
-| `git`               | Extensive Git aliases (`gst`, `gco`, `glog`, `gcmsg`, etc.) and branch in prompt  |
-| `gitignore`         | `gi <lang>` — fetches a `.gitignore` template from gitignore.io                   |
-| `rsync`             | Aliases for common rsync patterns (`rsync-copy`, `rsync-move`, etc.)              |
-| `sudo`              | Double-press `ESC` to prepend `sudo` to the current or previous command           |
+| Plugin              | What it provides                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| `aliases`           | `als` command — lists all active aliases with descriptions                              |
+| `brew`              | Brew completion and `bubo`/`bubc`/`bubu` update aliases                                 |
+| `colored-man-pages` | ANSI colour for `man` pages — much easier to read                                       |
+| `direnv`            | Loads `.envrc` files with [direnv](https://direnv.net), installed by the `base` profile |
+| `docker`            | Docker CLI completion and aliases (`dbl`, `dcin`, `dco`, `dps`, etc.)                   |
+| `docker-compose`    | `docker compose` completion and shorthand aliases (`dco`, `dcup`, `dcdown`, etc.)       |
+| `gh`                | GitHub CLI (`gh`) shell completion                                                      |
+| `git`               | Extensive Git aliases (`gst`, `gco`, `glog`, `gcmsg`, etc.) and branch in prompt        |
+| `gitignore`         | `gi <lang>` — fetches a `.gitignore` template from gitignore.io                         |
+| `rsync`             | Aliases for common rsync patterns (`rsync-copy`, `rsync-move`, etc.)                    |
+| `sudo`              | Double-press `ESC` to prepend `sudo` to the current or previous command                 |
 
 ### Built-in Aliases
 
@@ -291,19 +292,21 @@ The following files are sourced at the end of `.zshrc` if they exist. They are *
 
 Custom functions live in `config/shell/functions.sh` and are sourced automatically by `.zshrc`. Run `lsfn` to list all functions with their help text.
 
-| Function     | Usage                                   | Description                                                                     |
-| ------------ | --------------------------------------- | ------------------------------------------------------------------------------- |
-| `b64d`       | `b64d <string>`                         | Decode a base64 string                                                          |
-| `b64e`       | `b64e <string>`                         | Encode a string to base64                                                       |
-| `browser`    | `browser [-- <url>]`                    | Start a [Browsh](https://www.brow.sh) terminal browser via Docker               |
-| `cheat_glow` | `cheat_glow <sheet>`                    | Render a `cheat` cheatsheet through `glow` at 150 columns for readability       |
-| `check_cert` | `check_cert <url>`                      | Print TLS certificate details for a domain using `curl`                         |
-| `dks`        | `dks <secret> [namespace]`              | Decode a Kubernetes secret — outputs all `.data` values base64-decoded via `yq` |
-| `kbp`        | `kbp <port>`                            | Kill the process currently listening on the given TCP port                      |
-| `randompass` | `randompass [length]`                   | Generate a secure random password (default 24 chars) with mixed complexity      |
-| `timestampd` | `timestampd <unix_ts>`                  | Convert a Unix timestamp to a human-readable date (cross-platform)              |
-| `timestampe` | `timestampe <YYYY-mm-ddTHH:MM:ss>`      | Convert a date string to its Unix timestamp (cross-platform)                    |
-| `vpn`        | `vpn <up\|down\|status\|list> [tunnel]` | Manage WireGuard tunnels via `wg-quick` (aliases: `vup`, `vdown`, `vpns`)       |
+| Function      | Usage                                   | Description                                                                     |
+| ------------- | --------------------------------------- | ------------------------------------------------------------------------------- |
+| `b64d`        | `b64d <string>`                         | Decode a base64 string                                                          |
+| `b64e`        | `b64e <string>`                         | Encode a string to base64                                                       |
+| `browser`     | `browser [-- <url>]`                    | Start a [Browsh](https://www.brow.sh) terminal browser via Docker               |
+| `brewsuggest` | `brewsuggest`                           | List suggested Homebrew CLI tools, installed (✓) or missing (○)                 |
+| `cheat_glow`  | `cheat_glow <sheet>`                    | Render a `cheat` cheatsheet through `glow` at 150 columns for readability       |
+| `check_cert`  | `check_cert <url>`                      | Print TLS certificate details for a domain using `curl`                         |
+| `cleanmac`    | `cleanmac [--yes [target...]]`          | Free disk space (caches, logs, Trash, Homebrew, DNS); a dry run without `--yes` |
+| `dks`         | `dks <secret> [namespace]`              | Decode a Kubernetes secret — outputs all `.data` values base64-decoded via `yq` |
+| `kbp`         | `kbp <port>`                            | Kill the process currently listening on the given TCP port                      |
+| `randompass`  | `randompass [length]`                   | Generate a secure random password (default 24 chars) with mixed complexity      |
+| `timestampd`  | `timestampd <unix_ts>`                  | Convert a Unix timestamp to a human-readable date (cross-platform)              |
+| `timestampe`  | `timestampe <YYYY-mm-ddTHH:MM:ss>`      | Convert a date string to its Unix timestamp (cross-platform)                    |
+| `vpn`         | `vpn <up\|down\|status\|list> [tunnel]` | Manage WireGuard tunnels via `wg-quick` (aliases: `vup`, `vdown`, `vpns`)       |
 
 > Run any function with `-h` or `--help` to see its usage message, e.g. `dks -h`.
 
@@ -342,7 +345,7 @@ Create `~/.gitconfig.local` with any section you want to override locally — it
 
 ### SSH commit signing
 
-When `~/.ssh/id_rsa.pub` exists the dotfiles install creates `~/.ssh/allowed_signers` automatically. This allows Git to verify signed commits locally with `git log --show-signature`.
+The dotfiles install adds the signing key to `~/.ssh/allowed_signers`: the key in `user.signingkey`, else the first of `~/.ssh/id_ed25519.pub`, `id_ecdsa.pub` and `id_rsa.pub`. It updates that key's line only, keeping any other signer in the file. This allows Git to verify signed commits locally with `git log --show-signature`.
 
 ## SSH Client Configuration
 
@@ -381,14 +384,14 @@ pin-latest    = "global" # record the resolved "latest" version globally
 ### Managing tool versions
 
 ```sh
-# Install / pin a specific version
+# Install a specific version
 proto install node 22
 
-# Use a version in the current directory only
-proto use node 20 --local
+# Install a version and pin it in the current directory only (./.prototools)
+proto install node 20 --pin local
 
-# List all tools managed by proto
-proto list
+# List the configured tools and whether each is installed
+proto status
 
 # Upgrade proto itself
 proto upgrade

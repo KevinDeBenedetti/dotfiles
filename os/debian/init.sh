@@ -83,14 +83,14 @@ Following flags are available:
   -r    Remove all tmp files after installation.
 
   -u USER  Create a non-root sudo user before security hardening.
-           Copies /root/.ssh/authorized_keys to the new user.
+           Adds root's /root/.ssh/authorized_keys to the user's own keys.
            Set SSH_NOPASSWD=true to grant passwordless sudo (needed for remote provisioning).
 
   Environment variables (set before running):
     SSH_PORT=2222          Custom SSH port (default: 22)
     SSH_ALLOWED_USERS=bob  Space-separated list of users allowed to SSH in
     SSH_NOPASSWD=true      Grant NOPASSWD sudo to the user created via -u (default: false)
-    COPY_ROOT_SSH_KEY=true Copy root authorized_keys to new user (default: true)
+    COPY_ROOT_SSH_KEY=true Add root's authorized_keys to the new user's (default: true)
   -h    Print script help.\n\n"
 
 print_help() {
@@ -121,9 +121,13 @@ while getopts hacdlp:ru: flag; do
       REMOVE_TMP_CONTENT="true";;
     u)
       CREATE_USER="${OPTARG}";;
-    h | *)
+    h)
       print_help
       exit 0;;
+    *)
+      # An unknown flag or a missing argument (getopts names it above).
+      print_help
+      exit 2;;
   esac
 done
 

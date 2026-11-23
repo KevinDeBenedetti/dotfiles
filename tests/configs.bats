@@ -546,6 +546,15 @@ setup() {
   assert_output '5'
 }
 
+@test "CI's ShellCheck checks the extensionless scripts make lint checks" {
+  # make lint (and the prek hook) select `scripts/*/*` on top of `*.sh`; the
+  # reusable workflow takes the same glob through shellcheck-extra-paths.
+  run grep -F "'scripts/*/*'" "$REPO_ROOT/Makefile"
+  assert_success
+  run grep -E "^ +shellcheck-extra-paths: 'scripts/\*/\*'$" "$REPO_ROOT/.github/workflows/ci-cd.yml"
+  assert_success
+}
+
 @test "no docs dispatch job: the docs hub polls on a cron schedule" {
   # kevindebenedetti.github.io regenerates the docs from a scheduled poll
   # (docs-poll.yml), so nothing listens for a repository_dispatch any more.
@@ -611,6 +620,30 @@ setup() {
   assert_output "GIT_DIR=unset GIT_INDEX_FILE=unset GIT_WORK_TREE=unset"
 }
 
+@test "~/.gitconfig.local can override every setting of the tracked .gitconfig" {
+  # git keeps the last value it reads: the include must come after every
+  # setting, or the local file loses to the ones below it.
+  local home="$BATS_TEST_TMPDIR/home" key value
+  mkdir -p "$home"
+  while IFS= read -r key; do
+    [ "$key" = include.path ] && continue
+    printf '[%s]\n\t%s = local-override\n' "${key%.*}" "${key##*.}" > "$home/.gitconfig.local"
+    value=$(HOME="$home" git config --file "$REPO_ROOT/config/git/.gitconfig" --includes --get-all "$key" | tail -n1)
+    [ "$value" = local-override ] || fail "$key: the tracked value wins over ~/.gitconfig.local"
+  # Plain section.key settings (a subsection such as credential."https://…"
+  # cannot be rebuilt from its flattened name).
+  done < <(git config --file "$REPO_ROOT/config/git/.gitconfig" --list --name-only | grep -E '^[^.]+\.[^.]+$' | sort -u)
+}
+
+@test "docs/config/git.md documents every setting of the tracked .gitconfig" {
+  local key missing=()
+  while IFS= read -r key; do
+    [ "$key" = include.path ] && continue
+    grep -qiF "$key" "$REPO_ROOT/docs/config/git.md" || missing+=("$key")
+  done < <(git config --file "$REPO_ROOT/config/git/.gitconfig" --list --name-only | sort -u)
+  [ "${#missing[@]}" -eq 0 ] || fail "undocumented in git.md: ${missing[*]}"
+}
+
 @test "the tracked .gitconfig names Git Credential Manager only as 'manager'" {
   # `git-credential-manager configure` writes an absolute, machine-specific
   # helper path through the ~/.gitconfig symlink: it must not be committed.
@@ -628,6 +661,37 @@ setup() {
 @test "renovate.json is valid JSON" {
   run jq empty "$REPO_ROOT/renovate.json"
   assert_success
+}
+
+@test "renovate opens its pull requests in a weekly window, grouped by kind" {
+  local cfg="$REPO_ROOT/renovate.json"
+  run jq -r '.schedule[0] // empty' "$cfg"
+  assert_output --regexp '^before [0-9]+am on monday$'
+  # One pull request for the prek hooks, one for the proto toolchain.
+  run jq -r '[.packageRules[] | select(.matchFileNames == ["prek.toml"]) | .groupName] | first // empty' "$cfg"
+  assert_output "prek hooks"
+  run jq -r '[.packageRules[] | select(.matchFileNames == ["config/proto/.prototools"]) | .groupName] | first // empty' "$cfg"
+  assert_output "proto toolchain"
+  # The SHA-256 pinned release tools stay one pull request each: their sums are
+  # copied by hand, one release at a time.
+  run jq -r '[.packageRules[] | select(.groupName and ((.matchPackageNames // []) | index("helm/helm")))] | length' "$cfg"
+  assert_output "0"
+}
+
+@test "the docs give only proto commands the pinned proto has" {
+  # proto 0.64 has no `list` or `use` (status / install --pin replace them).
+  run grep -rnE 'proto (list|use)( |$)' "$REPO_ROOT/docs" "$REPO_ROOT/README.md"
+  assert_failure
+}
+
+@test "the prek github-workflows hooks run the version CI runs" {
+  # github-workflows' propagate-release job moves both together (since its
+  # v0.55.0); Renovate is off for that package.
+  local ci prek
+  ci=$(grep -o 'github-workflows/.github/workflows/ci-shell.yml@[0-9a-f]\{40\} # v[0-9.]*' "$REPO_ROOT/.github/workflows/ci-cd.yml" | head -n1 | sed 's/.*# //')
+  prek=$(sed -n '/KevinDeBenedetti\/github-workflows"$/,/^rev = /s/^rev = "\(.*\)"$/\1/p' "$REPO_ROOT/prek.toml")
+  [ -n "$ci" ] || fail "no versioned ci-shell.yml pin in ci-cd.yml"
+  assert_equal "$prek" "$ci"
 }
 
 @test "renovate has a customManager for prek.toml (built-in pre-commit manager ignores it)" {
@@ -857,6 +921,16 @@ todo_layout() {
   done
 }
 
+@test "the Docker build context leaves out what git ignores, and local secrets" {
+  # The test image copies the whole context (COPY . …): a local build must see
+  # the tracked files only, as CI's checkout does.
+  local pattern missing=()
+  while IFS= read -r pattern; do
+    grep -qxF -- "$pattern" "$REPO_ROOT/.dockerignore" || missing+=("$pattern")
+  done < <(grep -vE '^(#|$)' "$REPO_ROOT/.gitignore"; printf '%s\n' .git '.env*' '.dev.vars*')
+  [ "${#missing[@]}" -eq 0 ] || fail "missing from .dockerignore: ${missing[*]}"
+}
+
 @test "every Docker test stage is run by CI and has a make target and a compose service" {
   local stage
   for stage in $(sed -n 's/^FROM base AS \(test-[a-z-]*\)$/\1/p' "$REPO_ROOT/tests/docker/Dockerfile.test"); do
@@ -867,6 +941,23 @@ todo_layout() {
     run grep -q "^docker-$stage:" "$REPO_ROOT/Makefile"
     assert_success
   done
+}
+
+@test "a Docker stage runs init.sh's security profile on a node the infra repo manages" {
+  run sed -n '/^FROM base AS test-security-infra$/,/^FROM /p' "$REPO_ROOT/tests/docker/Dockerfile.test"
+  assert_success
+  # The marker exists before init.sh runs, and the whole entry point runs (the
+  # sourcing of os/helpers/infra.sh is what the Bats stubs cannot cover).
+  local marker run
+  marker=$(grep -n '00-infra-hardening.conf' <<<"$output" | head -n1 | cut -d: -f1)
+  run=$(grep -n 'init.sh -p security' <<<"$output" | head -n1 | cut -d: -f1)
+  [ -n "$marker" ] && [ -n "$run" ] && [ "$marker" -lt "$run" ]
+  # sshd, the firewall and Fail2Ban are left alone; the rest still applies.
+  assert_output --partial '! sudo test -e /etc/ssh/sshd_config.d/00-hardening.conf'
+  assert_output --partial '! dpkg -s ufw'
+  assert_output --partial '! sudo test -e /etc/fail2ban/jail.local'
+  assert_output --partial 'test -f /etc/sysctl.d/99-security.conf'
+  assert_output --partial 'test -f /etc/apt/apt.conf.d/52dotfiles-unattended-upgrades'
 }
 
 @test "a Docker stage runs the full-mode security steps without swallowing failures" {
@@ -1052,4 +1143,23 @@ todo_layout() {
   # Every issue of the batch still closes on merge.
   run bash -c "sed -n '/^## 12\\. Summary/,\$p' '$CONFIG_DIR/commands/next-issue.md' | grep -c 'Fixes #<number>'"
   [ "$output" -ge 2 ]
+}
+
+# --- The shell reference pages list everything the config defines ---
+
+@test "docs/config/zsh.md documents every alias and plugin .zshrc defines" {
+  local name missing=()
+  for name in $(sed -n 's/^ *alias \([A-Za-z0-9_-]*\)=.*/\1/p' "$CONFIG_DIR/zsh/.zshrc") \
+    $(sed -n '/^plugins=(/,/^)/s/^  \([a-z-]*\)$/\1/p' "$CONFIG_DIR/zsh/.zshrc"); do
+    grep -qE "^\| \`$name\` " "$REPO_ROOT/docs/config/zsh.md" || missing+=("$name")
+  done
+  [ "${#missing[@]}" -eq 0 ] || fail "undocumented in zsh.md: ${missing[*]}"
+}
+
+@test "docs/config/shell.md documents every function functions.sh defines" {
+  local name missing=()
+  for name in $(sed -n 's/^\([a-z][a-z0-9_]*\)() {$/\1/p' "$CONFIG_DIR/shell/functions.sh"); do
+    grep -qF "#### \`$name\`" "$REPO_ROOT/docs/config/shell.md" || missing+=("$name")
+  done
+  [ "${#missing[@]}" -eq 0 ] || fail "undocumented in shell.md: ${missing[*]}"
 }
