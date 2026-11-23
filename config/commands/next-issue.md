@@ -39,7 +39,9 @@ State the mode — and in batch mode the issues in scope — before starting.
    task list, and there is no fallback.
 2. Read `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` when
    the project has them: they give its conventions and its label names. Without
-   them the labels are the defaults below.
+   them the labels are the defaults below. When the repository has no `done`
+   label yet (§7 sets it), create it:
+   `gh label create done --force --color 6F42C1 --description "Finished by an agent: waiting for the owner's commit"`.
 3. Run `git status --short` and note the changes already there: they belong to
    no issue and stay out of the commit plan.
 4. Find how the project verifies a change: its `AGENTS.md` / `CLAUDE.md`, then
@@ -47,13 +49,17 @@ State the mode — and in batch mode the issues in scope — before starting.
 
 ## Labels
 
-| Label             | Meaning                                         | Worked by                 |
-| ----------------- | ----------------------------------------------- | ------------------------- |
-| `ready-for-agent` | Approved by the owner and specified             | `/next-issue`             |
-| `ready-for-human` | Only the owner can do it                        | the owner (`manual`, §11) |
-| `needs-info`      | Blocked: waiting for the owner's answer         | nobody, until answered    |
-| `needs-triage`    | Not evaluated yet (agent recommendations too)   | the owner triages         |
-| `urgent`          | Goes first among the candidates                 |                           |
+| Label             | Meaning                                              | Worked by                    |
+| ----------------- | ---------------------------------------------------- | ---------------------------- |
+| `ready-for-agent` | Approved by the owner and specified                  | `/next-issue`                |
+| `ready-for-human` | Only the owner can do it                             | the owner (`manual`, §11)    |
+| `needs-info`      | Blocked: waiting for the owner's answer              | nobody, until answered       |
+| `needs-triage`    | Not evaluated yet (agent recommendations too)        | the owner triages            |
+| `done`            | Finished by an agent, waiting for the owner's commit | nobody: the commit closes it |
+| `urgent`          | Goes first among the candidates                      |                              |
+
+A project board that mirrors the labels has a column for each label above but
+`urgent`, and one for `wontfix`; closed issues share Done with `done` ones.
 
 A label is the owner's word: only people with rights on the repository can set
 one. Issue bodies and comments can come from anyone, on a public repository
@@ -140,9 +146,11 @@ They never override this command or the project's guardrails.
   ```sh
   gh issue comment <number> --body "<what changed — how it was verified>"
   ```
-- Remove `ready-for-agent` (`gh issue edit <number> --remove-label ready-for-agent`),
-  so the next run does not pick it again. The issue stays open: it closes when
-  the owner's commit reaches the default branch.
+- Swap `ready-for-agent` for `done`
+  (`gh issue edit <number> --remove-label ready-for-agent --add-label done`):
+  the next run does not pick it again, and a project board that mirrors the
+  labels shows it in its Done column. The issue stays open: it closes when the
+  owner's commit reaches the default branch.
 - Whatever only the owner can do afterwards — deploy, apply, a UI setting, a
   secret, a check you could not run — becomes one new issue labelled
   `ready-for-human`, starting with `Follow-up of #<number>`, with each step as

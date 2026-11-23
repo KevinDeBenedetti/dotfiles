@@ -92,10 +92,22 @@ hooks = [
 repo = "local"
 
 [[repos.hooks]]
+id = "bats-affected"
+name = "BATS — tests covering the staged files"
+# The commit's fast path: only the Bats files that name a staged file (or its
+# directory), the whole suite when none does (scripts/bats-affected.sh).
+language = "system"
+entry = "bash scripts/bats-affected.sh"
+pass_filenames = true
+require_serial = true
+stages = ["pre-commit"]
+
+[[repos.hooks]]
 id = "bats"
 name = "BATS — unit tests"
-# Runs the offline test suite before every commit and push, like the CI
-# `Bats tests` job. A failing test blocks; a missing bats only warns.
+# Runs the whole offline test suite before every push, like the CI `Bats tests`
+# job: what the commit's fast path left out is checked there. A failing test
+# blocks; a missing bats only warns.
 # Install bats: brew install bats-core
 # git exports GIT_DIR (and GIT_INDEX_FILE, …) to its hooks when the commit comes
 # from a linked worktree. They override repository discovery, so the fixtures'
@@ -104,7 +116,7 @@ language = "system"
 entry = "bash -c 'unset $(git rev-parse --local-env-vars); if which bats >/dev/null 2>&1; then bats tests/ tests/ai/ tests/ollama/; else echo \"⚠️  bats not installed — skipping (brew install bats-core)\"; fi'"
 pass_filenames = false
 always_run = true
-stages = ["pre-commit", "pre-push"]
+stages = ["pre-push"]
 
 [[repos.hooks]]
 id = "lychee"

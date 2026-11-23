@@ -1,7 +1,9 @@
 // The mapping between an issue's triage labels and its Stage column on the
 // board, both ways (docs/config/issue-workflow.md#project-board).
 
-// Column name → the triage label it stands for (Done has none).
+// Column name → the triage label it stands for. Done has none of its own: a
+// closed issue is there, and so is an open one labelled `done`, finished by an
+// agent and waiting for the owner's commit to close it.
 const COLUMNS = {
   "Needs triage": "needs-triage",
   "Needs info": "needs-info",
@@ -11,7 +13,9 @@ const COLUMNS = {
   "Done": null,
 };
 
-const TRIAGE = Object.values(COLUMNS).filter(Boolean);
+const DONE = "done";
+// The labels a move replaces: one per column, and `done`.
+const TRIAGE = [...Object.values(COLUMNS).filter(Boolean), DONE];
 
 const normalize = (name) => name.trim().toLowerCase();
 // sameName(a, b): whether two column names match, whatever their case and
@@ -22,7 +26,7 @@ const sameName = (a, b) => normalize(a ?? "") === normalize(b ?? "");
 // stops the work wins.
 export function stageFor(labels, state) {
   if (labels.includes("wontfix")) return "Won't fix";
-  if (state === "CLOSED") return "Done";
+  if (state === "CLOSED" || labels.includes(DONE)) return "Done";
   if (labels.includes("needs-info")) return "Needs info";
   if (labels.includes("ready-for-human")) return "Ready for human";
   if (labels.includes("ready-for-agent")) return "Ready for agent";

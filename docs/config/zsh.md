@@ -118,6 +118,7 @@ See the `vpn` function in [Shell](./shell.md).
 | ------- | ------------------------------------- |
 | `arm`   | Switch to ARM64 (Apple Silicon) shell |
 | `intel` | Switch to x86_64 (Rosetta) shell      |
+| `gs`    | `git status`                          |
 
 ## Sourced files
 

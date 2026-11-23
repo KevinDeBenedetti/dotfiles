@@ -29,16 +29,20 @@ gh label create needs-triage    --force --color FBCA04 --description "Not evalua
 gh label create needs-info      --force --color D876E3 --description "Blocked: waiting for the owner's answer"
 gh label create ready-for-agent --force --color 0E8A16 --description "Approved and specified: /next-issue works it"
 gh label create ready-for-human --force --color 1D76DB --description "Only the owner can do it: /next-issue manual"
+gh label create done            --force --color 6F42C1 --description "Finished by an agent: waiting for the owner's commit"
+gh label create wontfix         --force --color FFFFFF --description "Will not be actioned"
 gh label create urgent          --force --color B60205 --description "Goes first among the ready-for-agent issues"
 ```
 
-| Label             | Meaning                                       | Worked by              |
-| ----------------- | --------------------------------------------- | ---------------------- |
-| `ready-for-agent` | Approved by the owner and specified           | `/next-issue`          |
-| `ready-for-human` | Only the owner can do it                      | `/next-issue manual`   |
-| `needs-info`      | Blocked: waiting for the owner's answer       | nobody, until answered |
-| `needs-triage`    | Not evaluated yet (agent recommendations too) | the owner triages      |
-| `urgent`          | Goes first among the candidates               |                        |
+| Label             | Meaning                                       | Worked by                    |
+| ----------------- | --------------------------------------------- | ---------------------------- |
+| `ready-for-agent` | Approved by the owner and specified           | `/next-issue`                |
+| `ready-for-human` | Only the owner can do it                      | `/next-issue manual`         |
+| `needs-info`      | Blocked: waiting for the owner's answer       | nobody, until answered       |
+| `needs-triage`    | Not evaluated yet (agent recommendations too) | the owner triages            |
+| `done`            | Finished by an agent, waiting for your commit | nobody: the commit closes it |
+| `wontfix`         | Will not be actioned                          | nobody                       |
+| `urgent`          | Goes first among the candidates               |                              |
 
 A project that names its labels differently says so in its
 `docs/agents/triage-labels.md`, which the command reads first.
@@ -61,14 +65,14 @@ organization when a card moves.
 A board groups its cards by a single-select field, not by label, so the
 project has a `Stage` field that mirrors the labels:
 
-| `Stage` column    | Issue                                  |
-| ----------------- | -------------------------------------- |
-| `Needs triage`    | `needs-triage`, or no triage label yet |
-| `Needs info`      | `needs-info`                           |
-| `Ready for agent` | `ready-for-agent`                      |
-| `Ready for human` | `ready-for-human`                      |
-| `Won't fix`       | `wontfix`, open or closed              |
-| `Done`            | closed                                 |
+| `Stage` column    | Issue                                                 |
+| ----------------- | ----------------------------------------------------- |
+| `Needs triage`    | `needs-triage`, or no triage label yet                |
+| `Needs info`      | `needs-info`                                          |
+| `Ready for agent` | `ready-for-agent`                                     |
+| `Ready for human` | `ready-for-human`                                     |
+| `Won't fix`       | `wontfix`, open or closed                             |
+| `Done`            | `done` (finished, waiting for your commit), or closed |
 
 When several triage labels are set, the one that stops the work wins:
 `wontfix`, then `needs-info`, `ready-for-human`, `ready-for-agent`.
@@ -85,11 +89,11 @@ A GitHub App sends its webhooks to a Cloudflare Worker, in
 - **Board to labels:** a card moved to another column updates its issue, in
   one call, as the table below says.
 
-| Card moved to  | Issue                                                             |
-| -------------- | ----------------------------------------------------------------- |
-| an open column | its triage label replaces the others; reopened if closed          |
-| `Won't fix`    | `wontfix` replaces the other triage labels; closed as not planned |
-| `Done`         | loses `wontfix`; closed as completed                              |
+| Card moved to  | Issue                                                                 |
+| -------------- | --------------------------------------------------------------------- |
+| an open column | its triage label replaces the others (and `done`); reopened if closed |
+| `Won't fix`    | `wontfix` replaces the other triage labels; closed as not planned     |
+| `Done`         | loses `wontfix`; closed as completed                                  |
 
 Other labels, such as `urgent`, are kept. Both directions read the issue back
 from GitHub instead of trusting the event, and leave alone what is already in
@@ -225,6 +229,24 @@ repository's private vulnerability reporting.
 
 The same goes for everything the agent writes on GitHub: no secret, no real IP
 address or host name, no content of a gitignored file.
+
+## Filing your own requests
+
+`/new-issue` turns what you ask for into issues `/next-issue` can work. Give it
+the requests as free text: a list, a paragraph, several asks in a sentence.
+
+| Invocation                      | Effect                                      |
+| ------------------------------- | ------------------------------------------- |
+| `/new-issue <requests>`         | Files one issue per change                  |
+| `/new-issue dry-run <requests>` | Shows the drafts in the chat, files nothing |
+
+The agent splits the requests into changes (one reviewable commit each),
+groups the requests a single change resolves, and shows you that mapping. It
+reads the code each change touches, so every issue names its files and a
+checkable result, and asks you once about what only you can decide. An open
+issue that already covers a change is reported, not filed again. Your requests
+are approved work: a specified one is labelled `ready-for-agent`, one still
+waiting on your answer `needs-info`.
 
 ## Auditing a repository
 

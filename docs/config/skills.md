@@ -90,6 +90,9 @@ and `/next-task manual` guides you through its manual steps with the
 `/next-issue` does the same over a project's GitHub issues, picked by label and
 recorded as comments: see [Issue Workflow](./issue-workflow.md).
 
+`/new-issue` files your own requests as issues, one per change, grouped and
+deduplicated: see [Issue Workflow](./issue-workflow.md#filing-your-own-requests).
+
 `/audit` inspects a whole repository, read-only, and files its findings as
 `needs-triage` issues for `/next-issue`: see
 [Issue Workflow](./issue-workflow.md#auditing-a-repository).

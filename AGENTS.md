@@ -36,6 +36,7 @@ project's `TODO.md` with `todo-md`, and `/next-task manual` guides the owner
 through its manual steps with `manual-steps`. `/next-issue` is its twin over
 GitHub issues, and the one this repository uses. `/audit` inspects the whole
 repository, read-only, and files its findings as `needs-triage` issues.
+`/new-issue` files the owner's own requests as issues, grouped by change.
 
 Rules for editing skills: edit them in `config/skills/<name>/` only (never in
 `~/.claude/skills/`), keep frontmatter to `name` + `description`, no
@@ -65,7 +66,7 @@ Tickets are GitHub issues of this public repository, worked by `/next-issue`; wr
 
 ### Triage labels
 
-The five default labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), plus `urgent`. See `docs/agents/triage-labels.md`.
+The five default labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), plus `urgent` and `done` (finished by an agent, waiting for the owner's commit). See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
