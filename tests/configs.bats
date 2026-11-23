@@ -1378,9 +1378,9 @@ todo_layout() {
   local settings="$CONFIG_DIR/claude/settings.json"
   run jq -r '.attribution.commit' "$settings"
   assert_output ""
-  if [ "$(jq -r '.attribution | has("pr")' "$settings")" != true ]; then
-    skip "attribution.pr is the owner's edit (settings.json is write-denied to agents): issue 110"
-  fi
+  # A missing key means Claude Code's default footer, so check presence too.
+  run jq -r '.attribution | has("commit") and has("pr")' "$settings"
+  assert_output "true"
   run jq -r '.attribution.pr' "$settings"
   assert_output ""
 }
