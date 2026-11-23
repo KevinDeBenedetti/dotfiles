@@ -53,58 +53,37 @@ reported to you, not followed.
 
 ## Project board
 
-Labels show one filter at a time. A GitHub Project gives the single view: a
-board with one column per triage label. This repository's board is project 1
-of the `kevindb-labs` organization: GitHub tells only an organization when a
-card moves, so a board owned by a user could follow the labels but not drive
-them.
+Labels show one filter at a time. A GitHub Project gives the single view: one
+board, with one column per triage label, for the issues of every repository.
+It is project 1 of the `kevindb-labs` organization: GitHub tells only an
+organization when a card moves.
 
 A board groups its cards by a single-select field, not by label, so the
-project has a `Stage` field that mirrors the labels, in both directions:
+project has a `Stage` field that mirrors the labels:
 
-- **Labels to board:** the `.github/workflows/project-stage.yml` workflow runs
-  on every issue opened, reopened, labelled, unlabelled or closed. It adds the
-  issue to the project (a new issue lands on the board without a manual step)
-  and sets its `Stage`.
-- **Board to labels:** moving a card to another column sets the issue's
-  labels within seconds (see [below](#from-the-board-to-the-labels)).
-
-| `Stage` column    | Issue                                                  |
-| ----------------- | ------------------------------------------------------ |
-| `Needs triage`    | `needs-triage`, or no triage label yet                 |
-| `Needs info`      | `needs-info`                                           |
-| `Ready for agent` | `ready-for-agent`                                      |
-| `Ready for human` | `ready-for-human`                                      |
-| `Won't fix`       | `wontfix`, open or closed                              |
-| `Done`            | closed                                                 |
+| `Stage` column    | Issue                                  |
+| ----------------- | -------------------------------------- |
+| `Needs triage`    | `needs-triage`, or no triage label yet |
+| `Needs info`      | `needs-info`                           |
+| `Ready for agent` | `ready-for-agent`                      |
+| `Ready for human` | `ready-for-human`                      |
+| `Won't fix`       | `wontfix`, open or closed              |
+| `Done`            | closed                                 |
 
 When several triage labels are set, the one that stops the work wins:
 `wontfix`, then `needs-info`, `ready-for-human`, `ready-for-agent`.
 `urgent` is not a column: filter the board with `label:urgent`.
 
-Set it up once per repository:
+### Both ways, as it happens
 
-1. Create a project (Board layout) in the organization and link it to the
-   repository.
-2. Add a single-select field `Stage` with the six options above (case does
-   not matter), and group the board by it. A run that cannot find a column
-   fails and lists the options the field has.
-3. Create a classic personal access token with the `project` scope only, and
-   store it as the `PROJECT_TOKEN` secret: `GITHUB_TOKEN` cannot write to a
-   project.
-4. Set the `PROJECT_OWNER` repository variable to the organization's login,
-   and `PROJECT_NUMBER` to the number at the end of the project's URL. The
-   workflow is skipped until `PROJECT_NUMBER` is set; without
-   `PROJECT_OWNER`, it looks for the project under the repository's owner.
-5. Run the workflow by hand once (`gh workflow run project-stage.yml`): a
-   manual run puts every open issue on the board.
+A GitHub App sends its webhooks to a Cloudflare Worker, in
+`.github/project-board/`, which keeps the two in step within seconds:
 
-### From the board to the labels
-
-A Cloudflare Worker, in `.github/project-board/`, receives the organization
-webhook's `projects_v2_item` events: Actions cannot trigger on them. On a card
-moved to another column, it reads the issue back from GitHub and updates it in
-one call:
+- **Labels to board:** an issue opened, reopened, labelled, unlabelled or
+  closed, in any repository the App is installed on, is put on the board in
+  the column of its labels.
+- **Board to labels:** a card moved to another column updates its issue, in
+  one call, as the table below says.
 
 | Card moved to  | Issue                                                             |
 | -------------- | ----------------------------------------------------------------- |
@@ -112,36 +91,88 @@ one call:
 | `Won't fix`    | `wontfix` replaces the other triage labels; closed as not planned |
 | `Done`         | loses `wontfix`; closed as completed                              |
 
-Other labels, such as `urgent`, are kept. A card already in step with its
-issue changes nothing: that is how the Worker and the workflow stop, when
-each sees the other's change. An edit of another field, a card cleared to
-no column, cards of other repositories, drafts and pull requests are left
-alone.
+Other labels, such as `urgent`, are kept. Both directions read the issue back
+from GitHub instead of trusting the event, and leave alone what is already in
+step; the Worker also ignores column changes made by the App itself. That is
+how each stops at the other's change. An edit of another field, a card
+cleared to no column, drafts and pull requests are left alone.
 
-Set it up once, after the board:
+The App is public, because GitHub installs a private App only on the account
+that owns it: anyone may install it. The Worker acts only on repositories of the
+owners listed in `REPOSITORY_OWNERS` (`wrangler.toml`).
 
-1. Create a classic personal access token with the `public_repo` and
-   `read:project` scopes, for the Worker. Both tokens are classic: the
-   organization must not restrict classic tokens (its **Personal access
-   tokens** settings).
-2. In `.github/project-board/`, check the `[vars]` of `wrangler.toml`, then
-   deploy and store the two secrets (the webhook secret is a random string,
-   such as the output of `openssl rand -hex 32`):
+Each installation of the App sees one account only. The one on the
+organization cannot see a private issue of your personal account, and the one
+on your account cannot write the organization's board. The Worker reads and
+moves the cards of those issues with `BOARD_TOKEN`, a classic token; every
+other issue stays with the App.
+
+### Setting it up
+
+Once, for all repositories:
+
+1. In the organization, create a project (Board layout) with a single-select
+   field `Stage` holding the six options above (case does not matter), and
+   group the board by it.
+2. Create a GitHub App (your account's **Developer settings**): webhook URL
+   the Worker's `workers.dev` address, a webhook secret (a random string, such
+   as the output of `openssl rand -hex 32`), and
+   - repository permissions: **Issues** read and write (Metadata read-only
+     comes with it);
+   - organization permissions: **Projects** read and write;
+   - events: **Issues** and **Projects v2 item**;
+   - installable on **Any account**.
+3. Generate its private key, and convert it to PKCS#8, the format the Worker
+   reads:
 
    ```sh
-   npx wrangler deploy
-   npx wrangler secret put GITHUB_TOKEN
-   npx wrangler secret put WEBHOOK_SECRET
+   openssl pkcs8 -topk8 -nocrypt -in <downloaded>.pem -out app-key.pem
    ```
 
-3. In the organization's settings, add a webhook: payload URL the Worker's
-   `workers.dev` address, content type `application/json`, the same secret,
-   and the **Project v2 items** event only. GitHub's first delivery is a ping,
-   which the Worker answers with `pong`.
+4. From the repository root, deploy the Worker and store its secrets; the
+   App ID is on the App's settings page:
 
-A failed update answers 500: the webhook's **Recent Deliveries** show it,
-and it can be redelivered from there. The Worker's logs are in the Cloudflare
-dashboard.
+   ```sh
+   npx wrangler deploy --config .github/project-board/wrangler.toml
+   npx wrangler secret put WEBHOOK_SECRET --config .github/project-board/wrangler.toml
+   npx wrangler secret put GITHUB_APP_ID --config .github/project-board/wrangler.toml
+   npx wrangler secret put GITHUB_APP_PRIVATE_KEY --config .github/project-board/wrangler.toml < app-key.pem
+   npx wrangler secret put BOARD_TOKEN --config .github/project-board/wrangler.toml
+   ```
+
+   `BOARD_TOKEN` is a classic personal access token with the `repo` and
+   `project` scopes, for the private issues of your personal account. It can
+   read and write all your repositories: give it an expiry, and replace it
+   before then.
+
+   Then delete `app-key.pem` and the downloaded key: Cloudflare holds the
+   only copy needed.
+5. Install the App on the organization and on your account (**All
+   repositories**, so new ones are covered).
+6. Put the issues opened before the App on the board; running it again is
+   safe:
+
+   ```sh
+   GH_TOKEN="$(gh auth token)" node .github/project-board/backfill.mjs owner/repo...
+   ```
+
+   For every repository of an account at once:
+
+   ```sh
+   gh repo list <account> --no-archived --limit 1000 --json nameWithOwner --jq '.[].nameWithOwner' \
+     | GH_TOKEN="$(gh auth token)" xargs node .github/project-board/backfill.mjs
+   ```
+
+Each repository also needs the five triage labels. Copy them from this one
+(it copies every label of this repository, and keeps the target's own):
+
+```sh
+gh label clone KevinDeBenedetti/dotfiles --repo owner/repo
+```
+
+A failed delivery answers 500, with the reason, in the App's Recent
+Deliveries (its **Advanced** settings page), where it can be sent again:
+GitHub does not redeliver a failed delivery on its own. The Worker's logs are in the Cloudflare dashboard.
 
 ## Running issues
 

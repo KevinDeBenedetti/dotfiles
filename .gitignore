@@ -28,3 +28,5 @@ id_ecdsa
 TODO.md
 # Specs and wayfinder maps of the agent skills (docs/agents/issue-tracker.md)
 .scratch/
+# Wrangler build output and account cache (.github/project-board/)
+.wrangler/

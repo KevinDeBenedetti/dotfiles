@@ -1,8 +1,9 @@
-# Cloudflare Worker that sets an issue's labels from its column on the
-# organization's project board (docs/config/issue-workflow.md#from-the-board-to-the-labels).
-# Deploy from this directory: `npx wrangler deploy`.
-# Secrets are never written here: set WEBHOOK_SECRET and GITHUB_TOKEN with
-# `npx wrangler secret put <name>`.
+# Cloudflare Worker receiving the webhooks of the GitHub App that keeps the
+# organization's board and the triage labels in step
+# (docs/config/issue-workflow.md#project-board).
+# Deploy: `npx wrangler deploy --config .github/project-board/wrangler.toml`.
+# Secrets are never written here: set WEBHOOK_SECRET, GITHUB_APP_ID,
+# GITHUB_APP_PRIVATE_KEY and BOARD_TOKEN with `npx wrangler secret put <name>`.
 name = "project-board"
 main = "worker.mjs"
 compatibility_date = "2026-11-01"
@@ -12,9 +13,9 @@ workers_dev = true
 [vars]
 PROJECT_OWNER = "kevindb-labs"
 PROJECT_NUMBER = "1"
-# Issues of these repositories only (comma-separated owner/name): the Worker
-# never labels an issue whose repository does not use the triage labels.
-REPOSITORIES = "KevinDeBenedetti/dotfiles"
+# Accounts whose repositories use the triage labels (comma-separated). The App
+# is public, so anyone may install it: the Worker ignores every other owner.
+REPOSITORY_OWNERS = "KevinDeBenedetti,kevindb-labs"
 
 [observability]
 enabled = true
