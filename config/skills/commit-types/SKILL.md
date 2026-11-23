@@ -36,6 +36,8 @@ Every commit message is a Conventional Commit — never free-form text:
 - Other footers follow git trailer syntax, one blank line after the body:
   `Token: value` or `Token #value`, `-` instead of spaces (`Refs: #42`).
 - Output only the message: no code fences, quotes, emojis or preamble.
+- The message reads as the owner's own: no AI attribution, no
+  `Co-Authored-By` trailer naming an AI.
 
 Spec: <https://www.conventionalcommits.org/en/v1.0.0/>.
 

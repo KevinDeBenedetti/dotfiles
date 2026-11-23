@@ -1,3 +1,4 @@
+---
 services:
   # Run Bats unit tests
   test-bats:

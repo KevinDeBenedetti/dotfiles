@@ -134,7 +134,7 @@ export async function syncBoardToIssue(gh, env, itemId, fieldId, issueClient, bo
   if (!isTrackedRepository(env, repository)) return "ignored: another owner";
   // Another field was edited: a label change may still be on its way to the
   // Stage column, and re-applying the column now would undo it.
-  if (fieldId && item.stage?.field?.id && fieldId !== item.stage.field.id) return "ignored: another field";
+  if (fieldId !== item.stage?.field?.id) return "ignored: another field";
 
   const update = planFor(item.stage?.name, labelNames(issue), issue.state, issue.stateReason);
   if (!update) return "in step";

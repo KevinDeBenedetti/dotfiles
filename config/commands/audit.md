@@ -11,7 +11,8 @@ file the ones worth tracking as GitHub issues the owner triages.
      are worked by next-issue.md. -->
 
 Everything you write onto GitHub — issue titles and bodies — is in English,
-whatever the conversation language.
+whatever the conversation language, and reads as the owner's own work:
+no AI attribution.
 
 The audit is read-only: it changes no file of the project, installs nothing,
 applies nothing, and fixes nothing it finds. Its only writes are the issues of

@@ -66,6 +66,10 @@ async function onItem(env, { action, projects_v2_item: item, changes, sender }) 
   // The App's own writes (label to board) come back here: answering one could
   // undo a drag made meanwhile, and the labels already match it.
   if (sender?.type === "Bot" && sender.login === (await appLogin(env))) return reply("ignored: written by the App", 202);
+  // Only a delivery naming the edited field can be a column change: linking a
+  // pull request edits the card too, without naming one, and applying the
+  // card's column then turned a stale column back into labels (issue 111).
+  if (!changes?.field_value?.field_node_id) return reply("ignored: no field named", 202);
   const gh = await boardClient(env);
   const issueClient = (repository) => installationClient(env, `/repos/${repository}/installation`);
   return reply(await syncBoardToIssue(gh, env, item.node_id, changes?.field_value?.field_node_id, issueClient, boardToken(env)));

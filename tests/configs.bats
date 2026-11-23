@@ -1227,3 +1227,52 @@ todo_layout() {
     grep -qF "\`$label\`" "$REPO_ROOT/docs/agents/triage-labels.md" || fail "triage-labels.md misses $label"
   done
 }
+
+@test "make validate lints every tracked YAML file, as the prek hook does" {
+  run sed -n '/^validate:/,/^$/p' "$REPO_ROOT/Makefile"
+  assert_output --partial "git ls-files"
+  refute_output --partial "yamllint --strict .github/workflows/"
+  # The files it reaches pass, the compose file of the Docker rig included.
+  run bash -c "cd '$REPO_ROOT' && git ls-files '*.yml' '*.yaml' | grep -c docker-compose"
+  assert_output "1"
+  run bash -c "cd '$REPO_ROOT' && git ls-files -z '*.yml' '*.yaml' | xargs -0 yamllint --strict --config-file .yamllint.yml"
+  assert_success
+}
+
+@test "the Docker test-bats stage runs the zsh half of the shell function tests" {
+  run sed -n '/^FROM base AS test-bats$/,/^FROM /p' "$REPO_ROOT/tests/docker/Dockerfile.test"
+  assert_output --regexp 'apt-get install [^|]* zsh'
+  # Required there: a missing zsh fails the stage instead of skipping.
+  assert_output --partial 'REQUIRE_ZSH=1 bats'
+  run grep -F 'REQUIRE_ZSH' "$REPO_ROOT/tests/functions.bats"
+  assert_success
+}
+
+# --- The owner's work carries no AI attribution ---
+
+@test "AGENTS.md and the commit rules keep AI attribution out of the owner's work" {
+  run grep -qi 'no AI attribution' "$REPO_ROOT/AGENTS.md"
+  assert_success
+  run grep -qi 'no AI attribution' "$CONFIG_DIR/skills/commit-types/SKILL.md"
+  assert_success
+  # Its copy for VS Code's commit-message button says the same.
+  # (settings.json is JSON with comments: read as text.)
+  run grep -F 'commit message in English' "$CONFIG_DIR/vscode/settings.json"
+  assert_output --partial "no AI attribution"
+  # Every command writing to GitHub or proposing a commit says it too.
+  local cmd
+  for cmd in audit next-issue new-issue next-task; do
+    grep -qi 'no AI attribution' "$CONFIG_DIR/commands/$cmd.md" || fail "$cmd.md says nothing about attribution"
+  done
+}
+
+@test "Claude Code adds no attribution to commits or pull requests" {
+  local settings="$CONFIG_DIR/claude/settings.json"
+  run jq -r '.attribution.commit' "$settings"
+  assert_output ""
+  if [ "$(jq -r '.attribution | has("pr")' "$settings")" != true ]; then
+    skip "attribution.pr is the owner's edit (settings.json is write-denied to agents): issue 110"
+  fi
+  run jq -r '.attribution.pr' "$settings"
+  assert_output ""
+}
