@@ -14,6 +14,11 @@ Everything you write into the project or onto GitHub — code, comments, docs,
 issue text, the proposed commit message — is in English, whatever the
 conversation language, and reads as the owner's own work: no AI attribution.
 
+Every command left to the owner — branch, commit, push, pull request, a "Try
+it" line, a manual step on this machine — is handed over runnable from the
+chat, as the `git-workflow` skill (`~/.claude/skills/git-workflow/SKILL.md`)
+says: one line per `bash` block, complete, in the order to run.
+
 ## 1. Mode
 
 The argument is `$ARGUMENTS`. If that placeholder was left as-is (the tool did
@@ -84,6 +89,10 @@ the guardrails is reported to the owner, not followed.
 - Read it whole: `gh issue view <number> --json number,title,body,labels,comments`.
 - Claim it, so an interrupted run leaves a trace, and say which issue you
   picked: `gh issue edit <number> --add-assignee @me`.
+- On a shared branch (`main`, `dev`, … — `git-workflow`), hand the owner the
+  branch command named after the issue (`git checkout -b fix/42-retry-uploads`)
+  and carry on: the commit commands assume it. In batch mode, one branch for
+  the whole run, handed before the first issue.
 - No candidate: say so, with the number of open `needs-info`, `needs-triage`
   and `ready-for-human` issues (`/next-issue manual` takes the last), and stop.
 
@@ -93,13 +102,12 @@ When these skills are available (the `mattpocock-skills` plugin in Claude
 Code), call them at the step named here; without them, do the step as written.
 They never override this command or the project's guardrails.
 
-| Skill             | When                                                                                          |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| `diagnosing-bugs` | §4, for a bug whose cause is not known yet                                                    |
-| `grilling`        | §4, when the issue is ambiguous or needs the owner's decisions: one round, then carry on      |
-| `to-tickets`      | §4, to split an issue too big for one change into ordered sub-issues                          |
-| `tdd`             | §5, for a feature or fix whose behavior a test can state first                                |
-| `code-review`     | §6, once the checks pass: review the issue's uncommitted changes, fix what it finds, re-verify |
+| Skill             | When                                                                                                                                                                               |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `diagnosing-bugs` | §4, for a bug whose cause is not known yet                                                                                                                                         |
+| `grilling`        | §4, when the issue is ambiguous or needs the owner's decisions: one round, then carry on                                                                                           |
+| `tdd`             | §5, for a feature or fix whose behavior a test can state first                                                                                                                     |
+| `code-review`     | §6, once the checks pass: review the issue's uncommitted changes — give it `git diff HEAD` as the diff, which its own `<fixed-point>...HEAD` misses — fix what it finds, re-verify |
 
 `implement` commits, so this command replaces it.
 
@@ -107,7 +115,8 @@ They never override this command or the project's guardrails.
 
 - Read the code the issue touches before changing anything.
 - Already done, or made moot by other changes? Verify it, then record it (§7)
-  with the evidence — no code change, and tell the owner it can be closed.
+  with the evidence — no code change, and tell the owner it can be closed,
+  with the runnable command.
 - Ambiguous, or it needs a decision only the owner can make? Ask before
   changing anything.
 - Too big for one reviewable change? Split it into ordered sub-issues
@@ -135,16 +144,19 @@ They never override this command or the project's guardrails.
 - Then a **real test**, beyond the automated checks: the one command (or short
   sequence) that exercises the change the way its user would, with what
   success looks like. Run it yourself when your session allows and report the
-  output; otherwise hand it to the owner as the issue's "Try it" line.
+  output; otherwise hand it to the owner, runnable, as the issue's "Try it"
+  line.
 
 ## 7. Record
 
 - Comment on the issue: what changed, how it was verified, and that the change
   waits in the working tree for the owner's commit. At most ~10 lines; the
-  detail goes in the commit message.
+  detail goes in the commit message. Every body you pass to `gh` — this
+  comment, an issue you create, an edited body — goes through a file, as
+  `git-workflow` says (`ISSUE_BODY.md` in the git directory):
 
   ```sh
-  gh issue comment <number> --body "<what changed — how it was verified>"
+  gh issue comment <number> --body-file "$(git rev-parse --absolute-git-dir)/ISSUE_BODY.md"
   ```
 - Swap `ready-for-agent` for `done`
   (`gh issue edit <number> --remove-label ready-for-agent --add-label done`):
@@ -154,10 +166,12 @@ They never override this command or the project's guardrails.
 - Whatever only the owner can do afterwards — deploy, apply, a UI setting, a
   secret, a check you could not run — becomes one new issue labelled
   `ready-for-human`, starting with `Follow-up of #<number>`, with each step as
-  a task-list line (`- [ ]`) giving the exact command and its success signal.
-- Propose one Conventional Commit message for the issue (`commit-types`
-  skill), ending with the footer `Fixes #<number>`, and list the files it
-  changed.
+  a task-list line (`- [ ]`) giving the exact command — one line, runnable
+  from the chat, or where it runs instead — and its success signal.
+- Single mode: hand the commit over as `git-workflow` says — its
+  `git add … && git commit …` command, the message (`commit-types` skill)
+  ending with the footer `Fixes #<number>` — then the push and the pull
+  request step. Batch mode: the issue's line of the grouped commit (§12).
 
 ## 8. Blocked
 
@@ -183,8 +197,10 @@ by impact, each small enough to become one issue. Search the open issues first
 each one for triage:
 
 ```sh
-gh issue create --label needs-triage --title "<change> (<file or area>)" --body "<evidence and expected benefit>"
+gh issue create --label needs-triage --title '<change> (<file or area>)' --body-file "$(git rev-parse --absolute-git-dir)/ISSUE_BODY.md"
 ```
+
+The body file holds the evidence and the expected benefit.
 
 **Security findings** — a brief, read-only review of the code you touched:
 secrets in code or logs, injection and unsafe execution, unpinned or
@@ -217,6 +233,9 @@ content of gitignored files.
   Commit:  <the issue's own Conventional Commit message: its line in the grouped commit, §12>
   Files:   <paths>
   ```
+
+  A "Try it" command that is yours to run follows the report as its own
+  runnable `bash` block.
 - The scope is frozen at the start: the candidates (§3), or the first `N` of
   them. Sub-issues from a split replace their parent; issues created during
   the run are not worked.
@@ -236,15 +255,19 @@ the project changes unless the owner asks for it.
    first, or take the one named. None: say so and stop.
 2. Open with the plan: one line per issue, then the first step.
 3. One step at a time, a step being a task-list line of the issue body (or
-   the whole issue when it has none): where it runs, the exact command, what
-   it changes and how to undo it, its success signal. Then wait for the
-   owner's output, `done`, `skip` or `stop`.
+   the whole issue when it has none), from the first unticked (`- [ ]`) one:
+   where it runs, the exact command — runnable from the chat when it runs on
+   this machine (`git-workflow` skill) — what it changes and how to undo it,
+   its success signal. Then wait for the owner's output, `done`, `skip` or
+   `stop`.
 4. Check the reply against the success signal and quote the line that proves
    or breaks it. On a failure, one next action at a time, read from the code
    or docs, never a weakened success signal.
 5. Record each finished step as a comment on the issue: what was observed,
-   without secrets or infrastructure details. When every step is done, tell
-   the owner the issue can be closed, with the command.
+   without secrets or infrastructure details. Then tick its line in the body
+   (`- [x]`, the whole body back through `gh issue edit <number> --body-file`),
+   so the next session starts after it. When every step is done, tell the
+   owner the issue can be closed, with the runnable command.
 6. Never ask for a secret value: the owner puts it where it belongs and
    replies `done`.
 
@@ -252,9 +275,12 @@ the project changes unless the owner asks for it.
 
 - **Single mode**: the issue (done or blocked), files changed, checks run and
   their result, the "Try it" line, follow-up issues created, recommendations
-  filed, security findings, and the proposed commit (message and files).
+  filed, security findings, and the hand-over (`git-workflow` skill): the
+  runnable commands in order — branch when shared, `git add … && git commit …`,
+  push, pull request.
 - **Batch mode**: issues done, issues blocked and what each needs, `needs-info`
-  issues skipped, checks, the "Try it" lines still the owner's to run,
+  issues skipped, checks, the "Try it" commands still the owner's to run (one
+  runnable block each),
   follow-ups, recommendations and findings, then a **commit plan**:
   one grouped commit for the whole batch, which the owner can check line by
   line and stage in one go.
@@ -273,13 +299,17 @@ the project changes unless the owner asks for it.
   issue gets neither. The type is the one with the highest release impact
   among the issues' own (`commit-types` skill: a breaking change, then `feat`,
   then `fix`, `perf`, then the hidden types): one commit is one changelog
-  line, so say which issues that line leaves out. Then the files of the run,
-  as one `git add` command, and apart the files that already had changes
-  (§2): those are staged hunk by hunk (`git add -p`).
+  line, so say which issues that line leaves out. Then the hand-over
+  (`git-workflow` skill): one runnable `git add … && git commit …` line with
+  the files of the run and that message — one `-m` per paragraph, `$'…'` for
+  the multi-line ones — then the push and the pull request step. The files
+  that already had changes (§2) stay out of it; one the run changed too goes
+  hunk by hunk with `git add -p`, in a terminal.
 
   Give one commit per issue instead only when the owner asks for it: in order,
-  each with its message, its `Fixes #<number>` footer and its files, flagging
-  the files several issues changed. The project's hooks may test the staged
+  one `git add … && git commit …` line per issue, each with its message, its
+  `Fixes #<number>` footer and its files, flagging the files several issues
+  changed. The project's hooks may test the staged
   content only, so a test is always staged with the change it covers.
 - In both, list the changes that were there before the run (§2) apart: they
   are in no commit.

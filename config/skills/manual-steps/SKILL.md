@@ -78,9 +78,11 @@ Before presenting a step, check read-only what you can:
   ready ones (`2 of 4`).
 - Where it runs — directory, repository, host, UI page — and when or why, if
   the step says.
-- The exact commands, copy-paste ready: the step's own, verbatim, with the
-  placeholders you can resolve filled in (`<ns>`, a date); ask for the
-  others. One block per command whose result the owner must read.
+- The exact commands, runnable from the chat as the `git-workflow` skill
+  says: the step's own, verbatim, with the placeholders you can resolve
+  filled in (`<ns>`, a date); ask for the others. One line per `bash` block,
+  one block per command whose result the owner must read. A command that
+  prompts, or runs on another machine, says where it runs instead.
 - For an action that changes something: what it changes and how to undo it.
   Say so plainly when it cannot be undone.
 - The success signal, then how to answer: the output (or the lines that
@@ -95,7 +97,7 @@ boxes to tick) goes in parts, one per message, each with its success signal.
 
 Once the release job is green, from any terminal:
 
-```sh
+```bash
 curl -s https://example.com/version
 ```
 
@@ -185,9 +187,10 @@ When the scope is done, no ready step is left, or the owner says `stop`:
 - The steps done, partial, dropped and skipped; the waiting ones, with what
   they wait for and the next date, if one tells.
 - The tasks unblocked or handed off, the steps added or corrected.
-- One proposed Conventional Commit for the `TODO.md` change (`commit-types`),
-  such as `chore(todo): record manual steps 1.1 and 1.2` — none when git
-  ignores `TODO.md`. A task worked during the session gets its own commit,
-  and the changes noted at the start are in none. Do not commit.
+- One Conventional Commit for the `TODO.md` change (`commit-types`), such as
+  `chore(todo): record manual steps 1.1 and 1.2`, handed over as a runnable
+  command (`git-workflow`) — none when git ignores `TODO.md`. A task worked
+  during the session gets its own commit, and the changes noted at the start
+  are in none. The owner runs them.
 - What comes next: the next step to be ready, and when; the task `next-task`
   would take.

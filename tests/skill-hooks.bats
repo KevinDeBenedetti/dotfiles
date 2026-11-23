@@ -135,6 +135,46 @@ session() { # session [source] — run the session hook, print its JSON
   assert_output ""
 }
 
+@test "router: a commit or push the owner ran from the chat asks for git-workflow, plugin or not" {
+  git -C "$REPO" symbolic-ref HEAD refs/heads/feat/x
+  run prompt "<bash-input>git push</bash-input><bash-stdout></bash-stdout><bash-stderr>To github.com:o/r.git
+   1a2b3c4..5d6e7f8  feat/x -> feat/x</bash-stderr>"
+  assert_output --partial '`git-workflow`'
+  assert_output --partial 'pushed `feat/x`'
+  assert_output --partial 'pull request'
+  # A message that names an error is no failure: git's own start the line.
+  run prompt "<bash-input>git add a.sh && git commit -m 'fix: retry on error: 503'</bash-input><bash-stdout>[feat/x 5d6e7f8] fix: retry on error: 503
+ 1 file changed</bash-stdout><bash-stderr></bash-stderr>"
+  assert_output --partial 'committed on `feat/x`'
+  assert_output --partial 'the push command'
+  # On a shared branch the commit has to move off it first.
+  assert_output --partial 'branch command that moves the commit off it'
+  run prompt "<bash-input>git commit -m 'docs: explain when to push'</bash-input><bash-stdout>[feat/x 6e7f8a9] docs: explain when to push</bash-stdout><bash-stderr></bash-stderr>"
+  assert_output --partial 'committed on'
+  echo '{}' > "$HOME/.claude/settings.json"
+  run prompt "<bash-input>git -C sub push -u origin feat/x</bash-input><bash-stdout></bash-stdout><bash-stderr>branch 'feat/x' set up to track 'origin/feat/x'.</bash-stderr>"
+  assert_output --partial '`git-workflow`'
+  DOTFILES_SKILL_ROUTER=off run prompt "<bash-input>git push</bash-input><bash-stdout></bash-stdout><bash-stderr></bash-stderr>"
+  assert_output ""
+}
+
+@test "router: silent for a commit or push that failed, and for other commands" {
+  run prompt "<bash-input>git push</bash-input><bash-stdout></bash-stdout><bash-stderr> ! [rejected]        feat/x -> feat/x (fetch first)
+error: failed to push some refs</bash-stderr>"
+  assert_output ""
+  run prompt "<bash-input>git commit -m 'fix: a'</bash-input><bash-stdout>shellcheck....Failed
+- hook id: shellcheck</bash-stdout><bash-stderr></bash-stderr>"
+  assert_output ""
+  run prompt "<bash-input>git commit -m 'fix: a'</bash-input><bash-stdout></bash-stdout><bash-stderr>fatal: unable to auto-detect email address</bash-stderr>"
+  assert_output ""
+  # push or commit as a word, not as git's subcommand.
+  local other
+  for other in 'git status --short' 'git stash push -m wip' 'git log --grep push' 'git help commit' 'echo git push'; do
+    run prompt "<bash-input>$other</bash-input><bash-stdout> M a.sh</bash-stdout><bash-stderr></bash-stderr>"
+    assert_output ""
+  done
+}
+
 @test "router: still hints for an owner's prompt that quotes an agent tag mid-text" {
   run prompt "why does the <agent-message> parser crash on empty input"
   assert_output --partial 'diagnosing-bugs'
@@ -188,10 +228,28 @@ session() { # session [source] — run the session hook, print its JSON
   assert_output ""
 }
 
-@test "context: silent when switched off or when the plugin is not enabled" {
+@test "context: on a shared branch, asks for the branch command before the first commit" {
+  local branch
+  for branch in main dev; do
+    git -C "$REPO" symbolic-ref HEAD "refs/heads/$branch"
+    run bash -c "$(declare -f session); REPO='$REPO' CONTEXT='$CONTEXT' session | jq -r .hookSpecificOutput.additionalContext"
+    assert_output --partial "This session is on \`$branch\`"
+    assert_output --partial 'git checkout -b'
+    assert_output --partial '`git-workflow`'
+  done
+  git -C "$REPO" symbolic-ref HEAD refs/heads/feat/x
+  run bash -c "$(declare -f session); REPO='$REPO' CONTEXT='$CONTEXT' session | jq -r .hookSpecificOutput.additionalContext"
+  refute_output --partial 'git checkout -b'
+}
+
+@test "context: silent when switched off; without the plugin, only the branch line" {
   DOTFILES_SKILL_ROUTER=off run session
   assert_output ""
   echo '{"enabledPlugins": {}}' > "$HOME/.claude/settings.json"
+  run bash -c "$(declare -f session); REPO='$REPO' CONTEXT='$CONTEXT' session | jq -r .hookSpecificOutput.additionalContext"
+  assert_output --partial 'This session is on `main`'
+  refute_output --partial 'mattpocock-skills'
+  git -C "$REPO" symbolic-ref HEAD refs/heads/feat/x
   run session
   assert_output ""
 }

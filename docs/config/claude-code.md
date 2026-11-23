@@ -140,9 +140,9 @@ Changes made in the working copy go live only after review, commit and
 | `PreToolUse`       | inline `jq` + `grep` | Blocks `kubectl … get secret(s)` whatever the flags, namespace or `rtk` prefix — deny rules only match plain forms |
 | `PreToolUse`       | `rtk hook claude`    | Rewrites Bash commands through `rtk` for token-optimized output                                                    |
 | `Stop`             | `docs-sync-check.sh` | Code changed but neither `docs/` nor `README.md` did → asks for the `docs-hub` / `readme` skills, once per turn    |
-| `Stop`             | `next-steps.sh`      | Shows you the next steps (re-stage, commit, push, blocked or next task, triage) and the open `🖐 Manual` steps      |
-| `SessionStart`     | `skill-context.sh`   | Tells Claude when to use the `mattpocock-skills` skills unasked, tuned to the repository                           |
-| `UserPromptSubmit` | `skill-router.sh`    | Names the skills a prompt matches (at most two) so Claude invokes them before starting                             |
+| `Stop`             | `next-steps.sh`      | Shows the next steps (branch, re-stage, commit, push, `/pr`, blocked or next task, triage) and `🖐 Manual` steps    |
+| `SessionStart`     | `skill-context.sh`   | Tells Claude when to use the `mattpocock-skills` skills unasked, and to branch off a shared branch first           |
+| `UserPromptSubmit` | `skill-router.sh`    | Names the skills a prompt matches (at most two); after your commit or push from the chat, the next git step        |
 
 The `git commit` / `git push` and `kubectl … get secret(s)` hooks are also in
 `managed-settings.json`. These regex hooks catch mistakes, not a determined
@@ -158,7 +158,12 @@ stop through (`stop_hook_active`), so it never loops.
 which Claude Code shows to you and does not send to Claude, so it costs no
 extra turn; it must stay synchronous, since an async hook hands its message to
 Claude instead. A message shows once per session, then again only when it
-changes. Two variables, set in the `env` block, tune it:
+changes. On a shared branch (`main`, `master`, `dev`, `develop` or the
+remote's default) with changes or unpushed commits, it asks for a branch
+first, in place of a push; elsewhere it gives the push command, with `-u` on a
+branch's first push; once a branch of its own is committed and pushed, it
+points to `/pr` for the pull request (see [Git Workflow](./git-workflow.md)).
+Two variables, set in the `env` block, tune it:
 
 | Variable                     | Default   | Effect                                                    |
 | ---------------------------- | --------- | --------------------------------------------------------- |
@@ -171,7 +176,8 @@ Two hooks make Claude reach for the `mattpocock-skills` skills (see
 Plugins below) during ordinary work, not only when you type their slash
 command. Both return `additionalContext`, which Claude reads with the session
 or the prompt; neither blocks anything, and both stay silent when the plugin is
-not enabled.
+not enabled, except for the two git lines below, which come from the
+`git-workflow` skill of this repository.
 
 - `skill-context.sh` runs at session start, after `/clear` and after a
   compaction. It gives the standing policy: `diagnosing-bugs` before fixing a
@@ -183,7 +189,9 @@ not enabled.
   or `docs/adr/`, the `audit` command when there is infrastructure (Terraform,
   Ansible, Helm, Kustomize, Kubernetes manifests, Docker), `debug-action` when
   there are GitHub workflows, `/next-task` when there is a `TODO.md`. It always
-  forbids `implement` and `implement-spec`, which commit. At startup, in a
+  forbids `implement` and `implement-spec`, which commit. A session that
+  opens on a shared branch is told to hand you the `git checkout -b` command
+  before the first commit. At startup, in a
   repository with an `AGENTS.md` or `CLAUDE.md` but no
   `docs/agents/issue-tracker.md`, it also tells you (not Claude) to run
   `/mattpocock-skills:setup-matt-pocock-skills`.
@@ -196,7 +204,10 @@ not enabled.
   name a skill, and the reports of subagents and events of the app
   (`<agent-message>`, `<task-notification>`, …), which arrive as prompts but
   describe work already done. It skips too a command the owner runs in the
-  app (`<bash-input>`), whose output carries no request.
+  app (`<bash-input>`), whose output carries no request, but one: a
+  `git commit` or `git push` that went through gets its next step (the branch
+  command for a commit on a shared branch, else the push, then the pull
+  request's title and description).
 
 `DOTFILES_SKILL_ROUTER=off` in the `env` block silences both.
 

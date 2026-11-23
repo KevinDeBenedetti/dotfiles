@@ -35,7 +35,10 @@ Every commit message is a Conventional Commit — never free-form text:
   say what breaks.
 - Other footers follow git trailer syntax, one blank line after the body:
   `Token: value` or `Token #value`, `-` instead of spaces (`Refs: #42`).
-- Output only the message: no code fences, quotes, emojis or preamble.
+- When the message is the whole output (`git aicommit`, a commit-message
+  box), output only the message: no code fences, quotes, emojis or preamble.
+  A commit you propose to the owner is handed over as a runnable
+  `git add … && git commit -m …` command instead: see the `git-workflow` skill.
 - The message reads as the owner's own: no AI attribution, no
   `Co-Authored-By` trailer naming an AI.
 

@@ -16,14 +16,17 @@ never filed.
 
 ## Conventions
 
-- **Create an issue**: `gh issue create --title "..." --body "..."`. Use a
-  heredoc for multi-line bodies.
+- **Create an issue**: write the body to `ISSUE_BODY.md` in the git directory
+  (`git rev-parse --absolute-git-dir`), then
+  `gh issue create --title '...' --body-file <that path>`. The shell never
+  reads the body, so its backticks, `$` and quoted git commands stay as
+  written; the same goes for comments.
 - **Read an issue**:
   `gh issue view <number> --json number,title,body,labels,comments`.
 - **List issues**: `gh issue list --state open --json number,title,labels`
   with the `--label` filter that fits.
 - **Sub-issue**: put `Part of #<parent>` at the top of the child body.
-- **Comment**: `gh issue comment <number> --body "..."`.
+- **Comment**: `gh issue comment <number> --body-file <path>`, as above.
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` /
   `--remove-label "..."` (see `triage-labels.md`).
 - **Close**: the owner's. An issue closes when the commit carrying
@@ -63,5 +66,5 @@ tickets.
 - **Frontier**: the map's open children with no open blocker and no assignee;
   first in map order wins.
 - **Claim**: `gh issue edit <n> --add-assignee @me`, the session's first write.
-- **Resolve**: `gh issue comment <n> --body "<answer>"`, ask the owner to close
+- **Resolve**: `gh issue comment <n> --body-file <path>` with the answer, ask the owner to close
   it, then append a context pointer to the map's Decisions-so-far.

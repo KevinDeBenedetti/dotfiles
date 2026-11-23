@@ -84,17 +84,19 @@ label follows from how well it is specified:
 - Specified (what to change, what done looks like): `ready-for-agent`.
 
   ```sh
-  gh issue create --label ready-for-agent --title "<change> (<file or area>)" --body "<body>"
+  gh issue create --label ready-for-agent --title '<change> (<file or area>)' --body-file "$(git rev-parse --absolute-git-dir)/ISSUE_BODY.md"
   ```
 
 - Still waiting on the owner's answer after §4: `needs-info`, the open
   question first in the body.
 
   ```sh
-  gh issue create --label needs-info --title "<change> (<file or area>)" --body "<body>"
+  gh issue create --label needs-info --title '<change> (<file or area>)' --body-file "$(git rev-parse --absolute-git-dir)/ISSUE_BODY.md"
   ```
 
-The body, self-sufficient for whoever works it later:
+Each body goes through that file, as the `git-workflow` skill says, so the
+shell leaves its backticks and `$` alone. The body, self-sufficient for
+whoever works it later:
 
 ```markdown
 ## Problem
