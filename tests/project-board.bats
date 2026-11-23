@@ -90,6 +90,38 @@ deliver() {
   assert_line 'PATCH /repos/owner/repo/issues/7 {"labels":["needs-info"],"state":"open"} as inst-11'
 }
 
+@test "an issue an agent finished (done) is in Done while it waits for the commit" {
+  # /next-issue swaps ready-for-agent for done: the issue stays open until the
+  # owner's commit reaches the default branch.
+  issue_event labeled
+  export ISSUE='{"number":7,"state":"OPEN","labels":["done","urgent"]}'
+  deliver
+  assert_line "GRAPHQL update ITEM_I_7 OPT_DONE as inst-22"
+  # Its card already in Done: nothing to change, the issue is not closed.
+  moved_card
+  item "Done" OPEN '["done"]'
+  deliver
+  refute_line --partial "PATCH"
+}
+
+@test "a reopened issue loses the done label, so it leaves Done" {
+  # Its commit closed it with done still on; reopened, it is work again.
+  PAYLOAD=$(jq -nc '{action: "reopened", sender: {login: "someone", type: "User"},
+    issue: {node_id: "I_7", number: 7, labels: [{name: "done"}, {name: "urgent"}]},
+    repository: {full_name: "owner/repo", private: false, owner: {login: "owner"}}}')
+  export EVENT=issues PAYLOAD ISSUE='{"number":7,"state":"OPEN","labels":["urgent"]}'
+  deliver
+  assert_success
+  assert_line "DELETE /repos/owner/repo/issues/7/labels/done  as inst-11"
+  assert_line "GRAPHQL update ITEM_I_7 OPT_TRIAGE as inst-22"
+}
+
+@test "a card moved out of Done loses the done label" {
+  item "Needs info" OPEN '["done","urgent"]'
+  deliver
+  assert_line 'PATCH /repos/owner/repo/issues/7 {"labels":["urgent","needs-info"]} as inst-11'
+}
+
 @test "a column is matched whatever its case and surrounding spaces" {
   item " ready for HUMAN " OPEN '[]'
   deliver

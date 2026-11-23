@@ -266,6 +266,7 @@ Key aliases defined in `.zshrc` (beyond plugin aliases):
 | `vpns`  | `vpn status`                                            | Show active WireGuard tunnels (`wg show`)       |
 | `arm`   | `arch -arm64 /bin/zsh` *(macOS only)*                   | Start an ARM64 shell on Apple Silicon           |
 | `intel` | `arch -x86_64 /bin/zsh` *(macOS only)*                  | Start a Rosetta (x86_64) shell                  |
+| `gs`    | `git status` *(macOS only)*                             | Show the working tree status                    |
 
 ### fzf Integration
 

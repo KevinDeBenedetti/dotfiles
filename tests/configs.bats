@@ -815,6 +815,31 @@ todo_layout() {
   done
 }
 
+@test "new-issue files the owner's requests as grouped issues, never duplicates" {
+  local cmd="$CONFIG_DIR/commands/new-issue.md"
+  assert_file_exists "$cmd"
+  run grep -q '^| `dry-run <requests>` ' "$cmd"
+  assert_success
+  # The owner's own requests: approved when specified, blocked when not.
+  run grep -q 'gh issue create --label ready-for-agent' "$cmd"
+  assert_success
+  run grep -q 'gh issue create --label needs-info' "$cmd"
+  assert_success
+  # Related requests share one issue; an existing issue is reused.
+  run grep -qi 'group' "$cmd"
+  assert_success
+  run grep -q 'gh issue list --state open --search' "$cmd"
+  assert_success
+  # It files: it never changes, closes or deletes an existing issue.
+  run grep -E 'gh issue (close|delete|edit)' "$cmd"
+  assert_failure
+  # Listed where the other issue commands are.
+  run grep -q '`/new-issue`' "$REPO_ROOT/AGENTS.md"
+  assert_success
+  run grep -q '`/new-issue`' "$REPO_ROOT/docs/config/issue-workflow.md"
+  assert_success
+}
+
 @test "audit inspects the whole repository read-only and files its findings for triage" {
   local cmd="$CONFIG_DIR/commands/audit.md" skill
   assert_file_exists "$cmd"
@@ -1162,4 +1187,43 @@ todo_layout() {
     grep -qF "#### \`$name\`" "$REPO_ROOT/docs/config/shell.md" || missing+=("$name")
   done
   [ "${#missing[@]}" -eq 0 ] || fail "undocumented in shell.md: ${missing[*]}"
+}
+
+@test ".zshrc aliases gs to git status on macOS only" {
+  # Inside the Darwin block: Linux keeps whatever gs is there.
+  run sed -n '/^if \[ "$(uname)" = "Darwin" \]; then$/,/^fi$/p' "$CONFIG_DIR/zsh/.zshrc"
+  assert_line '  alias gs="git status"'
+  run grep -c '^alias gs=' "$CONFIG_DIR/zsh/.zshrc"
+  assert_output "0"
+}
+
+# --- The issue commands and the board's columns ---
+
+@test "every label the issue commands set puts the issue in a board column" {
+  # The board Worker maps these to its Stage columns (.github/project-board/plan.mjs).
+  local columns='needs-triage needs-info ready-for-agent ready-for-human wontfix done' label missing=()
+  for label in $(grep -ohE -- '--(add-)?label [a-z-]+' "$CONFIG_DIR"/commands/*.md | awk '{print $2}' | sort -u); do
+    [[ " $columns " == *" $label "* ]] || missing+=("$label")
+    grep -qF "\"$label\"" "$REPO_ROOT/.github/project-board/plan.mjs" || missing+=("$label (plan.mjs)")
+  done
+  [ "${#missing[@]}" -eq 0 ] || fail "labels with no column: ${missing[*]}"
+}
+
+@test "/next-issue records a finished issue as done, so its card moves to Done" {
+  run grep -F -- '--remove-label ready-for-agent --add-label done' "$CONFIG_DIR/commands/next-issue.md"
+  assert_success
+  # The label exists before it is set: creating it is safe to repeat.
+  run grep -F 'gh label create done --force' "$CONFIG_DIR/commands/next-issue.md"
+  assert_success
+  # Removing ready-for-agent alone would send the card back to Needs triage.
+  run grep -nE -- '--remove-label ready-for-agent`' "$CONFIG_DIR/commands/next-issue.md"
+  assert_failure
+}
+
+@test "the docs list every label the board knows, done included" {
+  local label
+  for label in needs-triage needs-info ready-for-agent ready-for-human wontfix done; do
+    grep -qE "gh label create $label " "$REPO_ROOT/docs/config/issue-workflow.md" || fail "no gh label create for $label"
+    grep -qF "\`$label\`" "$REPO_ROOT/docs/agents/triage-labels.md" || fail "triage-labels.md misses $label"
+  done
 }

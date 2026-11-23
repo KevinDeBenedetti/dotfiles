@@ -45,6 +45,14 @@ const boardToken = (env) => (env.BOARD_TOKEN ? client(env.BOARD_TOKEN) : null);
 async function onIssue(env, { action, issue, repository }) {
   if (!ISSUE_ACTIONS.has(action)) return reply("ignored: action", 202);
   if (!isTrackedRepository(env, repository.full_name)) return reply("ignored: another owner", 202);
+  // A reopened issue is work again: `done` (finished, waiting for the commit
+  // that closed it) would keep it in Done.
+  if (action === "reopened" && issue.labels?.some((label) => label.name === "done")) {
+    const issueApi = await installationClient(env, `/repos/${repository.full_name}/installation`);
+    if (issueApi) {
+      await issueApi(`/repos/${repository.full_name}/issues/${issue.number}/labels/done`, { method: "DELETE" });
+    }
+  }
   const hidden = repository.private && repository.owner.login.toLowerCase() !== env.PROJECT_OWNER.toLowerCase();
   if (hidden && !env.BOARD_TOKEN) throw new Error(MISSING_BOARD_TOKEN);
   const gh = hidden ? boardToken(env) : await boardClient(env);
