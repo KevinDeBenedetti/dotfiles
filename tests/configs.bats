@@ -1232,6 +1232,8 @@ todo_layout() {
   run sed -n '/^validate:/,/^$/p' "$REPO_ROOT/Makefile"
   assert_output --partial "git ls-files"
   refute_output --partial "yamllint --strict .github/workflows/"
+  # The rest needs git: the Docker test image has no .git (.dockerignore).
+  git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1 || skip "not a git checkout"
   # The files it reaches pass, the compose file of the Docker rig included.
   run bash -c "cd '$REPO_ROOT' && git ls-files '*.yml' '*.yaml' | grep -c docker-compose"
   assert_output "1"
