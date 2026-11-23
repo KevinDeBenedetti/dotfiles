@@ -1,6 +1,5 @@
-// From a card's Stage column to the issue's labels and state: the reverse of
-// .github/scripts/project-stage.sh, whose stage_for() this mirrors. Keep both
-// in step (docs/config/issue-workflow.md#project-board).
+// The mapping between an issue's triage labels and its Stage column on the
+// board, both ways (docs/config/issue-workflow.md#project-board).
 
 // Column name → the triage label it stands for (Done has none).
 const COLUMNS = {
@@ -15,9 +14,12 @@ const COLUMNS = {
 const TRIAGE = Object.values(COLUMNS).filter(Boolean);
 
 const normalize = (name) => name.trim().toLowerCase();
+// sameName(a, b): whether two column names match, whatever their case and
+// surrounding spaces.
+const sameName = (a, b) => normalize(a ?? "") === normalize(b ?? "");
 
-// The column of an issue, as project-stage.sh computes it: when several
-// triage labels are set, the one that stops the work wins.
+// The column of an issue: when several triage labels are set, the one that
+// stops the work wins.
 export function stageFor(labels, state) {
   if (labels.includes("wontfix")) return "Won't fix";
   if (state === "CLOSED") return "Done";
@@ -27,12 +29,18 @@ export function stageFor(labels, state) {
   return "Needs triage";
 }
 
+// optionFor(options, stage): the id of the Stage field's option for that
+// column, matched whatever its case and surrounding spaces.
+export function optionFor(options, stage) {
+  return options.find((option) => sameName(option.name, stage))?.id;
+}
+
 // planFor(column, labels, state, stateReason): the body of the issue update
 // that puts the issue in that column, or null when nothing is to change
 // (unknown column, or the issue is already there). Labels other than the
 // triage ones are kept.
 export function planFor(column, labels, state, stateReason) {
-  const stage = Object.keys(COLUMNS).find((name) => normalize(name) === normalize(column ?? ""));
+  const stage = Object.keys(COLUMNS).find((name) => sameName(name, column));
   if (!stage || stageFor(labels, state) === stage) return null;
 
   if (stage === "Done") {
