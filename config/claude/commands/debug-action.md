@@ -1,14 +1,16 @@
 ---
-description: Debug a failing GitHub Actions run from a run/job URL, a run ID or a pasted error log (defaults to the most recent failed run of the current repo).
+description: Debug a failing GitHub Actions run from a run/job URL, a run ID or a pasted error log (defaults to the most recent failed run of the current branch, then of the repo).
+argument-hint: "[run URL | run ID | pasted log]"
 ---
 
 Debug a failing GitHub Actions run. The argument is a run/job URL, a run ID, or
-a pasted error log. If nothing is given, find the most recent failed run for the
-current repo.
+a pasted error log. If nothing is given, find the most recent failed run of the
+current branch, then, when it has none, of the whole repo.
 
 Gather context (read-only):
 1. If `gh` is available, fetch the failure with:
-   - `gh run list --status failure --limit 5`
+   - `gh run list --status failure --limit 5 --branch "$(git branch --show-current)"`,
+     then without `--branch` when it lists nothing
    - `gh run view <run-id> --log-failed` (or `--log` for the full log)
    - `gh run view <run-id> --json jobs,workflowName,headBranch,event,conclusion`
    Otherwise work from the pasted log.
@@ -38,6 +40,9 @@ Report:
 4. **Reproduce locally** when feasible (the failing command, `act`, or the
    container image used) so the loop is fast.
 5. **Prevent recurrence** — pin a version, add a guard, cache, healthcheck, etc.
+6. **Re-run** — once the fix is pushed, or for a transient failure, the
+   runnable command that re-runs only the failed jobs, run ID filled in, as
+   the `git-workflow` skill hands commands over: `gh run rerun <run-id> --failed`.
 
 Do not re-run, cancel, or modify workflows/secrets without being asked — first
 diagnose and propose.

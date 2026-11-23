@@ -52,8 +52,10 @@ For each task, the agent:
    the way its user would, run by the agent when it can, otherwise handed to
    you as a "Try it" line;
 4. moves it to `✅ Done` with the date and how it was verified;
-5. proposes a Conventional Commit message and the files to stage, without
-   committing.
+5. hands you the commit, without committing: one runnable
+   `git add … && git commit …` line, then the push and the pull request
+   commands (see [Git Workflow](./git-workflow.md)). On a shared branch
+   (`main`, `dev`, …), it hands you the branch command first.
 
 A task it cannot finish stays in `🔴 In progress`, marked
 `BLOCKED YYYY-MM-DD: <what is needed>`, and the agent asks what to do. Later
@@ -76,7 +78,8 @@ grounded recommendations and five security findings for triage.
    tasks that do not depend on it. The blockers are put to you once, at the
    end.
 4. It ends with the summary and a commit plan: one grouped commit for the
-   batch, with one body line per task and a single `git add` for its files.
+   batch, with one body line per task, handed over as a single runnable
+   `git add … && git commit …` line for its files.
    Its type is the one with the highest release impact among the tasks. Ask
    for one commit per task when you want the changelog to list each of them.
 5. When `🖐 Manual` has open steps, it asks whether to go through them now and,
@@ -92,9 +95,11 @@ not have them and run the same steps without them.
 | ----------------- | ---------------------------------------------------------------------------- |
 | `diagnosing-bugs` | To find the cause of a `FIX` before changing anything                        |
 | `grilling`        | To settle an ambiguous task with you, in one round of questions              |
-| `to-tickets`      | To split a task too big for one change into ordered tasks                    |
 | `tdd`             | To write the test first for a `FEAT` or `FIX`                                |
 | `code-review`     | To review the task's changes once the checks pass, before it is recorded     |
+
+`to-tickets` only runs when you call it (`/mattpocock-skills:to-tickets`): the
+agent splits a task too big for one change itself.
 
 The same plugin feeds the file. In a repository set up with
 `/mattpocock-skills:setup-matt-pocock-skills` to use `TODO.md` as its tracker,
@@ -137,8 +142,8 @@ those steps in a guided chat, following the `manual-steps` skill:
    (`(remaining)`) or dropped with your reason — so a session stopped halfway
    resumes where it left off. A task `BLOCKED` on that step loses its marker,
    ready for `/next-task`.
-5. At the end: what is done, skipped and still waiting, and a proposed commit
-   for the `TODO.md` change.
+5. At the end: what is done, skipped and still waiting, and the runnable
+   commit command for the `TODO.md` change.
 
 The agent never takes your part — commit, push, deploy, secrets — and never
 asks for a secret value: you put it where it belongs and reply `done`. It may

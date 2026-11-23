@@ -807,6 +807,112 @@ todo_layout() {
   assert_failure
 }
 
+@test "git-workflow hands the owner runnable commands: branch first, then commit, push and pull request" {
+  local skill="$CONFIG_DIR/skills/git-workflow/SKILL.md"
+  assert_file_exists "$skill"
+  # Runnable from the chat: one-line bash blocks, single-quoted text, no editor.
+  run grep -q '^## Runnable commands' "$skill"
+  assert_success
+  run grep -qF '```bash' "$skill"
+  assert_success
+  run grep -qF "\$'…'" "$skill"
+  assert_success
+  run grep -qF 'in a terminal' "$skill"
+  assert_success
+  # Work on a shared branch moves to a new one before the commit, its
+  # unpushed commits too.
+  run grep -qE '`main`, `master`, `dev`, `develop`' "$skill"
+  assert_success
+  run grep -qE '^[[:space:]]*git branch -f main origin/main$' "$skill"
+  assert_success
+  # In that order: the branch, the commit and the push (the owner's), then the
+  # pull request — synced in place when open, the owner's command when new.
+  local branch commit push create edit
+  branch=$(grep -nE '^[[:space:]]*git checkout -b [a-z]+/' "$skill" | head -n 1 | cut -d: -f1)
+  commit=$(grep -nE "^[[:space:]]*git add [^&]+ && git commit -m '" "$skill" | head -n 1 | cut -d: -f1)
+  push=$(grep -nE '^[[:space:]]*git push -u origin ' "$skill" | head -n 1 | cut -d: -f1)
+  edit=$(grep -nE '^gh pr edit [0-9]+ --title .* --body-file "\$\(git rev-parse --absolute-git-dir\)/PR_BODY\.md"$' "$skill" | cut -d: -f1)
+  create=$(grep -nE '^gh pr create --base [a-z]+ --title .* --body-file "\$\(git rev-parse --absolute-git-dir\)/PR_BODY\.md"$' "$skill" | cut -d: -f1)
+  # One test per line: bats ignores a failure inside an && list.
+  [ -n "$branch" ]
+  [ -n "$commit" ]
+  [ -n "$push" ]
+  [ -n "$edit" ]
+  [ -n "$create" ]
+  [ "$branch" -lt "$commit" ]
+  [ "$commit" -lt "$push" ]
+  [ "$push" -lt "$edit" ]
+  # The sections follow the same order.
+  run bash -c "grep -n '^## ' '$skill' | cut -d' ' -f2- | tr '\n' '|'"
+  assert_output 'Runnable commands|Branch first|Commit hand-over|Pull request|After a commit or push|'
+  # A pull request in conflict with its base: the owner rebases, with no
+  # editor, then forces the push with a lease.
+  run grep -qE '^git rebase origin/main$' "$skill"
+  assert_success
+  run grep -qE '^git add [^&]+ && GIT_EDITOR=true git rebase --continue$' "$skill"
+  assert_success
+  run grep -qE '^git push --force-with-lease$' "$skill"
+  assert_success
+  # The body fills the pull request template and keeps a workflow's block.
+  run grep -qF '<!-- pr-description:start -->' "$skill"
+  assert_success
+  run grep -qE 'gh pr merge|git add (-A|\.)( |$)|git push (-f|--force)( |$)' "$skill"
+  assert_failure
+}
+
+@test "agent-run gh commands pass their bodies through a file, never a heredoc the guard would read" {
+  # The PreToolUse guard reads the whole command line: a body quoting git's
+  # commit or push subcommand would get the command denied.
+  local file
+  for file in commands/next-issue.md commands/audit.md commands/new-issue.md; do
+    run grep -F "<<'EOF'" "$CONFIG_DIR/$file"
+    assert_failure
+    run grep -qF -- '--body-file "$(git rev-parse --absolute-git-dir)/ISSUE_BODY.md"' "$CONFIG_DIR/$file"
+    assert_success
+  done
+}
+
+@test "the pr command brings the branch's pull request up to date through git-workflow" {
+  local cmd="$CONFIG_DIR/commands/pr.md"
+  assert_file_exists "$cmd"
+  run grep -q '`git-workflow` skill' "$cmd"
+  assert_success
+  run grep -q 'gh pr merge' "$cmd"
+  assert_failure
+}
+
+@test "next-issue, next-task and manual-steps hand the owner's commands over through git-workflow" {
+  local file
+  for file in commands/next-issue.md commands/next-task.md skills/manual-steps/SKILL.md; do
+    run grep -q '`git-workflow`' "$CONFIG_DIR/$file"
+    assert_success
+  done
+  # A picked issue on a shared branch gets its branch command first.
+  run bash -c "sed -n '/^## 3\\. Pick/,/^## Agent skills/p' '$CONFIG_DIR/commands/next-issue.md' | grep -q 'branch command'"
+  assert_success
+  # git add -p prompts for each hunk: it cannot run from the chat.
+  for file in next-issue next-task; do
+    run grep -F '`git add -p`' "$CONFIG_DIR/commands/$file.md"
+    assert_output --partial 'in a terminal'
+  done
+}
+
+@test "commit-types keeps message-only output for generators and defers hand-over to git-workflow" {
+  local skill="$CONFIG_DIR/skills/commit-types/SKILL.md" rule
+  # The message-only rule stays, scoped to generators (git aicommit, the
+  # commit-message box) ...
+  rule=$(awk '/^- When the message is the whole output/ { on = 1 } on && /^$/ { exit } on' "$skill")
+  run grep -F '`git aicommit`' <<<"$rule"
+  assert_success
+  run grep -F 'output only the message' <<<"$rule"
+  assert_success
+  # ... and a commit proposed to the owner is a runnable command.
+  run grep -F '`git-workflow` skill' <<<"$rule"
+  assert_success
+  run grep -qx -- '- Output only the message: no code fences, quotes, emojis or preamble.' "$skill"
+  assert_failure
+}
+
 @test "a shared command never takes the name of a Claude-only one" {
   # Both are linked to ~/.claude/commands/<name>.md: one would replace the other.
   local cmd
@@ -1263,7 +1369,7 @@ todo_layout() {
   assert_output --partial "no AI attribution"
   # Every command writing to GitHub or proposing a commit says it too.
   local cmd
-  for cmd in audit next-issue new-issue next-task; do
+  for cmd in audit next-issue new-issue next-task pr; do
     grep -qi 'no AI attribution' "$CONFIG_DIR/commands/$cmd.md" || fail "$cmd.md says nothing about attribution"
   done
 }

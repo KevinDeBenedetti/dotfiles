@@ -9,6 +9,11 @@
 # already names a skill, is too short to say what it is about ("yes", "ok"),
 # or when the plugin is not enabled. At most two hints per prompt.
 #
+# A command the owner ran from the chat arrives as a <bash-input> prompt. Its
+# output is no request, so it gets no skill hint, with one exception, plugin
+# or not: a commit or push that went through gets the next step of the
+# git-workflow skill (push, then the pull request's title and description).
+#
 #   DOTFILES_SKILL_ROUTER  on (default); off: never hint.
 
 set -uo pipefail
@@ -19,23 +24,52 @@ input=$(cat)
 [ "${DOTFILES_SKILL_ROUTER:-on}" = off ] && exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 
+prompt=$(printf '%s' "$input" | jq -r '.prompt // empty' 2>/dev/null)
+dir=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
+[ -n "$dir" ] || dir=$PWD
+trimmed=${prompt#"${prompt%%[![:space:]]*}"}
+
+# git_step — a <bash-input> commit or push that went through: name the next
+# step, and the branch it landed on. A failed one (a hook's "....Failed", a
+# rejected push, a line starting with error: or fatal:) or any other command
+# (git stash push, git log --grep push, …): nothing.
+git_step() {
+  local run=${trimmed#<bash-input>} out step branch next
+  run=${run%%</bash-input>*}
+  out=${trimmed#*</bash-input>}
+  # git_cmd <subcommand> — git runs it: at the start of a command (or after
+  # ; & | or rtk), with only global options in between, as in the guard of
+  # config/claude/settings.json.
+  git_cmd() {
+    grep -qE "(^|[;&|(])[[:space:]]*(rtk[[:space:]]+)?git([[:space:]]+(-[Cc]|--git-dir|--work-tree|--namespace|--exec-path|--config-env)[[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+$1([[:space:]]|\$)" <<<"$run"
+  }
+  if git_cmd push; then step=push
+  elif git_cmd commit; then step=commit
+  else return 0
+  fi
+  grep -qE '\.Failed([[:space:]<]|$)|\[(remote )?rejected\]|(^|>)(error|fatal):|nothing (added )?to commit|no changes added to commit' <<<"$out" && return 0
+  branch=$(git -C "$dir" branch --show-current 2>/dev/null)
+  if [ "$step" = push ]; then
+    next="the owner pushed${branch:+ \`$branch\`} from the chat and it went through: bring its pull request up to date (title and description), or hand the \`gh pr create\` command when it has none. A shared branch (main, dev, …) has none."
+  else
+    next="the owner committed${branch:+ on \`$branch\`} from the chat: on a shared branch (main, dev, …), hand the branch command that moves the commit off it; otherwise the push command, then the pull request step."
+  fi
+  jq -n --arg c "Git step (dotfiles hook): $next Follow the \`git-workflow\` skill (Skill tool), in your next reply." \
+    '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $c}}'
+}
+case $trimmed in '<bash-input>'*) git_step; exit 0 ;; esac
+
 plugin=mattpocock-skills@claude-plugins-official
 enabled=$(jq -r --arg p "$plugin" '.enabledPlugins[$p] // false' "$HOME/.claude/settings.json" 2>/dev/null)
 [ "$enabled" = true ] || exit 0
 
-prompt=$(printf '%s' "$input" | jq -r '.prompt // empty' 2>/dev/null)
-dir=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
-[ -n "$dir" ] || dir=$PWD
-
-trimmed=${prompt#"${prompt%%[![:space:]]*}"}
 [ "${#trimmed}" -ge 12 ] || exit 0
 case $trimmed in /*) exit 0 ;; esac
 # Reports from subagents and events from the app arrive as prompts too. Their
-# words ("refactor", "fails", "PR") describe work already done: no hint. Same
-# for a command the owner ran in the app (<bash-input>): its output is no request.
+# words ("refactor", "fails", "PR") describe work already done: no hint.
 case $trimmed in
   'Another Claude session sent a message'* | '<agent-message'* | '<task-notification'* \
-    | '<side-sessions-event'* | '<ci-monitor-event'* | '<bash-input'*) exit 0 ;;
+    | '<side-sessions-event'* | '<ci-monitor-event'*) exit 0 ;;
 esac
 grep -qiE 'mattpocock-skills:|Skill tool' <<<"$prompt" && exit 0
 

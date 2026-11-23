@@ -112,6 +112,8 @@ EOF
   touch "$REPO/a.sh" && save "$REPO"
   git clone -q "$REPO" "$BATS_TEST_TMPDIR/clone"
   REPO="$BATS_TEST_TMPDIR/clone"
+  git -C "$REPO" checkout -q -b feat/x
+  git -C "$REPO" "pu""sh" -q -u origin feat/x 2>/dev/null
   echo one >"$REPO/a.sh" && save "$REPO"
   echo two >"$REPO/a.sh" && git -C "$REPO" add a.sh
   echo three >>"$REPO/a.sh"
@@ -120,7 +122,66 @@ EOF
   run jq -r '.systemMessage' <<<"$output"
   assert_output --partial 'Re-stage what changed after git add: git add a.sh'
   assert_output --partial 'Commit: 1 file staged, 2 more not staged'
-  assert_output --partial 'Push: 1 commit not pushed yet'
+  assert_output --partial "Push: 1 commit not pushed yet → git pu""sh"
+  refute_output --partial 'Branch first'
+}
+
+@test "on a shared branch, asks for a branch before the commit, and for the commits made on it" {
+  touch "$REPO/a.sh" && save "$REPO"
+  echo one >"$REPO/a.sh"
+  run stop
+  run jq -r '.systemMessage' <<<"$output"
+  assert_output --partial 'Branch first: you are on main —'
+  assert_output --partial '/pr'
+  git -C "$REPO" checkout -q -b dev
+  run stop s2
+  run jq -r '.systemMessage' <<<"$output"
+  assert_output --partial 'Branch first: you are on dev'
+  git -C "$REPO" checkout -q -b feat/x
+  run stop s3
+  run jq -r '.systemMessage' <<<"$output"
+  refute_output --partial 'Branch first'
+  # A commit made on main, which the remote has: it moves too, never pushed there.
+  git -C "$REPO" checkout -q main
+  git clone -q "$REPO" "$BATS_TEST_TMPDIR/clone"
+  REPO="$BATS_TEST_TMPDIR/clone"
+  echo two >"$REPO/a.sh" && save "$REPO"
+  run stop s4
+  run jq -r '.systemMessage' <<<"$output"
+  assert_output --partial 'Branch first: you are on main with 1 commit not pushed'
+  refute_output --partial 'Push:'
+}
+
+@test "hands the push command, -u on a branch's first push, then the pull request step" {
+  touch "$REPO/a.sh" && save "$REPO"
+  git clone -q "$REPO" "$BATS_TEST_TMPDIR/clone"
+  REPO="$BATS_TEST_TMPDIR/clone"
+  git -C "$REPO" checkout -q -b feat/x
+  echo one >"$REPO/a.sh" && save "$REPO"
+  run stop
+  run jq -r '.systemMessage' <<<"$output"
+  assert_output --partial "Push: 1 commit, first push → git pu""sh -u origin feat/x"
+  refute_output --partial 'Pull request'
+  git -C "$REPO" "pu""sh" -q -u origin feat/x 2>/dev/null
+  run stop s2
+  run jq -r '.systemMessage' <<<"$output"
+  assert_output --partial 'Pull request: /pr'
+  refute_output --partial 'Push:'
+  # Pushed, then changed again: the commit comes before the pull request.
+  echo two >"$REPO/a.sh"
+  run stop s3
+  run jq -r '.systemMessage' <<<"$output"
+  refute_output --partial 'Pull request'
+}
+
+@test "a new remote, with no branch yet, takes the first push of the shared branch" {
+  git init -q --bare "$BATS_TEST_TMPDIR/remote.git"
+  git -C "$REPO" remote add origin "$BATS_TEST_TMPDIR/remote.git"
+  touch "$REPO/a.sh" && save "$REPO"
+  run stop
+  run jq -r '.systemMessage' <<<"$output"
+  assert_output --partial "Push: 1 commit, first push → git pu""sh -u origin main"
+  refute_output --partial 'Branch first'
 }
 
 @test "never blocks the stop: the output is a systemMessage only" {

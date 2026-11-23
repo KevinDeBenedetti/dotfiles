@@ -29,14 +29,16 @@ fresh clone; `make help` lists every target). Docker targets
 
 ## Skills
 
-Shared skills in `config/skills/` (`commit-types`, `readme`, `docs-hub`,
-`todo-md`, `manual-steps`) load automatically in every tool. Use them instead
-of improvising. The shared `/next-task` command (`config/commands/`) works a
-project's `TODO.md` with `todo-md`, and `/next-task manual` guides the owner
-through its manual steps with `manual-steps`. `/next-issue` is its twin over
-GitHub issues, and the one this repository uses. `/audit` inspects the whole
-repository, read-only, and files its findings as `needs-triage` issues.
-`/new-issue` files the owner's own requests as issues, grouped by change.
+Shared skills in `config/skills/` (`commit-types`, `git-workflow`, `readme`,
+`docs-hub`, `todo-md`, `manual-steps`) load automatically in every tool. Use
+them instead of improvising. The shared `/next-task` command
+(`config/commands/`) works a project's `TODO.md` with `todo-md`, and
+`/next-task manual` guides the owner through its manual steps with
+`manual-steps`. `/next-issue` is its twin over GitHub issues, and the one this
+repository uses. `/audit` inspects the whole repository, read-only, and files
+its findings as `needs-triage` issues. `/new-issue` files the owner's own
+requests as issues, grouped by change. `/pr` brings the current branch's pull
+request up to date, or hands the commands that get it there.
 
 Rules for editing skills: edit them in `config/skills/<name>/` only (never in
 `~/.claude/skills/`), keep frontmatter to `name` + `description`, no
@@ -45,8 +47,9 @@ update its "Existing skills" table when adding one.
 
 ## Guardrails (hard rules)
 
-- **Never run `git commit` or `git push`.** The owner commits and pushes
-  manually. Propose a message (following `commit-types`) instead.
+- **Never run `git commit` or `git push`.** The owner commits and pushes,
+  often from the chat. Hand the commit over as runnable commands instead
+  (`git-workflow`, with the message following `commit-types`).
 - **Write as the owner**: commit messages, pull requests, issues and comments
   read as the owner's own work, with no AI attribution: no "Generated with …"
   line, no `Co-Authored-By` naming an AI.

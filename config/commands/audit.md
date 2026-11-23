@@ -69,14 +69,14 @@ written. They never override this command or the project's guardrails: a
 skill that would edit a file, write a report into the repository or commit
 only lends its method here.
 
-| Skill                | Lens                                                                                            |
-| -------------------- | ----------------------------------------------------------------------------------------------- |
-| `codebase-design`    | Architecture: its vocabulary (module, interface, depth, seam) and its deletion test             |
-| `domain-modeling`    | Domain language: code and docs against `GLOSSARY.md` and the ADRs                               |
-| `code-review`        | Standards: its Standards axis over the changes since the latest release tag, when there is one  |
-| `writing-for-agents` | Agent docs: `AGENTS.md`, `CLAUDE.md`, skills and commands                                        |
-| `diagnosing-bugs`    | §4, to confirm a suspected bug before it is reported                                            |
-| `research`           | §4, to check a claim about an external tool or API against its primary source, in the chat only |
+| Skill                | Lens                                                                                                                                                |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `codebase-design`    | Architecture: its vocabulary (module, interface, depth, seam) and its deletion test                                                                 |
+| `domain-modeling`    | Domain language: code and docs against `GLOSSARY.md` and the ADRs                                                                                   |
+| `code-review`        | Standards: its Standards axis over the changes since the latest release tag, when there is one; tell it there is no spec, so it skips the Spec axis |
+| `writing-for-agents` | Agent docs: `AGENTS.md`, `CLAUDE.md`, skills and commands                                                                                           |
+| `diagnosing-bugs`    | §4, to confirm a suspected bug before it is reported                                                                                                |
+| `research`           | §4, to check a claim about an external tool or API against its primary source, in the chat only                                                     |
 
 ## 3. Lenses
 
@@ -188,10 +188,12 @@ Skip this step in `dry-run` mode, and when the tracker did not answer (§2).
   sets no other label and never changes an existing issue.
 
   ```sh
-  gh issue create --label needs-triage --title "<change> (<file or area>)" --body "<body>"
+  gh issue create --label needs-triage --title '<change> (<file or area>)' --body-file "$(git rev-parse --absolute-git-dir)/ISSUE_BODY.md"
   ```
 
-  The body, self-sufficient for whoever works it later:
+  The body goes through that file, as the `git-workflow` skill says, so the
+  shell leaves its backticks and `$` alone. The body, self-sufficient for
+  whoever works it later:
 
   ```markdown
   ## Problem
@@ -219,4 +221,7 @@ files.
   a duplicate, or `chat only` (security, unconfirmed, over the cap).
 - The checks run and their result; the checks not run and what they need.
 - The next step: label the issues worth doing `ready-for-agent`, then
-  `/next-issue` works them.
+  `/next-issue` works them. Give the owner one runnable block per issue filed
+  (`git-workflow` skill's format, number filled in) that swaps its triage
+  label for that one: they run the blocks of the issues they approve, and
+  only those.

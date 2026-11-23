@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Claude Code Stop hook — after each turn, show the owner what is left to do:
 # the next actions read from the repository (resolve conflicts, re-stage,
-# commit, push, unblock, resume or start the next task, triage, slim TODO.md)
+# branch off a shared branch, commit, push with its command, open or sync the
+# pull request with /pr, unblock, resume or start the next task, triage, slim
+# TODO.md)
 # and the open steps of the `🖐 Manual` section of the project's TODO.md, which
 # `/next-task manual` walks through. It reads the English layout of the todo-md
 # skill and the former French one.
@@ -57,9 +59,41 @@ if git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
   staged=$(grep -cE '^[MTADRC]' <<<"$status")
   pending=$(grep -cE '^(.[MTD]|\?\?)' <<<"$status")
   ahead=$(git -C "$root" rev-list --count '@{upstream}..HEAD' 2>/dev/null || echo 0)
+  upstream=$(git -C "$root" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null) || upstream=""
+  remote=$(git -C "$root" remote 2>/dev/null | sed -n '/^origin$/{p;q;}')
+  [ -n "$remote" ] || remote=$(git -C "$root" remote 2>/dev/null | head -n 1)
+  # Shared branches, as in the git-workflow skill (and skill-context.sh): work
+  # reaches them through a pull request. The remote's default counts too, and
+  # gives the PR's base.
+  branch=$(git -C "$root" symbolic-ref --short -q HEAD 2>/dev/null)
+  base=$(git -C "$root" symbolic-ref --short -q "refs/remotes/$remote/HEAD" 2>/dev/null)
+  if [ -z "$base" ] && [ -n "$remote" ]; then
+    for b in main master; do
+      git -C "$root" show-ref -q "refs/remotes/$remote/$b" && base=$remote/$b && break
+    done
+  fi
+  shared=false
+  case $branch in "") ;; main | master | dev | develop | "${base#"$remote"/}") shared=true ;; esac
+  # Commits the remote does not have: ahead of the upstream, or, before a
+  # branch's first push, on no remote branch at all.
+  unpushed=0
+  if [ -n "$upstream" ]; then
+    unpushed=$ahead
+  elif [ -n "$branch" ] && [ -n "$remote" ]; then
+    unpushed=$(git -C "$root" rev-list --count HEAD --not --remotes 2>/dev/null || echo 0)
+  fi
+  # On a shared branch they move to a new branch too, once the remote has a
+  # branch to open the pull request against (a new remote takes the first push).
+  held=0
+  $shared && [ -n "$base" ] && held=$unpushed
 
   [ -n "$conflicts" ] && add "Resolve the merge conflicts: $(first 3 "$conflicts")"
   [ -n "$partial" ] && add "Re-stage what changed after git add: git add $(first 3 "$partial")"
+  if $shared && [ $((staged + pending + held)) -gt 0 ]; then
+    line="Branch first: you are on $branch"
+    [ "$held" -gt 0 ] && line+=" with $(plural "$held" commit) not pushed"
+    add "$line — /pr hands the git checkout -b command"
+  fi
   if [ "$staged" -gt 0 ]; then
     if [ "$pending" -gt 0 ]; then
       add "Commit: $(plural "$staged" file) staged, $pending more not staged"
@@ -69,7 +103,19 @@ if git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
   elif [ "$pending" -gt 0 ]; then
     add "Review, stage and commit: $(plural "$pending" changed\ file)"
   fi
-  [ "$ahead" -gt 0 ] && add "Push: $(plural "$ahead" commit) not pushed yet"
+  if [ "$unpushed" -gt 0 ] && [ "$held" -eq 0 ]; then
+    if [ -n "$upstream" ]; then
+      add "Push: $(plural "$unpushed" commit) not pushed yet → git push"
+    else
+      add "Push: $(plural "$unpushed" commit), first push → git push -u $remote $branch"
+    fi
+  fi
+  # Committed and pushed on a branch of its own: the pull request comes next.
+  if [ -n "$upstream" ] && [ "$ahead" -eq 0 ] && ! $shared && [ -n "$base" ] \
+    && [ -z "$conflicts" ] && [ $((staged + pending)) -eq 0 ] \
+    && [ "$(git -C "$root" rev-list --count "$base..HEAD" 2>/dev/null || echo 0)" -gt 0 ]; then
+    add "Pull request: /pr opens it, or brings its title and description up to date"
+  fi
 fi
 
 # --- TODO.md ------------------------------------------------------------------

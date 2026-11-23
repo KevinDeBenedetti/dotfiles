@@ -3,7 +3,7 @@
 Exact section architecture — keep this order. Omit any optional section that
 has nothing real to say; never omit a `[required]` one.
 
-```markdown
+````markdown
 # <Project name>
 <!-- [required] Exact name from the project manifest (package.json "name",
      Cargo.toml [package] name, …), human-cased. -->
@@ -67,4 +67,4 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 <!-- Only if a LICENSE file exists — [required] for a public repository
      (see SKILL.md "Public repositories"). SPDX identifier + link. -->
 <SPDX identifier> — see [LICENSE](LICENSE).
-```
+````

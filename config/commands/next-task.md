@@ -16,6 +16,11 @@ Everything you write into the project — `TODO.md`, code, comments, docs, the
 proposed commit message — is in English, whatever the conversation language,
 and reads as the owner's own work: no AI attribution.
 
+Every command left to the owner — branch, commit, push, pull request, a "Try
+it" line — is handed over runnable from the chat, as the `git-workflow` skill
+(`~/.claude/skills/git-workflow/SKILL.md`) says: one line per `bash` block,
+complete, in the order to run.
+
 ## 1. Mode
 
 The argument is `$ARGUMENTS`. If that placeholder was left as-is (the tool did
@@ -59,6 +64,10 @@ manual mode, the skill's opening plan does it.
   until the owner moves them to `🟡 To do`.
 - Move the task, unchanged, to `🔴 In progress` (an interrupted run then leaves
   a trace) and say which task you picked.
+- On a shared branch (`main`, `dev`, … — `git-workflow`), hand the owner the
+  branch command named after the task (`git checkout -b feat/csv-export`) and
+  carry on: the commit commands assume it. In batch mode, one branch for the
+  whole run, handed before the first task.
 - No candidate: say so, with the number of `BLOCKED` tasks, of items waiting
   for triage and of open `🖐 Manual` steps (`/next-task manual` takes those),
   and stop.
@@ -70,13 +79,12 @@ Code), call them at the step named here; without them, do the step as written.
 They never override this command or the project's guardrails: no commit, no
 push, and `TODO.md` stays in the `todo-md` format.
 
-| Skill             | When                                                                                          |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| `diagnosing-bugs` | §4, for a `FIX` whose cause is not known yet                                                  |
-| `grilling`        | §4, when the task is ambiguous or needs the owner's decisions: one round, then carry on        |
-| `to-tickets`      | §4, to split a task too big for one change into ordered `TODO.md` tasks                        |
-| `tdd`             | §5, for a `FEAT` or `FIX` whose behavior a test can state first                               |
-| `code-review`     | §6, once the checks pass: review the task's uncommitted changes, fix what it finds, re-verify |
+| Skill             | When                                                                                                                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `diagnosing-bugs` | §4, for a `FIX` whose cause is not known yet                                                                                                                                      |
+| `grilling`        | §4, when the task is ambiguous or needs the owner's decisions: one round, then carry on                                                                                           |
+| `tdd`             | §5, for a `FEAT` or `FIX` whose behavior a test can state first                                                                                                                   |
+| `code-review`     | §6, once the checks pass: review the task's uncommitted changes — give it `git diff HEAD` as the diff, which its own `<fixed-point>...HEAD` misses — fix what it finds, re-verify |
 
 Never call `implement`: it commits. This command is its replacement here.
 
@@ -112,7 +120,8 @@ Never call `implement`: it commits. This command is its replacement here.
 - Then a **real test**, beyond the automated checks: the one command (or short
   sequence) that exercises the change the way its user would, with what
   success looks like. Run it yourself when your session allows and report the
-  output; otherwise hand it to the owner as the task's "Try it" line, and add
+  output; otherwise hand it to the owner, runnable, as the task's "Try it"
+  line, and add
   it as a `🖐 Manual` step when the task cannot be trusted without it.
 
 ## 7. Record
@@ -123,8 +132,10 @@ Never call `implement`: it commits. This command is its replacement here.
   `✅ Done` as the skill says.
 - Whatever only the owner can do — push, deploy, apply, a UI setting, a secret
   — becomes `🖐 Manual` steps, referenced from the done entry.
-- Propose one Conventional Commit message for the task (`commit-types` skill)
-  and list the files it changed. Do not commit.
+- Single mode: hand the commit over as `git-workflow` says — its
+  `git add … && git commit …` command, the message following `commit-types`
+  — then the push and the pull request step. Batch mode: the task's line of
+  the grouped commit (§12). Never run them yourself.
 
 ## 8. Blocked
 
@@ -199,6 +210,9 @@ Never write a secret value into `TODO.md` — its location only.
   Commit:  <the task's own Conventional Commit message: its line in the grouped commit, §12>
   Files:   <paths>
   ```
+
+  A "Try it" command that is yours to run follows the report as its own
+  runnable `bash` block.
 - The scope is frozen at the start: the candidate tasks (§3), or the first `N`
   of them. Sub-tasks from a split replace their task; what you add to other
   sections during the run is not worked.
@@ -223,10 +237,12 @@ picked, and nothing outside `TODO.md` changes unless the owner asks for it.
 
 - **Single mode**: the task (done or blocked), files changed, checks run and
   their result, the "Try it" line (§6), `🖐 Manual` steps added, recommendations and findings added,
-  and the proposed commit (message and files).
+  and the hand-over (`git-workflow` skill): the runnable commands in order —
+  branch when shared, `git add … && git commit …`, push, pull request.
 - **Batch mode**: tasks done, tasks blocked during the run and what each
-  needs, `BLOCKED` tasks skipped, checks, the "Try it" lines still the owner's
-  to run, manual steps, recommendations and findings, then a **commit plan**:
+  needs, `BLOCKED` tasks skipped, checks, the "Try it" commands still the
+  owner's to run (one runnable block each), manual steps, recommendations and
+  findings, then a **commit plan**:
   one grouped commit for the whole batch, which the owner can check line by
   line and stage in one go.
 
@@ -241,13 +257,16 @@ picked, and nothing outside `TODO.md` changes unless the owner asks for it.
   with the highest release impact among the tasks' own (`commit-types` skill:
   a breaking change, then `feat`, then `fix`, `perf`, then the hidden types):
   one commit is one changelog line, so say which tasks that line leaves out.
-  Then the files of the run, `TODO.md` included unless git ignores it, as one
-  `git add` command, and apart the files that already had changes (§2): those
-  are staged hunk by hunk (`git add -p`).
+  Then the hand-over (`git-workflow` skill): one runnable
+  `git add … && git commit …` line with the files of the run — `TODO.md`
+  included unless git ignores it — and that message, one `-m` per paragraph,
+  `$'…'` for the multi-line ones; then the push and the pull request step.
+  The files that already had changes (§2) stay out of it; one the run changed
+  too goes hunk by hunk with `git add -p`, in a terminal.
 
   Give one commit per task instead only when the owner asks for it: in order,
-  each with its message and its files, flagging the files several tasks
-  changed (`TODO.md` always is). The project's hooks may test the staged
+  one `git add … && git commit …` line per task, each with its message and its
+  files, flagging the files several tasks changed (`TODO.md` always is). The project's hooks may test the staged
   content only, so a test is always staged with the change it covers.
 - In both, list the changes that were there before the run (§2) apart: they
   are in no commit.

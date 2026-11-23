@@ -201,15 +201,19 @@ ones, then the lowest number. For each issue, the agent:
    handed to you as a "Try it" line;
 4. comments on the issue what changed and how it was verified, and removes
    `ready-for-agent`;
-5. proposes a Conventional Commit message ending with `Fixes #<number>` and the
-   files to stage, without committing.
+5. hands you the commit, without committing: one runnable
+   `git add … && git commit …` line whose message ends with `Fixes #<number>`,
+   then the push and the pull request commands (see
+   [Git Workflow](./git-workflow.md)). On a shared branch (`main`, `dev`, …),
+   it hands you the branch command first, named after the issue.
 
 The issue stays open until your commit reaches the default branch: GitHub then
 closes it through the `Fixes` footer. The agent never closes an issue.
 
 After a batch (`/next-issue all`, or a number), the summary proposes one
 grouped commit instead of one per issue: a body line and a `Fixes #<number>`
-footer for each issue done, and a single `git add` for the files of the run.
+footer for each issue done, handed over as a single runnable
+`git add … && git commit …` line for the files of the run.
 Its type is the one with the highest release impact among the issues, since
 one commit gives one changelog line. Ask for one commit per issue when you
 want the changelog to list each of them.

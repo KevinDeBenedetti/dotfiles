@@ -52,6 +52,7 @@ Rules to stay portable:
 | Skill                                             | Purpose                                                                    |
 | ------------------------------------------------- | -------------------------------------------------------------------------- |
 | [`commit-types`](#)                               | Conventional Commits format and type for every commit message, in English  |
+| [`git-workflow`](./git-workflow.md)               | Branch, commit, push and pull request handed over as runnable commands     |
 | [`readme`](#)                                     | Generate or restructure a `README.md` to the canonical repo architecture   |
 | [`docs-hub`](#)                                   | Edit `docs/` following the kevindebenedetti.github.io hub contract         |
 | [`todo-md`](./todo-workflow.md)                   | English-only format of a project's `TODO.md`, used by `/next-task`         |
@@ -96,6 +97,10 @@ deduplicated: see [Issue Workflow](./issue-workflow.md#filing-your-own-requests)
 `/audit` inspects a whole repository, read-only, and files its findings as
 `needs-triage` issues for `/next-issue`: see
 [Issue Workflow](./issue-workflow.md#auditing-a-repository).
+
+`/pr` brings the current branch's pull request up to date, or hands you the
+runnable commands that get it there (branch, commit, push, `gh pr create`):
+see [Git Workflow](./git-workflow.md).
 
 ## Global rules fallback
 
