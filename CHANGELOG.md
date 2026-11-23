@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.17.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.16.0...v0.17.0) (2026-11-23)
+
+
+### Features
+
+* done issues on the board, /new-issue, faster commit hooks and a gs alias ([6feeb1d](https://github.com/KevinDeBenedetti/dotfiles/commit/6feeb1dc26de9206306ad751cedc024e0078b3f5)), closes [#106](https://github.com/KevinDeBenedetti/dotfiles/issues/106) [#107](https://github.com/KevinDeBenedetti/dotfiles/issues/107) [#108](https://github.com/KevinDeBenedetti/dotfiles/issues/108) [#109](https://github.com/KevinDeBenedetti/dotfiles/issues/109)
+* **project-board:** set issue labels when a card is dragged on the board ([c634c18](https://github.com/KevinDeBenedetti/dotfiles/commit/c634c186813b20e139a697d55d087bb4d44bb08e))
+* **project-board:** sync every repository with the board through a GitHub App ([157da70](https://github.com/KevinDeBenedetti/dotfiles/commit/157da70b398c70ddc4d3898a4ff8cf3f710ae34b))
+* **skills:** hand git steps over as runnable commands, and sync the pull request ([c2eabe6](https://github.com/KevinDeBenedetti/dotfiles/commit/c2eabe655b063dae121b5f01ed99b1f946e19903))
+
+
+### Bug Fixes
+
+* harden setup re-runs, sync the agent guardrails, and close doc and CI gaps ([79bda08](https://github.com/KevinDeBenedetti/dotfiles/commit/79bda083d00013beee1447c662112867d948e2c6)), closes [#68](https://github.com/KevinDeBenedetti/dotfiles/issues/68) [#81](https://github.com/KevinDeBenedetti/dotfiles/issues/81) [#82](https://github.com/KevinDeBenedetti/dotfiles/issues/82) [#83](https://github.com/KevinDeBenedetti/dotfiles/issues/83) [#88](https://github.com/KevinDeBenedetti/dotfiles/issues/88) [#89](https://github.com/KevinDeBenedetti/dotfiles/issues/89) [#90](https://github.com/KevinDeBenedetti/dotfiles/issues/90) [#91](https://github.com/KevinDeBenedetti/dotfiles/issues/91) [#93](https://github.com/KevinDeBenedetti/dotfiles/issues/93) [#94](https://github.com/KevinDeBenedetti/dotfiles/issues/94) [#95](https://github.com/KevinDeBenedetti/dotfiles/issues/95) [#96](https://github.com/KevinDeBenedetti/dotfiles/issues/96) [#97](https://github.com/KevinDeBenedetti/dotfiles/issues/97) [#98](https://github.com/KevinDeBenedetti/dotfiles/issues/98) [#99](https://github.com/KevinDeBenedetti/dotfiles/issues/99) [#100](https://github.com/KevinDeBenedetti/dotfiles/issues/100) [#101](https://github.com/KevinDeBenedetti/dotfiles/issues/101) [#102](https://github.com/KevinDeBenedetti/dotfiles/issues/102)
+* **project-stage:** match Stage options regardless of case, and list them when one is missing ([445b87f](https://github.com/KevinDeBenedetti/dotfiles/commit/445b87f56c0c571e054191e917b5747eafaac45b))
+* stop the board from re-adding removed labels, and close three gaps ([12c34ae](https://github.com/KevinDeBenedetti/dotfiles/commit/12c34ae525c0bb22ab3bb59ba3c10c97efe6691d)), closes [#103](https://github.com/KevinDeBenedetti/dotfiles/issues/103) [#104](https://github.com/KevinDeBenedetti/dotfiles/issues/104) [#110](https://github.com/KevinDeBenedetti/dotfiles/issues/110) [#111](https://github.com/KevinDeBenedetti/dotfiles/issues/111)
+
 ## [0.16.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.15.0...v0.16.0) (2026-11-21)
 
 
