@@ -35,12 +35,15 @@ COPY --chown=tester:tester . /home/tester/.dotfiles
 # ---------------------------------------------------------------------------
 FROM base AS test-bats
 
+# zsh: the shell functions are sourced by zsh (.zshrc), and their tests run
+# them there too.
 RUN sudo apt-get update \
-    && sudo apt-get install -y --no-install-recommends bats jq \
+    && sudo apt-get install -y --no-install-recommends bats jq zsh \
     && sudo rm -rf /var/lib/apt/lists/*
 
-# The same directories as the Makefile's BATS_DIRS.
-RUN cd /home/tester/.dotfiles && bats tests/ tests/ai/ tests/ollama/
+# The same directories as the Makefile's BATS_DIRS. REQUIRE_ZSH: the zsh cases
+# fail here when zsh is missing, instead of being skipped as on a bare runner.
+RUN cd /home/tester/.dotfiles && REQUIRE_ZSH=1 bats tests/ tests/ai/ tests/ollama/
 
 # ---------------------------------------------------------------------------
 # Stage: test-init — validate init.sh flag parsing (no actual installs)

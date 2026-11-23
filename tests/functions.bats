@@ -151,7 +151,12 @@ STUB
   assert_line "lsof -ti tcp:3000 -sTCP:LISTEN"
   assert_line "kill -9 101 202"
   # zsh, which sources the file from .zshrc: it does not split `$pids`.
-  command -v zsh >/dev/null || skip "zsh is not installed"
+  # Skipped where zsh is missing, but required where REQUIRE_ZSH is set (the
+  # Docker test-bats stage CI builds).
+  if ! command -v zsh >/dev/null; then
+    [ -z "${REQUIRE_ZSH:-}" ] || fail "zsh is required (REQUIRE_ZSH) but not installed"
+    skip "zsh is not installed"
+  fi
   rm "$KBP_LOG"
   run zsh -c "source '$REPO_ROOT/config/shell/functions.sh'; kbp 3000"
   assert_success

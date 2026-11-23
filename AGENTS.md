@@ -47,6 +47,9 @@ update its "Existing skills" table when adding one.
 
 - **Never run `git commit` or `git push`.** The owner commits and pushes
   manually. Propose a message (following `commit-types`) instead.
+- **Write as the owner**: commit messages, pull requests, issues and comments
+  read as the owner's own work, with no AI attribution: no "Generated with …"
+  line, no `Co-Authored-By` naming an AI.
 - **Never read or write secrets**: `.env*`, `*.pem`, `*.key`, `~/.ssh`,
   `~/.aws`, `~/.gnupg`. Hand over the values to paste instead.
 - **Never commit infrastructure details** (real IPs, host names): SSH hosts go

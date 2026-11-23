@@ -11,8 +11,8 @@ issue per reviewable change, written from the code it touches.
      are worked by next-issue.md; audit.md files its own findings. -->
 
 Everything you write onto GitHub — titles, bodies — is in English, whatever
-the conversation language, and reads as the owner's own issue: no AI
-attribution, no "generated with" line.
+the conversation language, and reads as the owner's own issue:
+no AI attribution, no "Generated with …" line.
 
 ## 1. Mode
 

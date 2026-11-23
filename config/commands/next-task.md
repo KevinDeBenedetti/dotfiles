@@ -13,7 +13,8 @@ The `todo-md` skill (`~/.claude/skills/todo-md/SKILL.md`) defines the file:
 sections, line syntax, the English-only rule and the migration of legacy files.
 Load it before the first edit and follow it for every change to `TODO.md`.
 Everything you write into the project — `TODO.md`, code, comments, docs, the
-proposed commit message — is in English, whatever the conversation language.
+proposed commit message — is in English, whatever the conversation language,
+and reads as the owner's own work: no AI attribution.
 
 ## 1. Mode
 

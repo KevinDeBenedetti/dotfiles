@@ -12,7 +12,7 @@ through the issues only they can do (`manual`).
 
 Everything you write into the project or onto GitHub — code, comments, docs,
 issue text, the proposed commit message — is in English, whatever the
-conversation language.
+conversation language, and reads as the owner's own work: no AI attribution.
 
 ## 1. Mode
 

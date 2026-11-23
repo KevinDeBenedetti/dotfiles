@@ -98,8 +98,9 @@ A GitHub App sends its webhooks to a Cloudflare Worker, in
 Other labels, such as `urgent`, are kept. Both directions read the issue back
 from GitHub instead of trusting the event, and leave alone what is already in
 step; the Worker also ignores column changes made by the App itself. That is
-how each stops at the other's change. An edit of another field, a card
-cleared to no column, drafts and pull requests are left alone.
+how each stops at the other's change. An edit of another field (or one that
+names no field, such as a linked pull request), a card cleared to no column,
+drafts and pull requests are left alone.
 
 The App is public, because GitHub installs a private App only on the account
 that owns it: anyone may install it. The Worker acts only on repositories of the

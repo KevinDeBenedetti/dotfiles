@@ -25,7 +25,9 @@ setup() {
 # moved_card [SENDER_TYPE] [CHANGES_JSON] [SENDER_LOGIN]: a projects_v2_item
 # edit, as the delivery after a card is dragged.
 moved_card() {
-  PAYLOAD=$(jq -nc --arg type "${1:-User}" --argjson changes "${2:-null}" --arg login "${3:-someone}" '{
+  # A drag: GitHub names the edited field (the Stage field's node id).
+  local stage_edit='{"field_value":{"field_node_id":"FIELD_STAGE"}}'
+  PAYLOAD=$(jq -nc --arg type "${1:-User}" --argjson changes "${2:-$stage_edit}" --arg login "${3:-someone}" '{
     action: "edited", sender: {login: $login, type: $type},
     projects_v2_item: {node_id: "PVTI_1", content_type: "Issue"}} + (if $changes then {changes: $changes} else {} end)')
   export EVENT=projects_v2_item PAYLOAD
@@ -147,6 +149,17 @@ deliver() {
   refute_line --partial "PATCH"
 }
 
+@test "an edit that does not name the field changes nothing (issue 111)" {
+  # Linking a pull request edits the card without naming a field: applying the
+  # card's column then would turn a stale column back into labels.
+  item "Ready for agent" OPEN '["done"]'
+  moved_card User '{}'
+  deliver
+  assert_success
+  refute_line --partial "PATCH"
+  refute_line --partial "GRAPHQL item"
+}
+
 @test "an edit of another field of the card changes nothing" {
   item "Done" OPEN '[]'
   moved_card User '{"field_value":{"field_node_id":"FIELD_OTHER"}}'
@@ -161,13 +174,13 @@ deliver() {
   # Its label-to-board write comes back as an edit: answering it could undo a
   # drag made in the meantime.
   item "Done" OPEN '[]'
-  moved_card Bot "null" "board-app[bot]"
+  moved_card Bot "" "board-app[bot]"
   deliver
   assert_success
   assert_line --partial "=> 202"
   refute_line --partial "GRAPHQL"
   # Another bot's move is a move like any other.
-  moved_card Bot "null" "other-app[bot]"
+  moved_card Bot "" "other-app[bot]"
   deliver
   assert_line --partial "PATCH /repos/owner/repo/issues/7"
 }

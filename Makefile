@@ -63,8 +63,10 @@ lint: ## Run ShellCheck on all shell scripts
 	git ls-files --cached --others --exclude-standard -- '*.sh' 'scripts/*/*' ':!:*.md' ':!:tests/test_helper' \
 		| xargs shellcheck --severity=warning --shell=bash --format=gcc
 
+# Every tracked YAML file, as the prek hook does: git leaves out the vendored
+# test helpers (submodules) and untracked files.
 validate: ## Validate YAML files with yamllint
-	yamllint --strict .github/workflows/
+	git ls-files -z '*.yml' '*.yaml' | xargs -0 yamllint --strict --config-file .yamllint.yml
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Docker
