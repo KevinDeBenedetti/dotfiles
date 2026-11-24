@@ -107,13 +107,12 @@ id = "bats"
 name = "BATS — unit tests"
 # Runs the whole offline test suite before every push, like the CI `Bats tests`
 # job: what the commit's fast path left out is checked there. A failing test
-# blocks; a missing bats only warns.
+# blocks; a missing bats only warns. scripts/bats-run.sh runs the files in
+# parallel (within the files too with GNU parallel: brew install parallel) and
+# hides git's hook environment (GIT_DIR, …) from the fixtures.
 # Install bats: brew install bats-core
-# git exports GIT_DIR (and GIT_INDEX_FILE, …) to its hooks when the commit comes
-# from a linked worktree. They override repository discovery, so the fixtures'
-# `git init` / `git config` would act on this repository: drop them first.
 language = "system"
-entry = "bash -c 'unset $(git rev-parse --local-env-vars); if which bats >/dev/null 2>&1; then bats tests/ tests/ai/ tests/ollama/; else echo \"⚠️  bats not installed — skipping (brew install bats-core)\"; fi'"
+entry = "bash scripts/bats-run.sh tests/ tests/ai/ tests/ollama/"
 pass_filenames = false
 always_run = true
 stages = ["pre-push"]

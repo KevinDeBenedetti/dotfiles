@@ -8,15 +8,16 @@ Personal macOS and Debian dotfiles with setup scripts for fast developer environ
 
 ## Prerequisites
 
-| Tool     | macOS                       | Debian / Ubuntu         |
-| -------- | --------------------------- | ----------------------- |
-| `bash`   | built-in                    | `apt install bash`      |
-| `git`    | `xcode-select --install`    | `apt install git`       |
-| `curl`   | built-in                    | `apt install curl`      |
-| `make`   | `xcode-select --install`    | `apt install make`      |
-| `bats`   | `brew install bats-core`    | `apt install bats`      |
-| Homebrew | [brew.sh](https://brew.sh)  | —                       |
-| Docker   | [Docker Desktop][docker-dl] | `apt install docker.io` |
+| Tool                  | macOS                       | Debian / Ubuntu         |
+| --------------------- | --------------------------- | ----------------------- |
+| `bash`                | built-in                    | `apt install bash`      |
+| `git`                 | `xcode-select --install`    | `apt install git`       |
+| `curl`                | built-in                    | `apt install curl`      |
+| `make`                | `xcode-select --install`    | `apt install make`      |
+| `bats`                | `brew install bats-core`    | `apt install bats`      |
+| `parallel` (optional) | `brew install parallel`     | `apt install parallel`  |
+| Homebrew              | [brew.sh](https://brew.sh)  | —                       |
+| Docker                | [Docker Desktop][docker-dl] | `apt install docker.io` |
 
 [docker-dl]: https://www.docker.com/products/docker-desktop/
 
