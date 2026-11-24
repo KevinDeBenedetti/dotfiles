@@ -175,6 +175,47 @@ error: failed to push some refs</bash-stderr>"
   done
 }
 
+@test "router: a session on the app's generated branch is told to rename it after the work, plugin or not" {
+  git -C "$REPO" symbolic-ref HEAD refs/heads/claude/fix-login-redirect-a1b2c3
+  run prompt "the login redirect is broken on Safari"
+  assert_output --partial 'Session branch (dotfiles hook)'
+  assert_output --partial '`claude/fix-login-redirect-a1b2c3`'
+  assert_output --partial 'git branch -m'
+  # The skill hints still come with it.
+  assert_output --partial 'diagnosing-bugs'
+  # Even a short reply: the branch keeps its generated name until renamed.
+  run prompt "yes"
+  assert_output --partial 'git branch -m'
+  echo '{}' > "$HOME/.claude/settings.json"
+  run prompt "add a dark theme to the settings page"
+  assert_output --partial 'git branch -m'
+  refute_output --partial 'Skill routing'
+  # The prefix follows the app's branch prefix setting.
+  git -C "$REPO" symbolic-ref HEAD refs/heads/kdb/add-dark-theme-0f9e8d
+  DOTFILES_SESSION_BRANCH_PREFIX=kdb run prompt "add a dark theme to the settings page"
+  assert_output --partial '`kdb/add-dark-theme-0f9e8d`'
+}
+
+@test "router: no rename for a branch named by hand, a pushed one, app events or when switched off" {
+  local b
+  for b in feat/12-dark-theme claude/fix-login claude/fix-login-A1B2C3 main; do
+    git -C "$REPO" symbolic-ref HEAD "refs/heads/$b"
+    run prompt "add a dark theme to the settings page"
+    refute_output --partial 'git branch -m'
+  done
+  b=claude/fix-login-redirect-a1b2c3
+  git -C "$REPO" symbolic-ref HEAD "refs/heads/$b"
+  git -C "$REPO" config "branch.$b.remote" origin
+  git -C "$REPO" config "branch.$b.merge" "refs/heads/$b"
+  run prompt "add a dark theme to the settings page"
+  refute_output --partial 'git branch -m'
+  git -C "$REPO" config --unset "branch.$b.merge"
+  run prompt "<task-notification>agent finished: fix the login redirect</task-notification>"
+  assert_output ""
+  DOTFILES_SKILL_ROUTER=off run prompt "add a dark theme to the settings page"
+  assert_output ""
+}
+
 @test "router: still hints for an owner's prompt that quotes an agent tag mid-text" {
   run prompt "why does the <agent-message> parser crash on empty input"
   assert_output --partial 'diagnosing-bugs'

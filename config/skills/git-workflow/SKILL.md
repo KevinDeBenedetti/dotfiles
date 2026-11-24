@@ -13,6 +13,7 @@ block, `!<command>` in the Claude Code CLI — or from any terminal.
 | Yours                                                                   | The owner's                                |
 | ----------------------------------------------------------------------- | ------------------------------------------ |
 | read-only git and `gh` (`status`, `log`, `diff`, `fetch`, `pr view`)    | `git checkout -b`, `git add`, `git commit` |
+| `git branch -m` on the app's unpushed session branch (below)            |                                            |
 | writing the body files (below), resolving conflicts in the working tree | `git push`, `git rebase`                   |
 | `gh pr edit` on the open pull request of the current branch             | `gh pr create`                             |
 
@@ -72,6 +73,28 @@ git checkout -b fix/42-retry-uploads
   ```bash
   git branch -f main origin/main
   ```
+
+## Session branch
+
+A Claude desktop app session opens in a worktree on a branch the app
+generated: `<prefix>/<words>-<6 hex>` (prefix `claude` by default), for
+example `claude/fix-login-redirect-a1b2c3`. While that branch has no upstream
+(`git config branch.<name>.merge` prints nothing), rename it after the work as
+soon as you know what the work is, before the first change — yours to run,
+since nothing outside this worktree knows the name yet:
+
+```bash
+git branch -m fix/login-redirect-safari
+```
+
+The name follows the rule above: `<type>/<slug>`, or `<type>/<number>-<slug>`
+for an issue, and free. Once pushed, the name stays.
+
+Where the sandbox keeps `.git/config` read-only, git renames the branch, then
+fails to update that file ("could not lock config file", exit 128): with no
+upstream there was nothing in it to move, so the rename is done once
+`git branch --show-current` prints the new name. Any other failure: hand the
+command to the owner.
 
 ## Commit hand-over
 
