@@ -37,8 +37,10 @@ them instead of improvising. The shared `/next-task` command
 `manual-steps`. `/next-issue` is its twin over GitHub issues, and the one this
 repository uses. `/audit` inspects the whole repository, read-only, and files
 its findings as `needs-triage` issues. `/new-issue` files the owner's own
-requests as issues, grouped by change. `/pr` brings the current branch's pull
-request up to date, or hands the commands that get it there.
+requests as issues, grouped by change. `/commit` hands the uncommitted changes
+over as Conventional Commits, each tied to the issue it closes. `/pr` brings
+the current branch's pull request up to date, or hands the commands that get
+it there.
 
 Rules for editing skills: edit them in `config/skills/<name>/` only (never in
 `~/.claude/skills/`), keep frontmatter to `name` + `description`, no

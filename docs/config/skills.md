@@ -98,6 +98,10 @@ deduplicated: see [Issue Workflow](./issue-workflow.md#filing-your-own-requests)
 `needs-triage` issues for `/next-issue`: see
 [Issue Workflow](./issue-workflow.md#auditing-a-repository).
 
+`/commit` groups your uncommitted changes into Conventional Commits, each tied
+to the GitHub issue it closes (`Fixes #<number>`), and hands you the commands:
+see [Git Workflow](./git-workflow.md#commit).
+
 `/pr` brings the current branch's pull request up to date, or hands you the
 runnable commands that get it there (branch, commit, push, `gh pr create`):
 see [Git Workflow](./git-workflow.md).

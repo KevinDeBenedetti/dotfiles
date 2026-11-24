@@ -881,6 +881,23 @@ todo_layout() {
   assert_failure
 }
 
+@test "the commit command hands a Conventional Commit that closes its issues, never commits itself" {
+  local cmd="$CONFIG_DIR/commands/commit.md"
+  assert_file_exists "$cmd"
+  run grep -q '`git-workflow` skill' "$cmd"
+  assert_success
+  run grep -q '`commit-types` skill' "$cmd"
+  assert_success
+  # Each piece of work is tied to the issue it closes, in commit and PR.
+  run grep -qF 'Fixes #<number>' "$cmd"
+  assert_success
+  run grep -qF 'gh issue list' "$cmd"
+  assert_success
+  # The owner runs the commit: the command never closes, merges or bypasses.
+  run grep -E 'gh issue (close|delete)|gh pr merge|--no-verify' "$cmd"
+  assert_failure
+}
+
 @test "next-issue, next-task and manual-steps hand the owner's commands over through git-workflow" {
   local file
   for file in commands/next-issue.md commands/next-task.md skills/manual-steps/SKILL.md; do

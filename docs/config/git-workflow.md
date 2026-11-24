@@ -8,7 +8,7 @@ Agents never commit or push: you do. The shared `git-workflow` skill
 (`config/skills/git-workflow/`) splits the work around that rule. The agent
 prepares the branch name, the commit message and the pull request's title and
 description; you run the steps that publish them, from the chat itself.
-`/next-issue`, `/next-task`, the manual steps and `/pr` all hand their commands
+`/next-issue`, `/next-task`, the manual steps, `/commit` and `/pr` all hand their commands
 over this way.
 
 ## Runnable commands
@@ -72,6 +72,24 @@ agent marks it *in a terminal*.
   never committed, one per worktree.
 - **Base**: the open pull request's, the one you name, or the branch the work
   was cut from among the default branch and `dev` / `develop`.
+
+## `/commit`
+
+| Invocation    | Effect                                                                  |
+| ------------- | ----------------------------------------------------------------------- |
+| `/commit`     | Hands the commit of this conversation's work (else of every change)     |
+| `/commit 42`  | Only the changes that resolve issue #42                                 |
+| `/commit all` | Every uncommitted change, split into one commit per piece of work       |
+
+The agent groups the changes into pieces of work and finds the GitHub issue
+each one resolves: the argument, the branch name (`<type>/<number>-<slug>`),
+the issue the conversation worked, then the open issues, `done` and
+`ready-for-agent` first. It writes each Conventional Commit with a
+`Fixes #<number>` footer (`Refs #<number>` for partial work) and offers to file
+an issue with `/new-issue` for work that has none, so every job stays tracked.
+You run the stage-and-commit line it hands you; the push and the pull request
+step follow, the pull request body listing every `Fixes #<number>`, so the
+issues close when you merge.
 
 ## `/pr`
 
