@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.17.1...v0.18.0) (2026-11-24)
+
+
+### Features
+
+* **claude:** rename the app's generated session branch after the work ([40c0866](https://github.com/KevinDeBenedetti/dotfiles/commit/40c0866338e96d7f4476cde4848e0a09728913ef))
+
 ## [0.17.1](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.17.0...v0.17.1) (2026-11-23)
 
 
