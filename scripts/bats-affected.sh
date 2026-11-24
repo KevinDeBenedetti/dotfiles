@@ -80,12 +80,8 @@ if $list; then
   exit 0
 fi
 [ -n "$selected" ] || exit 0
-if ! command -v bats >/dev/null 2>&1; then
-  echo "⚠️  bats not installed — skipping (brew install bats-core)"
-  exit 0
-fi
 if [ "$selected" = ALL ]; then
-  exec bats "${suite[@]}"
+  exec bash scripts/bats-run.sh "${suite[@]}"
 fi
 # shellcheck disable=SC2086 # one test file per word
-exec bats $selected
+exec bash scripts/bats-run.sh $selected

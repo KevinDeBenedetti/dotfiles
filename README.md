@@ -44,7 +44,8 @@ prek run --all-files   # run every hook once
 They cover file hygiene, gitleaks secret scanning, ShellCheck, yamllint,
 actionlint, docs link checks and the Bats suite: a commit runs the test files
 that cover its staged files (`scripts/bats-affected.sh`), a push the whole
-suite. Commit messages follow
+suite, both in parallel (`scripts/bats-run.sh`; install GNU `parallel` to
+also split each test file across cores). Commit messages follow
 Conventional Commits; `git aicommit` drafts one from the staged diff (a
 tool-less `claude -p` call by default, or a local Ollama model) — see
 [`config/ai-tools/README.md`](config/ai-tools/README.md).

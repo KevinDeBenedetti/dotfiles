@@ -85,7 +85,7 @@ select_for() {
   # `git init` / `git config` would act on this repository with them.
   local unset_line exec_line
   unset_line=$(grep -n 'unset $(git rev-parse --local-env-vars)' "$SCRIPT" | head -n1 | cut -d: -f1)
-  exec_line=$(grep -n '^exec bats' "$SCRIPT" | head -n1 | cut -d: -f1)
+  exec_line=$(grep -n '^exec bash scripts/bats-run.sh' "$SCRIPT" | head -n1 | cut -d: -f1)
   [ -n "$unset_line" ] && [ -n "$exec_line" ] && [ "$unset_line" -lt "$exec_line" ]
 }
 

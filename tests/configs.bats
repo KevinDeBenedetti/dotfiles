@@ -345,10 +345,12 @@ setup() {
   # The `rtk hook claude` PreToolUse hook rewrites commands (git status → rtk
   # git status, cat f → rtk read f, gh api → rtk gh api, …) BEFORE the rules are
   # matched, so a rule without its rtk twin silently stops applying.
-  local f list rule cmd rest mirror
+  local f list rule cmd rest mirror rules
   local re='^Bash\(([^[:space:])]+)(.*)\)$'
   for f in settings managed-settings; do
     for list in allow ask deny; do
+      # The list is read once; each mirror is looked up in it as a whole line.
+      rules=$(jq -r --arg l "$list" '.permissions[$l] // [] | .[]' "$CONFIG_DIR/claude/$f.json")
       while IFS= read -r rule; do
         [[ "$rule" =~ $re ]] || continue
         cmd="${BASH_REMATCH[1]}"; rest="${BASH_REMATCH[2]}"
@@ -357,9 +359,8 @@ setup() {
           cat|head|tail) mirror='Bash(rtk read *)' ;;
           *) mirror="Bash(rtk ${cmd}${rest})" ;;
         esac
-        run jq -e --arg r "$mirror" --arg l "$list" '.permissions[$l] | index($r)' "$CONFIG_DIR/claude/$f.json"
-        assert_success || { echo "missing in $f.json $list: $mirror" >&2; return 1; }
-      done < <(jq -r --arg l "$list" '.permissions[$l] // [] | .[]' "$CONFIG_DIR/claude/$f.json")
+        [[ $'\n'"$rules"$'\n' == *$'\n'"$mirror"$'\n'* ]] || { echo "missing in $f.json $list: $mirror" >&2; return 1; }
+      done <<< "$rules"
     done
   done
 }
@@ -615,9 +616,11 @@ setup() {
     'echo "GIT_DIR=${GIT_DIR-unset} GIT_INDEX_FILE=${GIT_INDEX_FILE-unset} GIT_WORK_TREE=${GIT_WORK_TREE-unset}"' > "$bin/bats"
   chmod +x "$bin/bats"
   run env PATH="$bin:$PATH" GIT_DIR=/nonexistent/.git GIT_INDEX_FILE=/nonexistent/index \
-    GIT_WORK_TREE=/nonexistent sh -c "$entry"
+    GIT_WORK_TREE=/nonexistent sh -c "cd '$REPO_ROOT' && $entry"
   assert_success
-  assert_output "GIT_DIR=unset GIT_INDEX_FILE=unset GIT_WORK_TREE=unset"
+  # One stub run per test file (or one for the suite with GNU parallel).
+  assert_output --partial "GIT_DIR=unset GIT_INDEX_FILE=unset GIT_WORK_TREE=unset"
+  refute_output --partial nonexistent
 }
 
 @test "~/.gitconfig.local can override every setting of the tracked .gitconfig" {
