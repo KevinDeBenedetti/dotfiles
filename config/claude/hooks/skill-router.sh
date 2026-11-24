@@ -14,7 +14,14 @@
 # or not: a commit or push that went through gets the next step of the
 # git-workflow skill (push, then the pull request's title and description).
 #
-#   DOTFILES_SKILL_ROUTER  on (default); off: never hint.
+# A session the Claude desktop app opened in a worktree sits on a generated
+# branch, `<prefix>/<words>-<6 hex>`. While it has that name and no upstream,
+# every prompt also asks Claude to rename it after the work, `<type>/<slug>`
+# (git-workflow skill, "Session branch"), plugin or not.
+#
+#   DOTFILES_SKILL_ROUTER          on (default); off: never hint.
+#   DOTFILES_SESSION_BRANCH_PREFIX the app's branch prefix setting (default
+#                                  claude).
 
 set -uo pipefail
 
@@ -59,19 +66,37 @@ git_step() {
 }
 case $trimmed in '<bash-input>'*) git_step; exit 0 ;; esac
 
-plugin=mattpocock-skills@claude-plugins-official
-enabled=$(jq -r --arg p "$plugin" '.enabledPlugins[$p] // false' "$HOME/.claude/settings.json" 2>/dev/null)
-[ "$enabled" = true ] || exit 0
-
-[ "${#trimmed}" -ge 12 ] || exit 0
-case $trimmed in /*) exit 0 ;; esac
 # Reports from subagents and events from the app arrive as prompts too. Their
 # words ("refactor", "fails", "PR") describe work already done: no hint.
 case $trimmed in
   'Another Claude session sent a message'* | '<agent-message'* | '<task-notification'* \
     | '<side-sessions-event'* | '<ci-monitor-event'*) exit 0 ;;
 esac
-grep -qiE 'mattpocock-skills:|Skill tool' <<<"$prompt" && exit 0
+
+# The app's generated session branch, not pushed yet: rename it after the work.
+session_note=""
+branch=$(git -C "$dir" branch --show-current 2>/dev/null)
+prefix=${DOTFILES_SESSION_BRANCH_PREFIX:-claude}
+if grep -qxE "${prefix//./\\.}/[a-z0-9]+(-[a-z0-9]+)*-[0-9a-f]{6}" <<<"$branch" \
+  && [ -z "$(git -C "$dir" config "branch.$branch.merge" 2>/dev/null)" ]; then
+  session_note="Session branch (dotfiles hook): \`$branch\` is the name the app generated for this session. As soon as you know what the work is, rename it after the work yourself — \`git branch -m <type>/<slug>\` (\`git-workflow\` skill, \"Session branch\")."
+fi
+
+# finish [context] — print the session note and the context, if any, and stop.
+finish() {
+  local c=$session_note
+  [ -n "${1:-}" ] && c=${c:+$c$'\n'}$1
+  [ -n "$c" ] && jq -n --arg c "$c" '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $c}}'
+  exit 0
+}
+
+plugin=mattpocock-skills@claude-plugins-official
+enabled=$(jq -r --arg p "$plugin" '.enabledPlugins[$p] // false' "$HOME/.claude/settings.json" 2>/dev/null)
+[ "$enabled" = true ] || finish
+
+[ "${#trimmed}" -ge 12 ] || finish
+case $trimmed in /*) finish ;; esac
+grep -qiE 'mattpocock-skills:|Skill tool' <<<"$prompt" && finish
 
 # matches <ERE> — the prompt holds one of the alternatives as a whole word.
 # C locale: accented letters are bytes outside [[:alnum:]], so they still
@@ -141,9 +166,9 @@ if matches "implement|add (a |an |the )?(feature|option|flag|command|target|chec
   hint mattpocock-skills:tdd "this repository has a test suite: write the failing test first"
 fi
 
-[ "${#hints[@]}" -gt 0 ] || exit 0
+[ "${#hints[@]}" -gt 0 ] || finish
 
 ctx="Skill routing (dotfiles hook): this prompt matches the skills below. Invoke each with the Skill tool before starting that part of the work, unless it clearly does not fit; say in one line which ones you skip and why."
 for h in "${hints[@]}"; do ctx+=$'\n'"$h"; done
 
-jq -n --arg c "$ctx" '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $c}}'
+finish "$ctx"

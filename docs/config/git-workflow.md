@@ -107,6 +107,11 @@ the sequence going without a command:
 
 - a session that opens on a shared branch is told to hand you the branch
   command before the first commit (`skill-context.sh`);
+- a session the desktop app opens on its generated branch
+  (`claude/<words>-<6 hex>`) renames it after the work, `<type>/<slug>`,
+  with `git branch -m`, while it is not pushed (`skill-router.sh`, on every
+  prompt until then). Set `DOTFILES_SESSION_BRANCH_PREFIX` in the `env` block
+  when the app's branch prefix setting is not `claude`;
 - a `git commit` or `git push` you run from the chat that goes through gets
   its next step (`skill-router.sh`): the branch command when the commit landed
   on a shared branch, otherwise the push, then the pull request sync. A failed

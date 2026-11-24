@@ -844,7 +844,10 @@ todo_layout() {
   [ "$push" -lt "$edit" ]
   # The sections follow the same order.
   run bash -c "grep -n '^## ' '$skill' | cut -d' ' -f2- | tr '\n' '|'"
-  assert_output 'Runnable commands|Branch first|Commit hand-over|Pull request|After a commit or push|'
+  assert_output 'Runnable commands|Branch first|Session branch|Commit hand-over|Pull request|After a commit or push|'
+  # The app's generated session branch: the agent renames it, unpushed only.
+  run grep -qE '^git branch -m [a-z]+/[a-z0-9-]+$' "$skill"
+  assert_success
   # A pull request in conflict with its base: the owner rebases, with no
   # editor, then forces the push with a lease.
   run grep -qE '^git rebase origin/main$' "$skill"

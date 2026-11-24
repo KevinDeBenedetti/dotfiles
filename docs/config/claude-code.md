@@ -151,7 +151,7 @@ Changes made in the working copy go live only after review, commit and
 | `Stop`             | `docs-sync-check.sh` | Code changed but neither `docs/` nor `README.md` did → asks for the `docs-hub` / `readme` skills, once per turn    |
 | `Stop`             | `next-steps.sh`      | Shows the next steps (branch, re-stage, commit, push, `/pr`, blocked or next task, triage) and `🖐 Manual` steps    |
 | `SessionStart`     | `skill-context.sh`   | Tells Claude when to use the `mattpocock-skills` skills unasked, and to branch off a shared branch first           |
-| `UserPromptSubmit` | `skill-router.sh`    | Names the skills a prompt matches (at most two); after your commit or push from the chat, the next git step        |
+| `UserPromptSubmit` | `skill-router.sh`    | Names the skills a prompt matches (at most two); the next git step after yours; renames the app's session branch  |
 
 The `git commit` / `git push` and `kubectl … get secret(s)` hooks are also in
 `managed-settings.json`. These regex hooks catch mistakes, not a determined
@@ -185,7 +185,7 @@ Two hooks make Claude reach for the `mattpocock-skills` skills (see
 Plugins below) during ordinary work, not only when you type their slash
 command. Both return `additionalContext`, which Claude reads with the session
 or the prompt; neither blocks anything, and both stay silent when the plugin is
-not enabled, except for the two git lines below, which come from the
+not enabled, except for the git lines below, which come from the
 `git-workflow` skill of this repository.
 
 - `skill-context.sh` runs at session start, after `/clear` and after a
@@ -216,7 +216,11 @@ not enabled, except for the two git lines below, which come from the
   app (`<bash-input>`), whose output carries no request, but one: a
   `git commit` or `git push` that went through gets its next step (the branch
   command for a commit on a shared branch, else the push, then the pull
-  request's title and description).
+  request's title and description). While the session sits on the branch the
+  desktop app generated (`claude/<words>-<6 hex>`, not pushed), every prompt
+  but those reports also asks Claude to rename it after the work with
+  `git branch -m <type>/<slug>`; `DOTFILES_SESSION_BRANCH_PREFIX` matches the
+  app's branch prefix setting (default `claude`).
 
 `DOTFILES_SKILL_ROUTER=off` in the `env` block silences both.
 
