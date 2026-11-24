@@ -25,7 +25,7 @@ jobs:
       && !(startsWith(github.head_ref, 'release-please')
            && github.event.pull_request.head.repo.full_name == github.repository
            && github.event.pull_request.user.login == 'github-actions[bot]') }}
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@7290432f8bbb7754aca6192c282515299300969e # v0.56.1
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@c3b092e3b28e798521c4506f033870f12dcbafdd # v0.56.2
     with:
       run-shellcheck: true
       # The extensionless scripts too, as `make lint` and the prek hook do: a
@@ -52,7 +52,7 @@ jobs:
       fail-fast: false
       matrix:
         tests-dir: [tests/ai/, tests/ollama/]
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@7290432f8bbb7754aca6192c282515299300969e # v0.56.1
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/ci-shell.yml@c3b092e3b28e798521c4506f033870f12dcbafdd # v0.56.2
     with:
       run-shellcheck: false
       run-actionlint: false
@@ -66,7 +66,7 @@ jobs:
       && !(startsWith(github.head_ref, 'release-please')
            && github.event.pull_request.head.repo.full_name == github.repository
            && github.event.pull_request.user.login == 'github-actions[bot]') }}
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@7290432f8bbb7754aca6192c282515299300969e # v0.56.1
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/security.yml@c3b092e3b28e798521c4506f033870f12dcbafdd # v0.56.2
     permissions:
       contents: read
       actions: read
@@ -82,7 +82,7 @@ jobs:
 
   bot-check:
     if: github.event_name == 'pull_request'
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/check-bot-commits.yml@7290432f8bbb7754aca6192c282515299300969e # v0.56.1
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/check-bot-commits.yml@c3b092e3b28e798521c4506f033870f12dcbafdd # v0.56.2
     permissions:
       contents: read
       pull-requests: read
@@ -114,7 +114,7 @@ jobs:
       && needs.ci.result != 'failure' && needs.ci.result != 'cancelled'
       && needs.ci-suites.result != 'failure' && needs.ci-suites.result != 'cancelled'
       && needs.security.result != 'failure' && needs.security.result != 'cancelled' }}
-    uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@7290432f8bbb7754aca6192c282515299300969e # v0.56.1
+    uses: KevinDeBenedetti/github-workflows/.github/workflows/release.yml@c3b092e3b28e798521c4506f033870f12dcbafdd # v0.56.2
     permissions:
       contents: write
       issues: write
