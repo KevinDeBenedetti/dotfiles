@@ -773,6 +773,8 @@ setup() {
 @test "renovate moves a prek SHA pin and its tag comment together" {
   # The custom manager reads the SHA as the digest and the comment as the
   # version, on the real file: one match per SHA-pinned repository.
+  # Python reads Renovate's named groups; the Docker test image has none.
+  command -v python3 >/dev/null 2>&1 || skip "python3 not installed"
   local pattern
   pattern=$(jq -r '.customManagers[] | select(.managerFilePatterns[0] | test("prek")) | .matchStrings[]' "$REPO_ROOT/renovate.json" | grep currentDigest)
   [ -n "$pattern" ] || fail "no matchString captures currentDigest for prek.toml"

@@ -68,9 +68,13 @@ has_admin_ssh_login() {
   return 1
 }
 
-# ssh_dropin_port <file>: the port an sshd drop-in sets, or nothing.
+# ssh_dropin_port <file>: the port an sshd drop-in sets, or nothing. Never
+# fails: the script runs under `set -euo pipefail`, and a first run has no
+# drop-in yet. sed stops at the first Port line (no `head`, whose early exit
+# would end sed with SIGPIPE).
 ssh_dropin_port() {
-  $SUDO sed -n 's/^Port \([0-9][0-9]*\)$/\1/p' "$1" 2>/dev/null | head -n1
+  $SUDO test -f "$1" || return 0
+  $SUDO sed -n '/^Port [0-9][0-9]*$/{s/^Port //p;q;}' "$1"
 }
 
 configure_ssh() {

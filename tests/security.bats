@@ -641,6 +641,18 @@ render_ssh_dropin() {
   assert_output ""
 }
 
+@test "ssh_dropin_port does not abort the script on a first run, with no drop-in yet" {
+  # setup-security.sh runs under set -euo pipefail: a failing read there ended
+  # the whole profile right after "Harden SSH configuration" (Docker targets).
+  printf '%s\n' 'Port 2222' 'Port 3333' > "$BATS_TEST_TMPDIR/two.conf"
+  run bash -c "set -euo pipefail; SUDO=''; $(sed -n '/^ssh_dropin_port()/,/^}/p' "$SECURITY_SCRIPT")
+    p=\$(ssh_dropin_port '$BATS_TEST_TMPDIR/missing.conf'); echo \"missing:[\$p]\"
+    p=\$(ssh_dropin_port '$BATS_TEST_TMPDIR/two.conf'); echo \"two:[\$p]\""
+  assert_success
+  assert_line "missing:[]"
+  assert_line "two:[2222]"
+}
+
 # --- Nodes managed by the infra repo ---
 
 # Runs the real install_configure_fail2ban with the system commands stubbed:
