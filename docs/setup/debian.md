@@ -23,7 +23,7 @@ The script requires either `root` or a user with `sudo` access. It will exit ear
 <!-- x-release-please-start-version -->
 ```sh
 # Full install — all profiles, dotfiles, completions
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.18.0/os/debian/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.19.0/os/debian/init.sh) -a
 ```
 <!-- x-release-please-end -->
 

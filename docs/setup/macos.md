@@ -22,7 +22,7 @@ The init script checks for both prerequisites at startup and offers to install t
 <!-- x-release-please-start-version -->
 ```sh
 # Full install — all profiles, dotfiles, completions
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.18.0/os/macos/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.19.0/os/macos/init.sh) -a
 ```
 <!-- x-release-please-end -->
 

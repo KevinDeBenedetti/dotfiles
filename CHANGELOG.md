@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.19.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.18.0...v0.19.0) (2026-11-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* init.sh no longer accepts -r, which removed nothing; drop it from your calls.
+
+### Features
+
+* pin the bootstrap to a release and keep the board in step on its own ([6638d6d](https://github.com/KevinDeBenedetti/dotfiles/commit/6638d6d1a3b4eed131628fea591d512bb579cac0)), closes [#123](https://github.com/KevinDeBenedetti/dotfiles/issues/123) [#124](https://github.com/KevinDeBenedetti/dotfiles/issues/124) [#125](https://github.com/KevinDeBenedetti/dotfiles/issues/125) [#126](https://github.com/KevinDeBenedetti/dotfiles/issues/126) [#127](https://github.com/KevinDeBenedetti/dotfiles/issues/127) [#128](https://github.com/KevinDeBenedetti/dotfiles/issues/128) [#129](https://github.com/KevinDeBenedetti/dotfiles/issues/129) [#130](https://github.com/KevinDeBenedetti/dotfiles/issues/130) [#131](https://github.com/KevinDeBenedetti/dotfiles/issues/131) [#132](https://github.com/KevinDeBenedetti/dotfiles/issues/132) [#133](https://github.com/KevinDeBenedetti/dotfiles/issues/133) [#134](https://github.com/KevinDeBenedetti/dotfiles/issues/134) [#135](https://github.com/KevinDeBenedetti/dotfiles/issues/135)
+
+
+### Bug Fixes
+
+* **security:** keep the SSH port read from aborting a first run ([6b566ae](https://github.com/KevinDeBenedetti/dotfiles/commit/6b566aeb7cd0300fe0bfbd7cb61d76ef3eb1803b))
+
 ## [0.18.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.17.1...v0.18.0) (2026-11-24)
 
 
