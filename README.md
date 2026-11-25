@@ -30,10 +30,10 @@
 <!-- x-release-please-start-version -->
 ```sh
 # macOS
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.18.0/os/macos/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.19.0/os/macos/init.sh) -a
 
 # Debian
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.18.0/os/debian/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.19.0/os/debian/init.sh) -a
 ```
 <!-- x-release-please-end -->
 

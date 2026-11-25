@@ -27,7 +27,7 @@ DOTFILES_INSTALL_DIR="${DOTFILES_INSTALL_DIR:-$HOME/.dotfiles}"
 # The ref the bootstrap checks out: the latest release, bumped by
 # release-please, so a fresh host never runs a half-merged main. Override it
 # to test another one (DOTFILES_REF=main).
-DOTFILES_REF="${DOTFILES_REF:-v0.18.0}" # x-release-please-version
+DOTFILES_REF="${DOTFILES_REF:-v0.19.0}" # x-release-please-version
 if [ ! -f "$SCRIPT_PATH/setup-base.sh" ]; then
   if [ -d "$DOTFILES_INSTALL_DIR/.git" ]; then
     printf '%b' "\n${red}[bootstrap]${no_color} Dotfiles repo found at $DOTFILES_INSTALL_DIR — checking out $DOTFILES_REF...\n\n"
