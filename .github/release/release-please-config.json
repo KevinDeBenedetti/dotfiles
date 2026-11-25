@@ -5,7 +5,15 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "changelog-path": "CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        "os/debian/init.sh",
+        "os/macos/init.sh",
+        "README.md",
+        "docs/getting-started.md",
+        "docs/setup/debian.md",
+        "docs/setup/macos.md"
+      ]
     }
   }
 }

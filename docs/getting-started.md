@@ -27,17 +27,21 @@ Personal macOS and Debian dotfiles with setup scripts for fast developer environ
 
 ### macOS
 
+<!-- x-release-please-start-version -->
 ```sh
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/macos/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.18.0/os/macos/init.sh) -a
 ```
+<!-- x-release-please-end -->
 
 ### Debian
 
+<!-- x-release-please-start-version -->
 ```sh
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/debian/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.18.0/os/debian/init.sh) -a
 ```
+<!-- x-release-please-end -->
 
-The script clones the repository to `~/.dotfiles` if not already present, then re-executes from there so that symlinks remain valid after reboot.
+The script clones the latest release of the repository to `~/.dotfiles` (or checks that release out in an existing clone), then re-executes from there so that symlinks remain valid after reboot. Set `DOTFILES_REF` to run another tag or branch (`DOTFILES_REF=main`).
 
 ## Local install
 
@@ -60,7 +64,6 @@ cd ~/.dotfiles
 | `-d`            | Link dotfiles into `$HOME` only                                                  |
 | `-c`            | Install zsh CLI completions                                                      |
 | `-l`            | Lite mode — skip optional/heavy packages                                         |
-| `-r`            | Remove the bootstrap temp directory after install                                |
 | `-u <user>`     | Debian only: create a non-root sudo user (see [Debian](./setup/debian.md#flags)) |
 | `-h`            | Print help                                                                       |
 

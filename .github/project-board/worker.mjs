@@ -5,9 +5,15 @@
 // - issues (opened, reopened, labeled, unlabeled, closed): the issue is put on
 //   the board, in the column of its labels;
 // - projects_v2_item (edited): a card moved to another column sets the issue's
-//   labels, and closes or reopens it.
+//   labels, and closes or reopens it;
+// - on a schedule (wrangler.toml [triggers]): every card is put back in the
+//   column of its labels, for the deliveries that failed (GitHub does not
+//   send them again), and the deliveries that failed in the hour are
+//   reported in an issue of REPORT_REPOSITORY.
 //
-// Vars (wrangler.toml): PROJECT_OWNER, PROJECT_NUMBER, REPOSITORY_OWNERS.
+// Vars (wrangler.toml): PROJECT_OWNER, PROJECT_NUMBER, REPOSITORY_OWNERS,
+// REPORT_REPOSITORY; and
+// VERSION, the deployed commit, given at deploy time and answered to a GET.
 // Secrets (`wrangler secret put`): WEBHOOK_SECRET, GITHUB_APP_ID,
 // GITHUB_APP_PRIVATE_KEY (PKCS#8), and BOARD_TOKEN.
 //
@@ -16,8 +22,12 @@
 // that account cannot write the board. Those issues go through BOARD_TOKEN, a
 // classic token (repo and project scopes); every other issue stays with the
 // App, whose own writes the Worker recognises.
-import { isTrackedRepository, loadProject, MISSING_BOARD_TOKEN, syncBoardToIssue, syncIssueToBoard } from "./board.mjs";
-import { appLogin, client, installationClient } from "./github.mjs";
+import {
+  isTrackedRepository, loadProject, MISSING_BOARD_TOKEN, reconcile, syncBoardToIssue, syncIssueToBoard,
+} from "./board.mjs";
+import { reportFailedDeliveries } from "./deliveries.mjs";
+import { appLogin, client, GitHubError, installationClient } from "./github.mjs";
+import { TRIAGE } from "./plan.mjs";
 
 const ISSUE_ACTIONS = new Set(["opened", "reopened", "labeled", "unlabeled", "closed"]);
 
@@ -42,15 +52,34 @@ async function boardClient(env) {
 
 const boardToken = (env) => (env.BOARD_TOKEN ? client(env.BOARD_TOKEN) : null);
 
+// labelsToDrop(action, issue): the labels an issues delivery removes before
+// the card is synced.
+function labelsToDrop(action, issue) {
+  const names = (issue.labels ?? []).map((label) => label.name);
+  // Closed as completed or as a duplicate: every triage label goes. Closed as
+  // not planned: `wontfix` stays, the column it is in.
+  if (action === "closed" && issue.state_reason !== "not_planned") return names.filter((name) => TRIAGE.includes(name));
+  if (action === "reopened") return names.filter((name) => name === "done");
+  return [];
+}
+
 async function onIssue(env, { action, issue, repository }) {
   if (!ISSUE_ACTIONS.has(action)) return reply("ignored: action", 202);
   if (!isTrackedRepository(env, repository.full_name)) return reply("ignored: another owner", 202);
-  // A reopened issue is work again: `done` (finished, waiting for the commit
-  // that closed it) would keep it in Done.
-  if (action === "reopened" && issue.labels?.some((label) => label.name === "done")) {
+  // A closed issue carries no triage label: closed as completed (a commit,
+  // the close button) or as a duplicate, it loses them all; closed as not planned, it keeps
+  // `wontfix`. A reopened issue is work again: `done` (left on an issue closed
+  // before that rule) would keep it in Done.
+  const stale = labelsToDrop(action, issue);
+  if (stale.length) {
     const issueApi = await installationClient(env, `/repos/${repository.full_name}/installation`);
-    if (issueApi) {
-      await issueApi(`/repos/${repository.full_name}/issues/${issue.number}/labels/done`, { method: "DELETE" });
+    for (const name of issueApi ? stale : []) {
+      try {
+        await issueApi(`/repos/${repository.full_name}/issues/${issue.number}/labels/${encodeURIComponent(name)}`, { method: "DELETE" });
+      } catch (error) {
+        // Removed meanwhile (a drag to Done already dropped it).
+        if (!(error instanceof GitHubError && error.status === 404)) throw error;
+      }
     }
   }
   const hidden = repository.private && repository.owner.login.toLowerCase() !== env.PROJECT_OWNER.toLowerCase();
@@ -76,7 +105,18 @@ async function onItem(env, { action, projects_v2_item: item, changes, sender }) 
 }
 
 export default {
+  // Errors land in the Worker's logs (Cloudflare dashboard, Observability).
+  // The two run apart: one failing does not stop the other.
+  async scheduled(controller, env, ctx) {
+    const log = (line) => console.log(line);
+    ctx.waitUntil((async () => reconcile(await boardClient(env), env, boardToken(env), log))());
+    ctx.waitUntil(reportFailedDeliveries(env, log, controller.scheduledTime));
+  },
+
   async fetch(request, env) {
+    // The commit this Worker was deployed from (`--var VERSION:<sha>`), so a
+    // stale deploy shows with one request.
+    if (request.method === "GET") return reply(env.VERSION ?? "unknown");
     if (request.method !== "POST") return reply("POST only", 405);
     const body = await request.text();
     if (!(await verify(body, request.headers.get("x-hub-signature-256"), env.WEBHOOK_SECRET))) {

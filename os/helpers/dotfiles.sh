@@ -100,6 +100,27 @@ EOF
   fi
 }
 
+# strip_jsonc_comments: stdin without its `//` and `/* */` comments, so jq can
+# read it. Read character by character: a `//` or `/*` inside a string (a URL)
+# is kept, and so is a quote inside a comment.
+strip_jsonc_comments() {
+  awk '
+    BEGIN { block = 0 }
+    {
+      out = ""; str = 0; n = length($0)
+      for (i = 1; i <= n; i++) {
+        c = substr($0, i, 1); d = substr($0, i, 2)
+        if (block) { if (d == "*/") { block = 0; i++ } continue }
+        if (str) { out = out c; if (c == "\\") { out = out substr($0, ++i, 1) } else if (c == "\"") str = 0; continue }
+        if (d == "//") break
+        if (d == "/*") { block = 1; i++; continue }
+        if (c == "\"") str = 1
+        out = out c
+      }
+      print out
+    }'
+}
+
 # Symlink the VS Code user config and install the recommended extensions.
 # $1 = repo config/ dir, $2 = VS Code "User" dir (platform-specific).
 install_vscode_config() {
@@ -118,7 +139,5 @@ install_vscode_config() {
     else
       code --install-extension "$extension"
     fi
-  done < <(grep -v '//' "$config_dir/vscode/extensions.json" \
-    | grep -E '\S' \
-    | jq -r '.recommendations[]')
+  done < <(strip_jsonc_comments < "$config_dir/vscode/extensions.json" | jq -r '.recommendations[]')
 }

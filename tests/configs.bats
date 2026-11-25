@@ -659,6 +659,16 @@ setup() {
   assert_failure
 }
 
+@test ".zshrc points tldr at the pages of the running OS (issue 128)" {
+  local block
+  block=$(sed -n '/^# tldr++/,/^esac$/p' "$CONFIG_DIR/zsh/.zshrc")
+  [ -n "$block" ] || fail "no tldr++ block in .zshrc"
+  run bash -c "uname() { echo Darwin; }; $block; echo \"\$TLDR_OS\""
+  assert_output "osx"
+  run bash -c "uname() { echo Linux; }; $block; echo \"\$TLDR_OS\""
+  assert_output "linux"
+}
+
 # --- Renovate keeps the prek.toml rev pins up to date ---
 
 @test "renovate.json is valid JSON" {
@@ -712,6 +722,70 @@ setup() {
   revs=$(grep -c '^rev = ' "$REPO_ROOT/prek.toml")
   notes=$(grep -c '^# renovate:' "$REPO_ROOT/prek.toml")
   [ "$revs" -eq "$notes" ]
+}
+
+# --- The board Worker is deployed by CI (issue 131) ---
+
+@test "a push to main that changes the board Worker deploys it, after its tests" {
+  local wf="$REPO_ROOT/.github/workflows/project-board.yml"
+  assert_file_exists "$wf"
+  # Only main, only the Worker's own files (and this workflow).
+  run sed -n '/^on:$/,/^[a-z]/p' "$wf"
+  assert_line "    branches: [main]"
+  assert_line "      - '.github/project-board/**'"
+  refute_output --partial "pull_request"
+  # The tests run before the deploy, in the same job.
+  local tests deploy
+  tests=$(grep -n 'bats tests/project-board.bats' "$wf" | head -n1 | cut -d: -f1)
+  deploy=$(grep -n 'wrangler@[0-9.]* deploy --config .github/project-board/wrangler.toml --var "VERSION:' "$wf" | head -n1 | cut -d: -f1)
+  [ -n "$tests" ] && [ -n "$deploy" ] || fail "the workflow lacks the tests or the deploy command"
+  [ "$tests" -lt "$deploy" ] || fail "the deploy runs before the tests"
+}
+
+@test "the board deploy job has read-only contents, pinned actions and its secrets from the repository" {
+  local wf="$REPO_ROOT/.github/workflows/project-board.yml"
+  run grep -A1 '^permissions:$' "$wf"
+  assert_line "  contents: read"
+  run grep -c 'contents: write\|id-token\|secrets: inherit' "$wf"
+  assert_output 0
+  # Every action by full commit SHA.
+  run grep -E '^ +(- )?uses: ' "$wf"
+  assert_success
+  run bash -c "grep -E '^ +(- )?uses: ' '$wf' | grep -vE '@[0-9a-f]{40} # v[0-9.]+$'"
+  assert_failure
+  run grep -c 'secrets.CLOUDFLARE_API_TOKEN\|secrets.CLOUDFLARE_ACCOUNT_ID' "$wf"
+  assert_output 2
+}
+
+@test "the prek hook repositories are pinned by commit SHA, the tag kept as a comment" {
+  # A tag can be moved or pushed again; a full SHA cannot (issue 127). The
+  # owner's own github-workflows hooks stay on their tag: its propagate-release
+  # job moves that pin with each release, and reads a tag there.
+  local repo rev pinned=0
+  while IFS=$'\t' read -r repo rev; do
+    [ "$repo" = "https://github.com/KevinDeBenedetti/github-workflows" ] && continue
+    [[ "$rev" =~ ^rev\ =\ \"[0-9a-f]{40}\"\ #\ v[0-9][0-9.]*$ ]] || fail "$repo is not pinned by SHA: $rev"
+    pinned=$((pinned + 1))
+  done < <(awk -F'"' '/^repo = "https:/ { repo = $2 } /^rev = / { print repo "\t" $0 }' "$REPO_ROOT/prek.toml")
+  assert_equal "$pinned" 5
+}
+
+@test "renovate moves a prek SHA pin and its tag comment together" {
+  # The custom manager reads the SHA as the digest and the comment as the
+  # version, on the real file: one match per SHA-pinned repository.
+  local pattern
+  pattern=$(jq -r '.customManagers[] | select(.managerFilePatterns[0] | test("prek")) | .matchStrings[]' "$REPO_ROOT/renovate.json" | grep currentDigest)
+  [ -n "$pattern" ] || fail "no matchString captures currentDigest for prek.toml"
+  run python3 - "$pattern" "$REPO_ROOT/prek.toml" <<'PY'
+import re, sys
+pattern = re.sub(r"\(\?<", "(?P<", sys.argv[1])
+for m in re.finditer(pattern, open(sys.argv[2]).read()):
+    print(m["depName"], m["currentValue"], len(m["currentDigest"]))
+PY
+  assert_success
+  assert_line "pre-commit/pre-commit-hooks v5.0.0 40"
+  assert_line "gitleaks/gitleaks v8.30.1 40"
+  assert_equal "${#lines[@]}" 5
 }
 
 # --- Agent instructions (AGENTS.md / CLAUDE.md) ---
@@ -1366,6 +1440,8 @@ todo_layout() {
   # The files it reaches pass, the compose file of the Docker rig included.
   run bash -c "cd '$REPO_ROOT' && git ls-files '*.yml' '*.yaml' | grep -c docker-compose"
   assert_output "1"
+  # yamllint is a local extra: CI installs it, so the lint still runs there.
+  command -v yamllint >/dev/null 2>&1 || skip "yamllint not installed"
   run bash -c "cd '$REPO_ROOT' && git ls-files -z '*.yml' '*.yaml' | xargs -0 yamllint --strict --config-file .yamllint.yml"
   assert_success
 }

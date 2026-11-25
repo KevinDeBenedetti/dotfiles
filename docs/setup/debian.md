@@ -20,12 +20,14 @@ The script requires either `root` or a user with `sudo` access. It will exit ear
 
 ### Remote (fresh server)
 
+<!-- x-release-please-start-version -->
 ```sh
 # Full install — all profiles, dotfiles, completions
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/debian/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.18.0/os/debian/init.sh) -a
 ```
+<!-- x-release-please-end -->
 
-The script clones the repository to `~/.dotfiles` if not already present, then re-executes from there.
+The script clones the latest release of the repository to `~/.dotfiles` (or checks that release out in an existing clone), then re-executes from there. Set `DOTFILES_REF` to run another tag or branch (`DOTFILES_REF=main`).
 
 ### Local
 
@@ -53,7 +55,6 @@ cd ~/.dotfiles
 | `-d`            | Link dotfiles into `$HOME`                                          |
 | `-c`            | Install zsh CLI completions                                         |
 | `-l`            | Lite mode — skip optional/heavy packages                            |
-| `-r`            | Remove bootstrap temp directory after install                       |
 | `-u <user>`     | Create a non-root sudo user before the security profile hardens SSH |
 | `-h`            | Print help                                                          |
 
@@ -121,6 +122,7 @@ Set these before invoking the script to customize security behaviour:
 | `SSH_NOPASSWD`      | `false` | Give the user created by `-u` passwordless sudo                           |
 | `COPY_ROOT_SSH_KEY` | `true`  | Add root's `authorized_keys` to the user created by `-u`, keeping its own |
 | `HARDEN_TMP`        | `false` | Remount `/tmp` as a `noexec` tmpfs capped at 1G (opt-in)                  |
+| `HARDEN_IPV6_RA`    | `false` | Ignore IPv6 router advertisements (opt-in)                                |
 
 ```sh
 # Example: custom port + restrict SSH to a single user
@@ -176,6 +178,11 @@ Default policy: deny all incoming, allow all outgoing. Rules added:
 UFW is reset only on its first run, while it is inactive: re-running the
 security profile adds these rules again and keeps those you added since.
 
+The firewall is configured before sshd is hardened, so a re-run with another
+`SSH_PORT` opens the new port before sshd restarts on it. Once sshd has
+restarted, the rule of the previous port is removed; when the restart fails,
+that port stays open and a warning gives the command that closes it.
+
 ::: warning
 Docker writes its own iptables rules ahead of UFW's, so UFW does **not** filter
 ports published by containers. When Docker is installed, the script sets
@@ -210,7 +217,6 @@ is only a Recommends of the `fail2ban` package.
 | `net.ipv4.ip_forward`                | `0`   | No IP forwarding                    |
 | `net.ipv4.conf.all.accept_redirects` | `0`   | Ignore ICMP redirects (MITM)        |
 | `net.ipv4.conf.all.rp_filter`        | `1`   | Reverse path filtering (anti-spoof) |
-| `net.ipv6.conf.all.accept_ra`        | `0`   | Disable IPv6 router advertisements  |
 
 **Kernel:**
 
@@ -246,7 +252,7 @@ servers.
 
 #### AppArmor
 
-Installs `apparmor` and `apparmor-utils`, adds GRUB boot parameters (`apparmor=1 security=apparmor`), enables the service, and sets all loaded profiles to `enforce` mode.
+Installs `apparmor` and `apparmor-utils` and enables the service. The GRUB boot parameters (`apparmor=1 security=apparmor`) are added only where the kernel does not run AppArmor already, which Debian does by default since version 10. Each profile keeps the mode its package ships it in: forcing every profile to `enforce` breaks the services whose profile is in `complain` mode on purpose.
 
 #### CrowdSec *(full mode only)*
 

@@ -261,6 +261,7 @@ render_hardening() {
   tee() { echo "tee $*" >> "$CALLS"; cat > "$ETC/${1##*/}"; }
   apt-get() { echo "apt-get $*" >> "$CALLS"; }
   sysctl() { echo "sysctl $*" >> "$CALLS"; }
+  rm() { echo "rm $*" >> "$CALLS"; }
   "$1"
 }
 
@@ -278,6 +279,35 @@ render_hardening() {
   run cat "$CALLS"
   assert_line "tee /etc/sysctl.d/99-security.conf"
   assert_line "sysctl --system"
+}
+
+@test "IPv6 router advertisements stay accepted unless HARDEN_IPV6_RA=true (issue 126)" {
+  # A VPS that gets its IPv6 route by SLAAC loses it with accept_ra = 0.
+  HARDEN_IPV6_RA=false render_hardening configure_sysctl_hardening
+  run grep -c accept_ra "$ETC/99-security.conf"
+  assert_output 0
+  assert_file_not_exists "$ETC/99-security-ipv6-ra.conf"
+  # A drop-in left by an earlier opt-in run is removed.
+  run cat "$CALLS"
+  assert_line "rm -f /etc/sysctl.d/99-security-ipv6-ra.conf"
+}
+
+@test "HARDEN_IPV6_RA=true disables router advertisements in a drop-in of its own" {
+  HARDEN_IPV6_RA=true render_hardening configure_sysctl_hardening
+  run grep -c accept_ra "$ETC/99-security.conf"
+  assert_output 0
+  run grep -v '^#' "$ETC/99-security-ipv6-ra.conf"
+  assert_output "net.ipv6.conf.all.accept_ra = 0
+net.ipv6.conf.default.accept_ra = 0"
+  # Written before the reload that applies it.
+  run cat "$CALLS"
+  assert_line "tee /etc/sysctl.d/99-security-ipv6-ra.conf"
+  assert_equal "$(tail -n1 "$CALLS")" "sysctl --system"
+}
+
+@test "HARDEN_IPV6_RA defaults to false" {
+  run grep -c '^HARDEN_IPV6_RA="${HARDEN_IPV6_RA:-false}"$' "$SECURITY_SCRIPT"
+  assert_output 1
 }
 
 @test "unattended-upgrades checks daily and installs security patches only, never rebooting" {
@@ -319,13 +349,64 @@ render_hardening() {
     [ "${a[0]}" = sed ] && command -v gsed >/dev/null && a[0]=gsed
     "${a[@]}"
   }
-  apt-get() { :; }; update-grub() { :; }; systemctl() { :; }; aa-enforce() { :; }; aa-status() { :; }
+  apt-get() { :; }; update-grub() { :; }; systemctl() { :; }; aa-status() { :; }
+  aa-enforce() { echo "aa-enforce $*" >> "$BATS_TEST_TMPDIR/calls"; }
+  # AppArmor is off on this host: the boot options are what turns it on.
+  apparmor_active() { return 1; }
   SUDO=in_root
   eval "$(sed -n '/^configure_apparmor()/,/^}$/p' "$SECURITY_SCRIPT")"
   configure_apparmor > /dev/null
   configure_apparmor > /dev/null
   run cat "$ROOT/etc/default/grub"
   assert_output 'GRUB_CMDLINE_LINUX="quiet apparmor=1 security=apparmor"'
+}
+
+@test "GRUB is left alone where AppArmor is already active (issue 125)" {
+  # Debian enables AppArmor by default since 10: no boot option to add.
+  ROOT="$BATS_TEST_TMPDIR/root" red="" no_color=""
+  mkdir -p "$ROOT/etc/default"
+  echo 'GRUB_CMDLINE_LINUX="quiet"' > "$ROOT/etc/default/grub"
+  in_root() {
+    local a=() x
+    for x in "$@"; do a+=("${x//\/etc\//$ROOT/etc/}"); done
+    "${a[@]}"
+  }
+  apt-get() { :; }; systemctl() { :; }; aa-status() { :; }
+  update-grub() { echo "update-grub" >> "$BATS_TEST_TMPDIR/calls"; }
+  apparmor_active() { return 0; }
+  SUDO=in_root
+  eval "$(sed -n '/^configure_apparmor()/,/^}$/p' "$SECURITY_SCRIPT")"
+  configure_apparmor > /dev/null
+  run cat "$ROOT/etc/default/grub"
+  assert_output 'GRUB_CMDLINE_LINUX="quiet"'
+  assert_file_not_exists "$BATS_TEST_TMPDIR/calls"
+}
+
+@test "AppArmor profiles keep the mode their package ships them in" {
+  # aa-enforce on every profile breaks the services whose profile is shipped
+  # in complain mode on purpose.
+  ROOT="$BATS_TEST_TMPDIR/root" red="" no_color=""
+  apt-get() { :; }; systemctl() { :; }; aa-status() { :; }
+  aa-enforce() { echo "aa-enforce $*" >> "$BATS_TEST_TMPDIR/calls"; }
+  apparmor_active() { return 0; }
+  SUDO=""
+  eval "$(sed -n '/^configure_apparmor()/,/^}$/p' "$SECURITY_SCRIPT")"
+  run configure_apparmor
+  assert_success
+  assert_file_not_exists "$BATS_TEST_TMPDIR/calls"
+  refute_output --partial "enforce"
+}
+
+@test "apparmor_active reads the kernel module's enabled flag" {
+  eval "$(sed -n '/^apparmor_active()/,/^}$/p' "$SECURITY_SCRIPT")"
+  echo Y > "$BATS_TEST_TMPDIR/enabled"
+  APPARMOR_ENABLED_FILE="$BATS_TEST_TMPDIR/enabled" run apparmor_active
+  assert_success
+  echo N > "$BATS_TEST_TMPDIR/enabled"
+  APPARMOR_ENABLED_FILE="$BATS_TEST_TMPDIR/enabled" run apparmor_active
+  assert_failure
+  APPARMOR_ENABLED_FILE="$BATS_TEST_TMPDIR/missing" run apparmor_active
+  assert_failure
 }
 
 # --- SSH lockout safeguards ---
@@ -417,7 +498,9 @@ load_admin_check() {
 
 # Runs the real configure_ssh with the system commands stubbed: the drop-in it
 # renders lands in $DROPIN instead of /etc/ssh/sshd_config.d/ and each stubbed
-# call is logged in $CALLS. `sshd -t` answers $SSHD_T, one word per call
+# call is logged in $CALLS. The drop-in of the previous run set the port
+# $PREVIOUS_PORT (none by default), and `systemctl` fails when $RESTART is not
+# "ok". `sshd -t` answers $SSHD_T, one word per call
 # ("ok" or "bad", the last one repeating): "ok bad" is a config the drop-in
 # broke. The infra marker is $INFRA_MARKER, a path in the test's temp dir.
 render_ssh_dropin() {
@@ -434,7 +517,9 @@ render_ssh_dropin() {
   rm() { echo "rm $*" >> "$CALLS"; }
   mv() { echo "mv $*" >> "$CALLS"; }
   chmod() { echo "chmod $*" >> "$CALLS"; }
-  systemctl() { echo "systemctl $*" >> "$CALLS"; }
+  systemctl() { echo "systemctl $*" >> "$CALLS"; [ "${RESTART:-ok}" = ok ]; }
+  ufw() { echo "ufw $*" >> "$CALLS"; }
+  ssh_dropin_port() { echo "${PREVIOUS_PORT:-}"; }
   sshd() {
     [ "$1" = -t ] || return 1
     local answer="${sshd_t[$sshd_t_calls]:-${sshd_t[${#sshd_t[@]}-1]}}"
@@ -499,6 +584,61 @@ render_ssh_dropin() {
   run cat "$BATS_TEST_TMPDIR/calls"
   refute_line --partial "mv "
   refute_line "systemctl restart sshd"
+}
+
+# --- SSH port change (issue 124) ---
+
+@test "the firewall opens the SSH port before sshd is restarted on it" {
+  # On a re-run with a new SSH_PORT, an active UFW must allow the port first:
+  # a failure between the two steps would leave sshd on a closed port.
+  local body ufw_line ssh_line
+  body=$(sed -n '/^install_lite_setup()/,/^}/p' "$SECURITY_SCRIPT")
+  ufw_line=$(grep -n '^  install_configure_ufw$' <<<"$body" | cut -d: -f1)
+  ssh_line=$(grep -n '^  configure_ssh$' <<<"$body" | cut -d: -f1)
+  [ -n "$ufw_line" ] && [ -n "$ssh_line" ] || fail "install_lite_setup lacks one of the two steps"
+  [ "$ufw_line" -lt "$ssh_line" ] || fail "configure_ssh (line $ssh_line) runs before install_configure_ufw (line $ufw_line)"
+}
+
+@test "a changed SSH port is closed in UFW once sshd restarted on the new one" {
+  PREVIOUS_PORT=22 SSH_PORT=2222 run render_ssh_dropin
+  assert_success
+  assert_output --partial "port 22 closed in UFW"
+  run cat "$BATS_TEST_TMPDIR/calls"
+  assert_line "ufw delete allow 22/tcp"
+  local restart delete
+  restart=$(grep -n '^systemctl restart sshd$' "$BATS_TEST_TMPDIR/calls" | cut -d: -f1)
+  delete=$(grep -n '^ufw delete allow 22/tcp$' "$BATS_TEST_TMPDIR/calls" | cut -d: -f1)
+  [ "$restart" -lt "$delete" ] || fail "the old port was closed before the restart"
+}
+
+@test "the previous SSH port stays open, with a warning, when sshd did not restart" {
+  PREVIOUS_PORT=22 SSH_PORT=2222 RESTART=failed run render_ssh_dropin
+  assert_success
+  assert_output --partial "port 22 is still open in UFW"
+  run cat "$BATS_TEST_TMPDIR/calls"
+  refute_line --partial "ufw delete"
+  PREVIOUS_PORT=22 SSH_PORT=2222 SSHD_T=bad run render_ssh_dropin
+  run cat "$BATS_TEST_TMPDIR/calls"
+  refute_line --partial "ufw delete"
+}
+
+@test "an unchanged SSH port, or a first run, closes nothing in UFW" {
+  PREVIOUS_PORT=2222 SSH_PORT=2222 run render_ssh_dropin
+  assert_success
+  SSH_PORT=2222 run render_ssh_dropin
+  assert_success
+  run cat "$BATS_TEST_TMPDIR/calls"
+  refute_line --partial "ufw delete"
+}
+
+@test "ssh_dropin_port reads the port a drop-in sets, and nothing from a missing one" {
+  eval "$(sed -n '/^ssh_dropin_port()/,/^}/p' "$SECURITY_SCRIPT")"
+  SUDO=""
+  printf '%s\n' '# SSH Hardening' 'Port 2222' 'PermitRootLogin no' > "$BATS_TEST_TMPDIR/dropin.conf"
+  run ssh_dropin_port "$BATS_TEST_TMPDIR/dropin.conf"
+  assert_output "2222"
+  run ssh_dropin_port "$BATS_TEST_TMPDIR/missing.conf"
+  assert_output ""
 }
 
 # --- Nodes managed by the infra repo ---

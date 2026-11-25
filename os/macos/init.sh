@@ -24,13 +24,23 @@ HELPERS_DIR="$REPO_ROOT/os/helpers"
 # remain valid across reboots — macOS wipes per-user temp dirs (/var/folders/.../T/) on logout.
 REPO_URL="https://github.com/KevinDeBenedetti/dotfiles.git"
 DOTFILES_INSTALL_DIR="${DOTFILES_INSTALL_DIR:-$HOME/.dotfiles}"
+# The ref the bootstrap checks out: the latest release, bumped by
+# release-please, so a fresh host never runs a half-merged main. Override it
+# to test another one (DOTFILES_REF=main).
+DOTFILES_REF="${DOTFILES_REF:-v0.18.0}" # x-release-please-version
 if [ ! -f "$SCRIPT_PATH/setup-base.sh" ]; then
   if [ -d "$DOTFILES_INSTALL_DIR/.git" ]; then
-    printf '%b' "\n${red}[bootstrap]${no_color} Dotfiles repo found at $DOTFILES_INSTALL_DIR — pulling latest...\n\n"
-    git -C "$DOTFILES_INSTALL_DIR" pull --ff-only || printf '%b' "${red}[bootstrap]${no_color} Pull failed (non-fatal), using existing checkout.\n"
+    printf '%b' "\n${red}[bootstrap]${no_color} Dotfiles repo found at $DOTFILES_INSTALL_DIR — checking out $DOTFILES_REF...\n\n"
+    # A shallow clone (the bootstrap's own) stays shallow; a full one stays full.
+    # (A plain variable, not an array: Bash 3.2 of macOS fails on an empty one under set -u.)
+    _BOOTSTRAP_SHALLOW=""
+    [ "$(git -C "$DOTFILES_INSTALL_DIR" rev-parse --is-shallow-repository 2>/dev/null)" = true ] && _BOOTSTRAP_SHALLOW=1
+    { git -C "$DOTFILES_INSTALL_DIR" fetch ${_BOOTSTRAP_SHALLOW:+--depth=1} origin "$DOTFILES_REF" \
+      && git -C "$DOTFILES_INSTALL_DIR" checkout --quiet --detach FETCH_HEAD; } \
+      || printf '%b' "${red}[bootstrap]${no_color} Could not check out $DOTFILES_REF (non-fatal), using existing checkout.\n"
   else
-    printf '%b' "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository to $DOTFILES_INSTALL_DIR...\n\n"
-    git clone --depth=1 "$REPO_URL" "$DOTFILES_INSTALL_DIR"
+    printf '%b' "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository ($DOTFILES_REF) to $DOTFILES_INSTALL_DIR...\n\n"
+    git clone --depth=1 --branch "$DOTFILES_REF" "$REPO_URL" "$DOTFILES_INSTALL_DIR"
   fi
   exec bash "$DOTFILES_INSTALL_DIR/os/macos/init.sh" "$@"
 fi
@@ -43,7 +53,6 @@ INSTALL_JAVASCRIPT="false"
 INSTALL_PYTHON="false"
 INSTALL_COMPLETIONS="false"
 COPY_DOTFILES="false"
-REMOVE_TMP_CONTENT="false"
 FULL_MODE_SETUP="true"
 
 # Declare script helper
@@ -51,7 +60,7 @@ TEXT_HELPER="\nThis script aims to install a full setup for osx.
 Following flags are available:
 
   -a    Full install: enables all profiles (ai, base, extras, javascript, python),
-        copies dotfiles, installs completions and removes tmp files.
+        copies dotfiles and installs completions.
 
   -c    Install cli completions.
 
@@ -67,8 +76,6 @@ Following flags are available:
           -> 'python'
         Default is no profile, this flag can be used with a CSV list (ex: -p \"base,javascript\").
 
-  -r    Remove all tmp files after installation.
-
   -h    Print script help.\n\n"
 
 print_help() {
@@ -76,7 +83,7 @@ print_help() {
 }
 
 # Parse options
-while getopts hacdlp:r flag; do
+while getopts hacdlp: flag; do
   case "${flag}" in
     a)
       INSTALL_AI="true"
@@ -85,8 +92,7 @@ while getopts hacdlp:r flag; do
       INSTALL_JAVASCRIPT="true"
       INSTALL_PYTHON="true"
       INSTALL_COMPLETIONS="true"
-      COPY_DOTFILES="true"
-      REMOVE_TMP_CONTENT="true";;
+      COPY_DOTFILES="true";;
     c)
       INSTALL_COMPLETIONS="true";;
     d)
@@ -99,8 +105,6 @@ while getopts hacdlp:r flag; do
       [[ ",$OPTARG," =~ ",extras," ]] && INSTALL_EXTRAS="true"
       [[ ",$OPTARG," =~ ",javascript," ]] && INSTALL_JAVASCRIPT="true"
       [[ ",$OPTARG," =~ ",python," ]] && INSTALL_PYTHON="true";;
-    r)
-      REMOVE_TMP_CONTENT="true";;
     h)
       print_help
       exit 0;;
@@ -114,8 +118,7 @@ done
 # Warn if no profile or action flag was provided
 if [[ "$INSTALL_AI" = "false" && "$INSTALL_BASE" = "false" && "$INSTALL_EXTRAS" = "false" \
    && "$INSTALL_JAVASCRIPT" = "false" && "$INSTALL_PYTHON" = "false" \
-   && "$COPY_DOTFILES" = "false" && "$INSTALL_COMPLETIONS" = "false" \
-   && "$REMOVE_TMP_CONTENT" = "false" ]]; then
+   && "$COPY_DOTFILES" = "false" && "$INSTALL_COMPLETIONS" = "false" ]]; then
   printf '%b' "\n${red}[warning]${no_color} No profile or action flag provided. Nothing to do.\n"
   print_help
   exit 1
@@ -325,13 +328,4 @@ if [[ "$INSTALL_COMPLETIONS" = "true" ]]; then
   # shellcheck source=../helpers/oh-my-zsh.sh
   source "$HELPERS_DIR/oh-my-zsh.sh"
   setup_zsh_completions
-fi
-
-
-if [[ "$REMOVE_TMP_CONTENT" = "true" ]]; then
-  printf '%b' "\n${red}${i}.${no_color} Remove tmp files\n\n"
-  i=$(($i + 1))
-  # Nothing to clean up — the bootstrap now clones to ~/.dotfiles (permanent),
-  # so there is no temporary directory to remove.
-  printf '%b' "${red}[cleanup]${no_color} No temporary files to remove.\n"
 fi

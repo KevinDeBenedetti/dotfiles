@@ -30,6 +30,10 @@ SSH_ALLOWED_USERS="${SSH_ALLOWED_USERS:-}"
 # `noexec /tmp` breaks apt/dpkg postinst scripts and build tooling, and the
 # 1G cap is wrong for small VPSes. Set HARDEN_TMP=true to enable.
 HARDEN_TMP="${HARDEN_TMP:-false}"
+# Opt-in: ignore IPv6 router advertisements. Off by default because a VPS whose
+# provider hands out IPv6 by SLAAC loses its default route without them. Set
+# HARDEN_IPV6_RA=true on a host with a static IPv6 configuration.
+HARDEN_IPV6_RA="${HARDEN_IPV6_RA:-false}"
 
 # ──────────────────────────────────────────────
 # SSH Hardening
@@ -62,6 +66,11 @@ has_admin_ssh_login() {
     $SUDO test -s "$home/.ssh/authorized_keys" && can_escalate "$user" && return 0
   done
   return 1
+}
+
+# ssh_dropin_port <file>: the port an sshd drop-in sets, or nothing.
+ssh_dropin_port() {
+  $SUDO sed -n 's/^Port \([0-9][0-9]*\)$/\1/p' "$1" 2>/dev/null | head -n1
 }
 
 configure_ssh() {
@@ -112,6 +121,11 @@ configure_ssh() {
       printf '%b' "${red}[warning]${no_color} AllowUsers also lists root until then, so the kept root login works.\n"
     fi
   fi
+
+  # The port the previous run moved sshd to: when $SSH_PORT changed since, its
+  # UFW rule is removed below, once sshd answers on the new one.
+  local previous_port
+  previous_port=$(ssh_dropin_port "$hardening_conf")
 
   # Baseline before writing: if sshd -t already fails (no host keys or
   # privilege-separation dir, e.g. in a container), a failure after the write
@@ -167,8 +181,19 @@ EOF
   # at its next restart or reboot and take SSH access down with it. The
   # restart itself stays best-effort (no systemd in a container).
   if $SUDO sshd -t 2>/dev/null; then
-    $SUDO systemctl restart sshd || true
+    local restarted=false
+    $SUDO systemctl restart sshd && restarted=true
     printf '%b' "${red}[security]${no_color} SSH hardening applied and service restarted.\n"
+    # UFW already allows $SSH_PORT (install_configure_ufw runs first). The old
+    # port is closed only when sshd did restart: until then it is the way in.
+    if [[ -n "$previous_port" && "$previous_port" != "$SSH_PORT" ]] && command -v ufw >/dev/null 2>&1; then
+      if [[ "$restarted" = true ]]; then
+        $SUDO ufw delete allow "$previous_port/tcp" || true
+        printf '%b' "${red}[security]${no_color} SSH moved from port $previous_port to $SSH_PORT: port $previous_port closed in UFW.\n"
+      else
+        printf '%b' "${red}[warning]${no_color} sshd did not restart: port $previous_port is still open in UFW. Close it with: sudo ufw delete allow $previous_port/tcp\n"
+      fi
+    fi
   elif [[ "$sshd_ok_before" = true ]]; then
     $SUDO mv "$hardening_conf" "${hardening_conf}.rejected"
     printf '%b' "${red}[error]${no_color} The SSH hardening drop-in made the sshd config invalid — moved to ${hardening_conf}.rejected, sshd left as it was.\n"
@@ -425,10 +450,6 @@ net.ipv4.icmp_ignore_bogus_error_responses = 1
 net.ipv4.conf.all.rp_filter = 1
 net.ipv4.conf.default.rp_filter = 1
 
-# Disable IPv6 router advertisements
-net.ipv6.conf.all.accept_ra = 0
-net.ipv6.conf.default.accept_ra = 0
-
 # Kernel hardening
 # Restrict kernel pointer exposure in /proc
 kernel.kptr_restrict = 2
@@ -455,6 +476,21 @@ fs.protected_fifos = 2
 # Restrict regular file creation in sticky directories
 fs.protected_regular = 2
 EOF
+
+  # Router advertisements, in a drop-in of their own: opting out again is
+  # removing it. The running kernel keeps its value until the next boot.
+  local ra_conf="/etc/sysctl.d/99-security-ipv6-ra.conf"
+  if [ "$HARDEN_IPV6_RA" = "true" ]; then
+    $SUDO tee "$ra_conf" > /dev/null <<'EOF'
+# IPv6 router advertisements off (HARDEN_IPV6_RA=true) — managed by dotfiles setup-security.sh
+net.ipv6.conf.all.accept_ra = 0
+net.ipv6.conf.default.accept_ra = 0
+EOF
+    printf '%b' "${red}[security]${no_color} IPv6 router advertisements disabled (HARDEN_IPV6_RA=true).\n"
+  else
+    $SUDO rm -f "$ra_conf"
+    printf '%b' "${red}[security]${no_color} IPv6 router advertisements left accepted (set HARDEN_IPV6_RA=true to ignore them; SLAAC hosts need them).\n"
+  fi
 
   # Best-effort: reloading sysctl can fail on read-only / container kernels.
   $SUDO sysctl --system > /dev/null 2>&1 || true
@@ -515,14 +551,22 @@ secure_shared_memory() {
 # ──────────────────────────────────────────────
 # AppArmor
 # ──────────────────────────────────────────────
+# apparmor_active: whether the running kernel has AppArmor enabled (the
+# default since Debian 10).
+apparmor_active() {
+  [ "$(cat "${APPARMOR_ENABLED_FILE:-/sys/module/apparmor/parameters/enabled}" 2>/dev/null)" = Y ]
+}
+
 configure_apparmor() {
-  printf '%b' "\n\n${red}[security] =>${no_color} Ensure AppArmor is enabled and enforcing\n\n"
+  printf '%b' "\n\n${red}[security] =>${no_color} Ensure AppArmor is enabled\n\n"
 
   $SUDO apt-get install -y --no-install-recommends apparmor apparmor-utils
 
-  # Enable AppArmor on boot. The file it edits is checked too: before the next
-  # reboot, /proc/cmdline does not show options added by an earlier run.
-  if ! grep -q "apparmor=1" /proc/cmdline 2>/dev/null \
+  # Enable AppArmor on boot, only where the kernel does not run it already.
+  # The file it edits is checked too: before the next reboot, /proc/cmdline
+  # does not show options added by an earlier run.
+  if ! apparmor_active \
+    && ! grep -q "apparmor=1" /proc/cmdline 2>/dev/null \
     && $SUDO test -f /etc/default/grub \
     && ! $SUDO grep -q "apparmor=1" /etc/default/grub; then
     $SUDO sed -i 's|GRUB_CMDLINE_LINUX="\(.*\)"|GRUB_CMDLINE_LINUX="\1 apparmor=1 security=apparmor"|' /etc/default/grub
@@ -533,10 +577,9 @@ configure_apparmor() {
   $SUDO systemctl enable apparmor || true
   $SUDO systemctl start apparmor || true
 
-  # Set all loaded profiles to enforce mode
-  $SUDO aa-enforce /etc/apparmor.d/* 2>/dev/null || true
-
-  printf '%b' "${red}[security]${no_color} AppArmor enabled and profiles set to enforce.\n"
+  # Profiles keep the mode their package ships them in: forcing them all to
+  # enforce breaks the services whose profile is in complain mode on purpose.
+  printf '%b' "${red}[security]${no_color} AppArmor enabled; each profile keeps its packaged mode.\n"
   $SUDO aa-status --verbose 2>/dev/null | head -20 || true
 }
 
@@ -580,8 +623,11 @@ configure_docker_default_bind() {
 # Main
 # ──────────────────────────────────────────────
 install_lite_setup() {
-  configure_ssh
+  # The firewall first: on a re-run with a new SSH_PORT, an active UFW must
+  # allow the port before sshd restarts on it, or a failure in between leaves
+  # sshd listening on a closed port.
   install_configure_ufw
+  configure_ssh
   configure_docker_default_bind
   install_configure_fail2ban
   install_configure_unattended_upgrades

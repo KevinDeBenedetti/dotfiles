@@ -23,6 +23,14 @@
 //   OPTIONS          JSON array of the Stage field's options ({id,name})
 //   REPO_ISSUES      JSON map: repository → its open issues (MODE=backfill)
 //   REPOS            space-separated repositories to backfill
+//   BOARD_ITEMS      JSON array: the board's cards, for the scheduled run
+//                    (MODE=scheduled): {id, type, stage, updatedAt, isArchived,
+//                    hidden, content: {id, number, state, labels, repo}};
+//                    an App token gets no content for a hidden card. The add
+//                    mutation answers each card's own issue and column.
+//   DELIVERIES       JSON array: the App's recent webhook deliveries
+//   REPORT_ISSUES    JSON array: the open issues the App opened, in the
+//                    report repository
 import { createHmac, createVerify, generateKeyPairSync } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
@@ -61,6 +69,10 @@ function verifyJwt(jwt) {
 }
 
 let adds = 0;
+const boardItems = json("BOARD_ITEMS", "[]");
+const optionOf = (name) => options.find((o) => o.name === name)?.id;
+const issueNode = (c) => ({ id: c.id, number: c.number, state: c.state,
+  labels: { nodes: c.labels.map((name) => ({ name })) }, repository: { nameWithOwner: c.repo } });
 // REVOKED: installations whose first token is stale (as a cached token after
 // the App was reinstalled): GitHub refuses it, and issues a good one next.
 const revoked = new Set((process.env.REVOKED ?? "").split(" ").filter(Boolean));
@@ -86,6 +98,11 @@ globalThis.fetch = async (input, init = {}) => {
     const id = installed[match[1]];
     return id ? Response.json({ id }) : notFound();
   }
+  if (url.pathname === "/app/hook/deliveries") {
+    verifyJwt(token);
+    console.log(`DELIVERIES ${url.search} as the App`);
+    return Response.json(json("DELIVERIES", "[]"));
+  }
   if ((match = /^\/app\/installations\/(\d+)\/access_tokens$/.exec(url.pathname))) {
     verifyJwt(token);
     const stale = revoked.has(match[1]) && !issued.has(match[1]);
@@ -102,6 +119,31 @@ globalThis.fetch = async (input, init = {}) => {
 
   if (url.pathname === "/graphql") {
     const { query, variables } = JSON.parse(body);
+    if (query.includes("items(first")) {
+      console.log(`GRAPHQL items ${variables.owner}/${variables.number} after ${variables.after ?? "-"} as ${token}`);
+      // Two cards a page, so the paging is exercised.
+      const start = Number(variables.after ?? 0);
+      const page = boardItems.slice(start, start + 2).map((i) => ({
+        // GitHub redacts a card whose issue the token cannot see.
+        id: i.id, type: i.hidden && token !== "board-pat" ? "REDACTED" : i.type ?? "ISSUE", isArchived: i.isArchived ?? false,
+        updatedAt: i.updatedAt ?? "2026-01-01T00:00:00Z",
+        stage: i.stage ? { name: i.stage } : null,
+        content: !i.content || (i.hidden && token !== "board-pat") ? null : issueNode(i.content),
+      }));
+      const more = start + 2 < boardItems.length;
+      return Response.json({ data: { organization: { projectV2: { items: {
+        pageInfo: { hasNextPage: more, endCursor: more ? String(start + 2) : null }, nodes: page,
+      } } } } });
+    }
+    const card = boardItems.find((i) => i.content?.id === variables.contentId);
+    if (card && query.includes("addProjectV2ItemById")) {
+      console.log(`GRAPHQL add ${variables.contentId} as ${token}`);
+      return Response.json({ data: { addProjectV2ItemById: { item: {
+        id: card.id, stage: card.stage ? { optionId: optionOf(card.stage) } : null,
+        content: { number: card.content.number, state: card.content.state,
+          labels: { nodes: card.content.labels.map((name) => ({ name })) } },
+      } } } });
+    }
     if (query.includes("addProjectV2ItemById")) {
       console.log(`GRAPHQL add ${variables.contentId} as ${token}`);
       const first = process.env.ISSUE || '{"number":7,"state":"OPEN","labels":[]}';
@@ -135,6 +177,10 @@ globalThis.fetch = async (input, init = {}) => {
     return Response.json({ data: { node: item } });
   }
 
+  if (method === "GET" && url.searchParams.has("creator")) {
+    console.log(`LIST ${url.pathname} by ${url.searchParams.get("creator")} as ${token}`);
+    return Response.json(json("REPORT_ISSUES", "[]"));
+  }
   if (method === "GET" && (match = /^\/repos\/([^/]+\/[^/]+)\/issues$/.exec(url.pathname))) {
     const issues = json("REPO_ISSUES", "{}")[match[1]] ?? [];
     const page = Number(url.searchParams.get("page") ?? 1);
@@ -146,7 +192,12 @@ globalThis.fetch = async (input, init = {}) => {
   return Response.json({});
 };
 
-if (process.env.MODE === "backfill") {
+if (process.env.MODE === "scheduled") {
+  const { default: worker } = await load("worker.mjs");
+  const pending = [];
+  await worker.scheduled({ cron: "test", scheduledTime: Date.now() }, env, { waitUntil: (p) => pending.push(p) });
+  await Promise.all(pending);
+} else if (process.env.MODE === "backfill") {
   const { client } = await load("github.mjs");
   const { backfill } = await load("board.mjs");
   const repos = (process.env.REPOS ?? "").split(" ").filter(Boolean);

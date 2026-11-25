@@ -141,8 +141,11 @@ fi
 # gpg
 export GPG_TTY=$(tty)
 
-# tldr++
-TLDR_OS=osx # linux
+# tldr++: the pages of the running OS
+case "$(uname)" in
+  Darwin) export TLDR_OS=osx ;;
+  *) export TLDR_OS=linux ;;
+esac
 
 # cheat
 export CHEAT_USE_FZF=true

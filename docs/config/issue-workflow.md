@@ -74,6 +74,11 @@ project has a `Stage` field that mirrors the labels:
 | `Won't fix`       | `wontfix`, open or closed                             |
 | `Done`            | `done` (finished, waiting for your commit), or closed |
 
+A closed issue carries no triage label: closed as completed (a drag to
+`Done`, a `Fixes #<number>` commit, the close button) or as a duplicate, it loses them all,
+`done` included; closed as not planned, it keeps `wontfix`. Reopened with no
+triage label left, it lands in `Needs triage`.
+
 When several triage labels are set, the one that stops the work wins:
 `wontfix`, then `needs-info`, `ready-for-human`, `ready-for-agent`.
 `urgent` is not a column: filter the board with `label:urgent`.
@@ -93,7 +98,7 @@ A GitHub App sends its webhooks to a Cloudflare Worker, in
 | -------------- | --------------------------------------------------------------------- |
 | an open column | its triage label replaces the others (and `done`); reopened if closed |
 | `Won't fix`    | `wontfix` replaces the other triage labels; closed as not planned     |
-| `Done`         | loses `wontfix`; closed as completed                                  |
+| `Done`         | loses every triage label (and `done`); closed as completed            |
 
 Other labels, such as `urgent`, are kept. Both directions read the issue back
 from GitHub instead of trusting the event, and leave alone what is already in
@@ -101,6 +106,21 @@ step; the Worker also ignores column changes made by the App itself. That is
 how each stops at the other's change. An edit of another field (or one that
 names no field, such as a linked pull request), a card cleared to no column,
 drafts and pull requests are left alone.
+
+### Hourly reconcile
+
+GitHub does not send a failed delivery again, so one lost webhook would leave
+a card in the wrong column. Every hour (the `[triggers]` of `wrangler.toml`),
+the Worker reads every card of the board and puts each one whose column is not
+the one of its issue's labels and state back there, closed issues included.
+Labels win: the reconcile never edits an issue, so a drag whose delivery
+failed is undone, not applied.
+
+It leaves alone drafts, pull requests, archived cards, issues of owners
+outside `REPOSITORY_OWNERS`, and cards edited in the last 10 minutes (a drag
+whose label change is still on its way). It moves 10 cards a run at most,
+within a Worker's budget of calls; the rest wait for the next run. Each run
+logs, in the Worker's logs, how many cards it read and which it moved.
 
 The App is public, because GitHub installs a private App only on the account
 that owns it: anyone may install it. The Worker acts only on repositories of the
@@ -138,7 +158,7 @@ Once, for all repositories:
    App ID is on the App's settings page:
 
    ```sh
-   npx wrangler deploy --config .github/project-board/wrangler.toml
+   npx wrangler deploy --config .github/project-board/wrangler.toml --var "VERSION:$(git rev-parse HEAD)"
    npx wrangler secret put WEBHOOK_SECRET --config .github/project-board/wrangler.toml
    npx wrangler secret put GITHUB_APP_ID --config .github/project-board/wrangler.toml
    npx wrangler secret put GITHUB_APP_PRIVATE_KEY --config .github/project-board/wrangler.toml < app-key.pem
@@ -154,7 +174,21 @@ Once, for all repositories:
    only copy needed.
 5. Install the App on the organization and on your account (**All
    repositories**, so new ones are covered).
-6. Put the issues opened before the App on the board; running it again is
+6. Let CI deploy the Worker from then on: create a Cloudflare API token from
+   the **Edit Cloudflare Workers** template (Workers Scripts: Edit), then
+   store it and your account ID (Workers & Pages overview) as repository
+   secrets:
+
+   ```sh
+   gh secret set CLOUDFLARE_API_TOKEN --repo KevinDeBenedetti/dotfiles
+   gh secret set CLOUDFLARE_ACCOUNT_ID --repo KevinDeBenedetti/dotfiles
+   ```
+
+   `.github/workflows/project-board.yml` then runs `tests/project-board.bats`
+   and deploys the Worker on every push to `main` that changes
+   `.github/project-board/`; **Run workflow** on its Actions page deploys it
+   by hand.
+7. Put the issues opened before the App on the board; running it again is
    safe:
 
    ```sh
@@ -178,6 +212,24 @@ gh label clone KevinDeBenedetti/dotfiles --repo owner/repo
 A failed delivery answers 500, with the reason, in the App's Recent
 Deliveries (its **Advanced** settings page), where it can be sent again:
 GitHub does not redeliver a failed delivery on its own. The Worker's logs are in the Cloudflare dashboard.
+
+Each hourly run also reads the App's deliveries of the hour before it: when
+some did not get a 2xx answer, it opens one `needs-triage` issue, **Failed
+deliveries of the board Worker**, in `REPORT_REPOSITORY` (`wrangler.toml`),
+or comments on it while it is open. The report lists the time, event, action
+and status of each failure, never a repository or an issue: that repository
+is public. The reason is on the Recent Deliveries page. Close the issue once
+the cause is fixed; the next failure opens a new one.
+
+The Worker answers a `GET` with the commit it was deployed from, so a stale
+deploy shows at once. `curl` its `workers.dev` address (the one
+`wrangler deploy` prints, and the App's webhook URL), then check that the
+answer holds the last change to the Worker; `unknown` means a deploy made
+without `--var VERSION`:
+
+```sh
+git fetch origin main && git merge-base --is-ancestor "$(git log -1 --format=%H origin/main -- .github/project-board)" <the SHA the Worker answered> && echo 'up to date'
+```
 
 ## Running issues
 

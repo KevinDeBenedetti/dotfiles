@@ -34,7 +34,6 @@ setup() {
   assert_output --partial "-d"
   assert_output --partial "-l"
   assert_output --partial "-p"
-  assert_output --partial "-r"
   assert_output --partial "-h"
 }
 
@@ -82,7 +81,6 @@ setup() {
   assert_output --partial "-d"
   assert_output --partial "-l"
   assert_output --partial "-p"
-  assert_output --partial "-r"
   assert_output --partial "-h"
 }
 
@@ -225,4 +223,131 @@ run_setup_user() {
     done
   done
   [ "${#missing[@]}" -eq 0 ] || fail "undocumented flags: ${missing[*]}"
+}
+
+# --- Flags that are gone, steps that run once (issue 128) ---
+
+@test "-r is no longer a flag: it only ever printed that nothing was removed" {
+  local os
+  for os in debian macos; do
+    run bash "$REPO_ROOT/os/$os/init.sh" -r
+    assert_failure 2
+    assert_output --partial "This script aims to install"
+    refute_output --partial "Remove tmp files"
+    run bash "$REPO_ROOT/os/$os/init.sh" -h
+    refute_output --partial "  -r "
+    run grep -c 'REMOVE_TMP_CONTENT' "$REPO_ROOT/os/$os/init.sh"
+    assert_output 0
+    run grep -cE '^\| `-r`' "$REPO_ROOT/docs/setup/$os.md"
+    assert_output 0
+  done
+  run grep -cE '^\| `-r`' "$REPO_ROOT/docs/getting-started.md"
+  assert_output 0
+}
+
+@test "Debian installs proto once per run, in the base profile or with the dotfiles" {
+  # -a runs both steps: the dotfiles step leaves proto to the base profile.
+  local init="$REPO_ROOT/os/debian/init.sh"
+  run grep -c '^  bash "$HELPERS_DIR/proto.sh"$' "$init"
+  assert_output 1
+  run grep -c '^  \[\[ "$INSTALL_BASE" = "true" \]\] || bash "$HELPERS_DIR/proto.sh"$' "$init"
+  assert_output 1
+}
+
+# --- Remote bootstrap ---
+
+# bootstrap <os> [args...]: runs init.sh the way the remote one-liner does (no
+# sub-script beside it), with a git that logs its calls to $GIT_LOG and whose
+# clone leaves an init.sh printing the arguments it was re-run with.
+bootstrap() {
+  local os="$1"
+  shift
+  local work="$BATS_TEST_TMPDIR/remote" bin="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$work" "$bin"
+  cp "$REPO_ROOT/os/$os/init.sh" "$work/init.sh"
+  export GIT_LOG="$BATS_TEST_TMPDIR/git.log" BOOTSTRAP_OS="$os"
+  export DOTFILES_INSTALL_DIR="${DOTFILES_INSTALL_DIR:-$BATS_TEST_TMPDIR/dotfiles}"
+  cat > "$bin/git" <<'GIT'
+#!/bin/bash
+echo "$*" >> "$GIT_LOG"
+if [ "$3" = rev-parse ]; then echo "${SHALLOW:-true}"; exit 0; fi
+if [ "$1" = clone ]; then
+  dest="${*: -1}"
+  mkdir -p "$dest/os/$BOOTSTRAP_OS"
+  printf '%s\n' '#!/bin/bash' 'echo "re-run with: $*"' > "$dest/os/$BOOTSTRAP_OS/init.sh"
+fi
+GIT
+  chmod +x "$bin/git"
+  PATH="$bin:$PATH" run "${BOOTSTRAP_BASH:-bash}" "$work/init.sh" "$@"
+}
+
+released_tag() {
+  echo "v$(sed -n 's/.*"\.": "\([0-9.]*\)".*/\1/p' "$REPO_ROOT/.github/release/.release-please-manifest.json")"
+}
+
+@test "a fresh remote bootstrap clones the released tag, not the tip of main" {
+  local os
+  for os in debian macos; do
+    rm -rf "$BATS_TEST_TMPDIR/dotfiles" "$BATS_TEST_TMPDIR/git.log"
+    bootstrap "$os" -h
+    assert_success
+    assert_output --partial "re-run with: -h"
+    run cat "$GIT_LOG"
+    assert_output "clone --depth=1 --branch $(released_tag) https://github.com/KevinDeBenedetti/dotfiles.git $BATS_TEST_TMPDIR/dotfiles"
+  done
+}
+
+@test "DOTFILES_REF overrides the ref the bootstrap clones" {
+  local os
+  for os in debian macos; do
+    rm -rf "$BATS_TEST_TMPDIR/dotfiles" "$BATS_TEST_TMPDIR/git.log"
+    DOTFILES_REF=main bootstrap "$os" -h
+    assert_success
+    run cat "$GIT_LOG"
+    assert_output --partial "clone --depth=1 --branch main "
+  done
+}
+
+@test "a re-run on an existing checkout fetches and checks out the ref instead of pulling main" {
+  local os dest="$BATS_TEST_TMPDIR/dotfiles"
+  for os in debian macos; do
+    rm -rf "$dest" "$BATS_TEST_TMPDIR/git.log"
+    mkdir -p "$dest/.git" "$dest/os/$os"
+    printf '%s\n' '#!/bin/bash' 'echo "re-run with: $*"' > "$dest/os/$os/init.sh"
+    DOTFILES_REF=v9.9.9 bootstrap "$os" -h
+    assert_success
+    assert_output --partial "re-run with: -h"
+    run cat "$GIT_LOG"
+    assert_line "-C $dest fetch --depth=1 origin v9.9.9"
+    assert_line "-C $dest checkout --quiet --detach FETCH_HEAD"
+    refute_output --partial "pull"
+    # A full clone is not made shallow by the fetch.
+    rm -f "$BATS_TEST_TMPDIR/git.log"
+    SHALLOW=false DOTFILES_REF=v9.9.9 bootstrap "$os" -h
+    assert_success
+    run cat "$GIT_LOG"
+    assert_line "-C $dest fetch origin v9.9.9"
+  done
+}
+
+@test "release-please bumps the bootstrap's default ref and the documented one-liners" {
+  local file config="$REPO_ROOT/.github/release/release-please-config.json"
+  for file in os/debian/init.sh os/macos/init.sh; do
+    run grep -c "^DOTFILES_REF=\"\${DOTFILES_REF:-$(released_tag)}\" # x-release-please-version$" "$REPO_ROOT/$file"
+    assert_output 1
+  done
+  for file in os/debian/init.sh os/macos/init.sh README.md docs/getting-started.md docs/setup/debian.md docs/setup/macos.md; do
+    run jq -e --arg f "$file" '.packages["."]["extra-files"] | index($f)' "$config"
+    assert_success
+  done
+  # No one-liner fetches init.sh from a branch, and each sits in a block
+  # release-please rewrites.
+  for file in README.md docs/getting-started.md docs/setup/debian.md docs/setup/macos.md; do
+    run grep -E 'raw\.githubusercontent\.com/KevinDeBenedetti/dotfiles/' "$REPO_ROOT/$file"
+    assert_success
+    refute_output --partial "/dotfiles/main/"
+    assert_output --partial "/dotfiles/$(released_tag)/os/"
+    run grep -c 'x-release-please-start-version' "$REPO_ROOT/$file"
+    assert_success
+  done
 }

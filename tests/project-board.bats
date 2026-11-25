@@ -74,10 +74,60 @@ deliver() {
   assert_line --partial "=> 200"
 }
 
-@test "a card moved to Done closes the issue as completed, dropping wontfix" {
-  item "Done" OPEN '["ready-for-agent","wontfix"]'
+@test "a card moved to Done closes the issue as completed, dropping every triage label" {
+  # A closed issue carries no triage label (issue 135): Done is one set.
+  item "Done" OPEN '["ready-for-agent","wontfix","done","urgent"]'
   deliver
-  assert_line 'PATCH /repos/owner/repo/issues/7 {"labels":["ready-for-agent"],"state":"closed","state_reason":"completed"} as inst-11'
+  assert_line 'PATCH /repos/owner/repo/issues/7 {"labels":["urgent"],"state":"closed","state_reason":"completed"} as inst-11'
+}
+
+# closed_event REASON LABELS_JSON: an issues delivery for issue 7, closed with
+# that state_reason.
+closed_event() {
+  PAYLOAD=$(jq -nc --arg reason "$1" --argjson labels "$2" '{action: "closed", sender: {login: "someone", type: "User"},
+    issue: {node_id: "I_7", number: 7, state_reason: $reason, labels: ($labels | map({name: .}))},
+    repository: {full_name: "owner/repo", private: false, owner: {login: "owner"}}}')
+  export EVENT=issues PAYLOAD
+}
+
+@test "an issue closed as completed another way loses its triage labels too" {
+  # A Fixes #n commit or the close button: the closed delivery strips them.
+  closed_event completed '["ready-for-agent","done","urgent"]'
+  export ISSUE='{"number":7,"state":"CLOSED","labels":["urgent"]}'
+  deliver
+  assert_success
+  assert_line "DELETE /repos/owner/repo/issues/7/labels/ready-for-agent  as inst-11"
+  assert_line "DELETE /repos/owner/repo/issues/7/labels/done  as inst-11"
+  refute_line --partial "labels/urgent"
+  assert_line "GRAPHQL update ITEM_I_7 OPT_DONE as inst-22"
+}
+
+@test "an issue closed as a duplicate loses its triage labels" {
+  closed_event duplicate '["needs-triage"]'
+  export ISSUE='{"number":7,"state":"CLOSED","labels":[]}'
+  deliver
+  assert_success
+  assert_line "DELETE /repos/owner/repo/issues/7/labels/needs-triage  as inst-11"
+}
+
+@test "an issue closed as not planned keeps wontfix" {
+  closed_event not_planned '["wontfix","urgent"]'
+  export ISSUE='{"number":7,"state":"CLOSED","labels":["wontfix","urgent"]}'
+  deliver
+  assert_success
+  refute_line --partial "DELETE"
+  assert_line "GRAPHQL update ITEM_I_7 OPT_WONTFIX as inst-22"
+}
+
+@test "a reopened issue with no triage label lands in Needs triage" {
+  PAYLOAD=$(jq -nc '{action: "reopened", sender: {login: "someone", type: "User"},
+    issue: {node_id: "I_7", number: 7, labels: [{name: "urgent"}]},
+    repository: {full_name: "owner/repo", private: false, owner: {login: "owner"}}}')
+  export EVENT=issues PAYLOAD ISSUE='{"number":7,"state":"OPEN","labels":["urgent"]}' CURRENT_OPTION=OPT_DONE
+  deliver
+  assert_success
+  refute_line --partial "DELETE"
+  assert_line "GRAPHQL update ITEM_I_7 OPT_TRIAGE as inst-22"
 }
 
 @test "a card moved to Won't fix labels the issue and closes it as not planned" {
@@ -329,8 +379,18 @@ deliver() {
   assert_line --partial "=> 401"
 }
 
-@test "only POSTs are handled; a ping and other events are acknowledged" {
+@test "a GET answers the commit the Worker was deployed from, and nothing else" {
+  # A stale deploy is then a one-line check (issue 132).
+  VARS='{"VERSION":"0123456789abcdef0123456789abcdef01234567"}' METHOD=GET deliver
+  assert_line "=> 200 0123456789abcdef0123456789abcdef01234567"
+  refute_line --partial "TOKEN"
+  # Deployed without --var VERSION.
   METHOD=GET deliver
+  assert_line "=> 200 unknown"
+}
+
+@test "only POSTs are handled; a ping and other events are acknowledged" {
+  METHOD=PUT deliver
   assert_line --partial "=> 405"
   EVENT=ping deliver
   assert_line --partial "=> 200 pong"
@@ -360,12 +420,181 @@ deliver() {
   refute_line --partial "PR_2"
 }
 
+# --- scheduled reconcile --------------------------------------------------------
+
+# card ID STAGE STATE LABELS_JSON [EXTRA_JSON]: one card of BOARD_ITEMS, its
+# issue I_<ID> number <ID> of owner/repo; EXTRA_JSON is merged over the card.
+card() {
+  jq -nc --arg id "$1" --arg stage "$2" --arg state "$3" --argjson labels "$4" --argjson extra "${5:-{\}}" '{
+    id: ("PVTI_" + $id), stage: (if $stage == "" then null else $stage end),
+    content: {id: ("I_" + $id), number: ($id | tonumber), state: $state, labels: $labels, repo: "owner/repo"}} * $extra'
+}
+
+reconcile() {
+  MODE=scheduled run node "$DIR/project-board-harness.mjs" "$BOARD"
+}
+
+@test "the scheduled reconcile puts drifted cards back in the column of their labels, closed issues included" {
+  BOARD_ITEMS=$(jq -sc . <<<"$(card 1 "Needs triage" OPEN '["ready-for-agent","urgent"]')
+$(card 2 "Ready for agent" CLOSED '["ready-for-agent"]')
+$(card 3 "Needs info" OPEN '["needs-info"]')
+$(card 4 "" OPEN '[]')")
+  export BOARD_ITEMS
+  reconcile
+  assert_success
+  # Every page of the board is read, with the organization's token.
+  assert_line "GRAPHQL items labs/1 after - as inst-22"
+  assert_line "GRAPHQL items labs/1 after 2 as inst-22"
+  assert_line "GRAPHQL update PVTI_1 OPT_AGENT as inst-22"
+  assert_line "GRAPHQL update PVTI_2 OPT_DONE as inst-22"
+  # A card with no column yet gets the one of its labels.
+  assert_line "GRAPHQL update PVTI_4 OPT_TRIAGE as inst-22"
+  # Labels win: no issue is written.
+  refute_line --partial "PATCH"
+  # A card in step costs no write.
+  refute_line --partial "add I_3"
+  assert_line "reconcile: 4 cards read, 3 moved (owner/repo#1 → Ready for agent, owner/repo#2 → Done, owner/repo#4 → Needs triage)"
+}
+
+@test "the reconcile leaves alone drafts, pull requests, archived cards, other owners and cards just edited" {
+  local recent
+  recent=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  BOARD_ITEMS=$(jq -sc . <<<"$(card 1 "Done" OPEN '[]' '{"type":"DRAFT_ISSUE","content":null}')
+$(card 2 "Done" OPEN '[]' '{"type":"PULL_REQUEST"}')
+$(card 3 "Done" OPEN '[]' '{"isArchived":true}')
+$(card 4 "Done" OPEN '[]' '{"content":{"repo":"stranger/repo"}}')
+$(card 5 "Done" OPEN '[]' "{\"updatedAt\":\"$recent\"}")")
+  export BOARD_ITEMS
+  reconcile
+  assert_success
+  # A card edited minutes ago may be a drag whose label change is still on its
+  # way: putting it back would undo it.
+  refute_line --partial "GRAPHQL add"
+  refute_line --partial "GRAPHQL update"
+  assert_line "reconcile: 5 cards read, 0 moved"
+}
+
+@test "a card the App cannot see is reconciled through BOARD_TOKEN" {
+  BOARD_ITEMS=$(jq -sc . <<<"$(card 1 "Needs triage" OPEN '["ready-for-human"]' '{"hidden":true}')")
+  export BOARD_ITEMS
+  reconcile
+  assert_success
+  assert_line "GRAPHQL items labs/1 after - as board-pat"
+  assert_line "GRAPHQL update PVTI_1 OPT_HUMAN as board-pat"
+  # Without BOARD_TOKEN, the card is counted, and named as out of reach.
+  VARS='{"BOARD_TOKEN":""}' reconcile
+  assert_success
+  refute_line --partial "GRAPHQL update"
+  assert_line --partial "1 card hidden from the App: set BOARD_TOKEN"
+}
+
+@test "the reconcile moves a bounded number of cards a run, the rest on the next one" {
+  # A Worker invocation has a budget of subrequests: each move costs three.
+  local cards="" n
+  for n in $(seq 1 12); do cards+="$(card "$n" "Needs info" OPEN '[]')"$'\n'; done
+  BOARD_ITEMS=$(jq -sc . <<<"$cards")
+  export BOARD_ITEMS
+  reconcile
+  assert_success
+  run grep -c "GRAPHQL update" <<<"$output"
+  assert_output 10
+  reconcile
+  assert_line --partial "2 left for the next run"
+}
+
+# --- failed deliveries report ---------------------------------------------------
+
+# delivery MINUTES_AGO EVENT ACTION STATUS: one of the App's webhook deliveries.
+delivery() {
+  jq -nc --argjson ago "$1" --arg event "$2" --arg action "$3" --argjson status "$4" '{
+    id: 1, guid: "g", delivered_at: (now - $ago * 60 | floor | todate), redelivery: false,
+    event: $event, action: $action, status_code: $status, status: "x", repository_id: 99}'
+}
+
+report_vars='{"REPORT_REPOSITORY":"owner/dotfiles"}'
+
+@test "no failed delivery in the last hour, no write" {
+  # A failure older than the hour was the previous run's to report.
+  DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues labeled 200)
+$(delivery 6 projects_v2_item edited 202)
+$(delivery 75 issues labeled 500)")
+  export DELIVERIES
+  VARS="$report_vars" reconcile
+  assert_success
+  assert_line "DELIVERIES ?per_page=100 as the App"
+  assert_line "deliveries: 0 failed in the last hour"
+  refute_line --partial "POST /repos/owner/dotfiles"
+}
+
+@test "a first failed delivery opens an issue that names no repository" {
+  DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues labeled 500)
+$(delivery 9 projects_v2_item edited 401)
+$(delivery 12 issues opened 200)")
+  export DELIVERIES
+  VARS="$report_vars" reconcile
+  assert_success
+  assert_line "LIST /repos/owner/dotfiles/issues by board-app[bot] as inst-11"
+  assert_line "deliveries: 2 failed in the last hour, reported in owner/dotfiles"
+  local post
+  post=$(grep '^POST /repos/owner/dotfiles/issues ' <<<"$output")
+  [ -n "$post" ] || fail "no issue opened"
+  local body=${post#POST /repos/owner/dotfiles/issues }
+  body=${body% as inst-11}
+  run jq -r '.title' <<<"$body"
+  assert_output "Failed deliveries of the board Worker"
+  run jq -r '.labels | join(",")' <<<"$body"
+  assert_output "needs-triage"
+  run jq -r '.body' <<<"$body"
+  assert_line --regexp '^\| [0-9T:-]+Z \| issues \| labeled \| 500 \|$'
+  assert_line --regexp '^\| [0-9T:-]+Z \| projects_v2_item \| edited \| 401 \|$'
+  refute_output --partial "opened"
+  # Public: the deliveries' repository ids or names never reach it.
+  refute_output --partial "99"
+  refute_output --partial "owner/"
+}
+
+@test "a later failure is added to the report still open" {
+  DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues closed 500)")
+  REPORT_ISSUES='[{"number":42,"title":"Failed deliveries of the board Worker"},{"number":43,"title":"Something else"}]'
+  export DELIVERIES REPORT_ISSUES
+  VARS="$report_vars" reconcile
+  assert_success
+  assert_line --regexp '^POST /repos/owner/dotfiles/issues/42/comments .*\| issues \| closed \| 500 \|.* as inst-11$'
+  refute_line --regexp '^POST /repos/owner/dotfiles/issues \{'
+}
+
+@test "a full page of deliveries says the hour may be cut only when it reaches back into the hour" {
+  # GitHub keeps days of deliveries: a full page is the usual case.
+  local cards="" n
+  cards="$(delivery 5 issues labeled 500)"$'\n'
+  for n in $(seq 1 99); do cards+="$(delivery $((60 + n)) issues labeled 200)"$'\n'; done
+  DELIVERIES=$(jq -sc . <<<"$cards")
+  export DELIVERIES
+  VARS="$report_vars" reconcile
+  assert_success
+  refute_output --partial "the earliest ones are missing"
+  cards="$(delivery 5 issues labeled 500)"$'\n'
+  for n in $(seq 1 99); do cards+="$(delivery 30 issues labeled 200)"$'\n'; done
+  DELIVERIES=$(jq -sc . <<<"$cards")
+  VARS="$report_vars" reconcile
+  assert_output --partial "the earliest ones are missing"
+}
+
+@test "without REPORT_REPOSITORY the deliveries are not read" {
+  DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues labeled 500)")
+  export DELIVERIES
+  reconcile
+  assert_success
+  refute_line --partial "DELIVERIES"
+  assert_line "deliveries: REPORT_REPOSITORY is not set, not checked"
+}
+
 @test "the Worker's config names the board, and holds no secret" {
   local toml="$BOARD/wrangler.toml"
   run grep -E '^main = "worker.mjs"$' "$toml"
   assert_success
-  run grep -E '^(PROJECT_OWNER|PROJECT_NUMBER|REPOSITORY_OWNERS) = ' "$toml"
-  assert_equal "${#lines[@]}" 3
+  run grep -E '^(PROJECT_OWNER|PROJECT_NUMBER|REPOSITORY_OWNERS|REPORT_REPOSITORY) = ' "$toml"
+  assert_equal "${#lines[@]}" 4
   run grep -E '^[[:space:]]*(WEBHOOK_SECRET|GITHUB_APP_ID|GITHUB_APP_PRIVATE_KEY|BOARD_TOKEN|GITHUB_TOKEN)[[:space:]]*=' "$toml"
   assert_failure
 }

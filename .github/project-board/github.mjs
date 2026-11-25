@@ -107,6 +107,12 @@ export async function installationClient(env, lookup) {
   };
 }
 
+// appClient(env): a client authenticated as the App itself (its JWT), for the
+// /app endpoints.
+export async function appClient(env) {
+  return client(await appJwt(env));
+}
+
 let slug;
 
 // appLogin(env): the login the App writes as ("<slug>[bot]").

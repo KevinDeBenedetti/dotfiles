@@ -17,6 +17,10 @@ them as GitHub labels, each named after its role, plus `urgent` and `done`.
 | `done`            | Finished by an agent: waiting for the owner's commit, which closes it |
 | `urgent`          | Goes first among the `ready-for-agent` issues                         |
 
+A closed issue carries none of them but `wontfix`: the board's Worker removes
+them when an issue is closed as completed, so `done` only ever marks open work
+waiting for the owner's commit.
+
 `ready-for-agent` is the owner's approval: an agent sets it only when the owner
 says so, on the sub-issues it cuts from an approved issue, or on the issues
 `/new-issue` files from the owner's own requests. New tickets an agent files on

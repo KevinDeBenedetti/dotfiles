@@ -16,6 +16,14 @@ PROJECT_NUMBER = "1"
 # Accounts whose repositories use the triage labels (comma-separated). The App
 # is public, so anyone may install it: the Worker ignores every other owner.
 REPOSITORY_OWNERS = "KevinDeBenedetti,kevindb-labs"
+# Where the webhook deliveries the Worker failed are reported, in one issue
+# (deliveries.mjs). Public: the report names no repository or issue.
+REPORT_REPOSITORY = "KevinDeBenedetti/dotfiles"
+
+# The reconcile (worker.mjs, `scheduled`): every card back in the column of its
+# labels, for the deliveries that failed. Hourly, at a minute off the hour.
+[triggers]
+crons = ["17 * * * *"]
 
 [observability]
 enabled = true
