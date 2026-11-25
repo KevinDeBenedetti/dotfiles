@@ -10,7 +10,13 @@
 - Debian server hardening: key-only SSH, UFW, Fail2Ban, CrowdSec, sysctl and automatic security updates
 - Managed configs for Git (SSH signing, Git Credential Manager), Zsh, SSH, VS Code and a proto-pinned toolchain
 - AI agent guardrails shared by Claude Code, OpenCode and VS Code Copilot: sandbox, secret deny rules, read-only `kubectl`, `gh` limited to reads and issue comments, labels and creation, root-owned managed policy
-- Shared agent skills and commands (Conventional Commits, README, docs, a `/next-task` loop over an English `TODO.md`, with a guided chat for its manual steps, its `/next-issue` twin over GitHub issues, a `/new-issue` that files your requests as grouped issues, a read-only `/audit` that files its findings as issues, `/commit`, which turns your changes into Conventional Commits that close their issues, and `/pr`, which hands branch, commit, push and pull request over as commands runnable from the chat) linked into every tool from `config/skills/` and `config/commands/`
+- Shared agent skills (Conventional Commits, README, docs) and commands, linked into every tool from `config/skills/` and `config/commands/`:
+  - `/next-task`: works an English `TODO.md`, with a guided chat for its manual steps
+  - `/next-issue`: its twin over GitHub issues
+  - `/new-issue`: files your requests as grouped issues
+  - `/audit`: inspects the repository, read-only, and files its findings as issues
+  - `/commit`: turns your changes into Conventional Commits that close their issues
+  - `/pr`: hands branch, commit, push and pull request over as commands runnable from the chat
 - ShellCheck, yamllint and Bats in CI, plus a Docker integration rig for the Debian setup
 
 ## Prerequisites
@@ -21,13 +27,15 @@
 
 ## Usage
 
+<!-- x-release-please-start-version -->
 ```sh
 # macOS
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/macos/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.18.0/os/macos/init.sh) -a
 
 # Debian
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/debian/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.18.0/os/debian/init.sh) -a
 ```
+<!-- x-release-please-end -->
 
 → Full usage guide: [docs](https://kevindebenedetti.github.io/dotfiles/getting-started)
 

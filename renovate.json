@@ -6,10 +6,11 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Update `rev = \"...\"` pins in prek.toml annotated with a `# renovate:` comment (Renovate's built-in pre-commit manager only handles .pre-commit-config.yaml, not prek.toml).",
+      "description": "Update `rev = \"...\"` pins in prek.toml annotated with a `# renovate:` comment (Renovate's built-in pre-commit manager only handles .pre-commit-config.yaml, not prek.toml). A pin by commit SHA carries its tag in a trailing comment: the SHA is the digest, the comment the version, and both move together. A pin by tag alone is matched by the second pattern.",
       "managerFilePatterns": ["/(^|/)prek\\.toml$/"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+rev = \"(?<currentValue>[^\"]+)\""
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+rev = \"(?<currentDigest>[a-f0-9]{40})\" # (?<currentValue>\\S+)",
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+rev = \"(?<currentValue>v[^\"]+)\""
       ]
     },
     {

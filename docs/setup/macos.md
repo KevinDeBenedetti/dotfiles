@@ -19,12 +19,14 @@ The init script checks for both prerequisites at startup and offers to install t
 
 ### Remote (fresh machine)
 
+<!-- x-release-please-start-version -->
 ```sh
 # Full install — all profiles, dotfiles, completions
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/main/os/macos/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.18.0/os/macos/init.sh) -a
 ```
+<!-- x-release-please-end -->
 
-The script clones the repository to `~/.dotfiles` if not already present, then re-executes from there. Using a permanent path ensures symlinks remain valid after reboot.
+The script clones the latest release of the repository to `~/.dotfiles` (or checks that release out in an existing clone), then re-executes from there. Set `DOTFILES_REF` to run another tag or branch (`DOTFILES_REF=main`). Using a permanent path ensures symlinks remain valid after reboot.
 
 ### Local
 
@@ -52,7 +54,6 @@ cd ~/.dotfiles
 | `-d`            | Link dotfiles into `$HOME`                                    |
 | `-c`            | Install zsh CLI completions                                   |
 | `-l`            | Lite mode — skip optional/heavy packages                      |
-| `-r`            | Remove bootstrap temp directory after install                 |
 | `-h`            | Print help                                                    |
 
 > At least one flag is required. Running without flags prints help and exits.

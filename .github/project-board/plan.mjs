@@ -14,8 +14,9 @@ const COLUMNS = {
 };
 
 const DONE = "done";
-// The labels a move replaces: one per column, and `done`.
-const TRIAGE = [...Object.values(COLUMNS).filter(Boolean), DONE];
+// The labels a move replaces: one per column, and `done`. A closed issue
+// carries none of them.
+export const TRIAGE = [...Object.values(COLUMNS).filter(Boolean), DONE];
 
 const normalize = (name) => name.trim().toLowerCase();
 // sameName(a, b): whether two column names match, whatever their case and
@@ -48,9 +49,10 @@ export function planFor(column, labels, state, stateReason) {
   if (!stage || stageFor(labels, state) === stage) return null;
 
   if (stage === "Done") {
-    // A closed issue is Done whatever its other triage labels: they stay as
-    // its history.
-    return { labels: labels.filter((l) => l !== "wontfix"), state: "closed", state_reason: "completed" };
+    // Closed as completed, it carries no triage label: `done` keeps its one
+    // meaning (open, waiting for the commit), and a triage filter lists open
+    // work only.
+    return { labels: labels.filter((l) => !TRIAGE.includes(l)), state: "closed", state_reason: "completed" };
   }
   const update = { labels: [...labels.filter((l) => !TRIAGE.includes(l)), COLUMNS[stage]] };
   if (stage === "Won't fix") {

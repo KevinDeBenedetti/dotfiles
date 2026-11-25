@@ -144,6 +144,88 @@ export async function syncBoardToIssue(gh, env, itemId, fieldId, issueClient, bo
   return `${repository}#${issue.number} updated`;
 }
 
+const ITEMS_QUERY = `query($owner: String!, $number: Int!, $after: String) {
+  organization(login: $owner) {
+    projectV2(number: $number) {
+      items(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id type isArchived updatedAt
+          stage: fieldValueByName(name: "Stage") { ... on ProjectV2ItemFieldSingleSelectValue { name } }
+          content {
+            ... on Issue { id number state labels(first: 100) { nodes { name } } repository { nameWithOwner } }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+// listItems(gh, env): every card of the board; the issue of a card the token
+// cannot see is null.
+async function listItems(gh, env) {
+  const items = [];
+  for (let after = null; ; ) {
+    const page = (await graphql(gh, ITEMS_QUERY, { owner: env.PROJECT_OWNER, number: Number(env.PROJECT_NUMBER), after }))
+      ?.organization?.projectV2?.items;
+    if (!page) throw new Error(`Project ${env.PROJECT_NUMBER} of ${env.PROJECT_OWNER} not found, or not readable`);
+    items.push(...page.nodes);
+    if (!page.pageInfo.hasNextPage) return items;
+    after = page.pageInfo.endCursor;
+  }
+}
+
+// A card edited this recently may be a drag whose label change is still on
+// its way: the reconcile leaves it to the next run.
+const SETTLE_MS = 10 * 60e3;
+// A Worker invocation has a budget of subrequests, and a move costs three:
+// the rest waits for the next run.
+const MAX_MOVES = 10;
+
+// reconcile(gh, env, boardToken, log, now): puts every card of the board
+// whose column is not the one of its issue's labels and state back in that
+// column, closed issues included. Labels win: no issue is written. gh carries
+// the organization's token; boardToken, a client with BOARD_TOKEN or null,
+// reads and moves the cards whose issue gh cannot see.
+export async function reconcile(gh, env, boardToken, log, now = Date.now()) {
+  const project = await loadProject(gh, env);
+  const items = await listItems(gh, env);
+  // A card whose issue the token cannot see comes back REDACTED, its content
+  // empty; BOARD_TOKEN sees it as the issue it is.
+  const isIssue = (item) => item.type === "ISSUE" || item.type === "REDACTED";
+  const hidden = items.filter((item) => isIssue(item) && !item.content?.number);
+  const seen = new Map();
+  if (hidden.length && boardToken) {
+    for (const item of await listItems(boardToken, env)) seen.set(item.id, item.content);
+  }
+
+  const drifted = [];
+  for (const item of items) {
+    if (!isIssue(item) || item.isArchived) continue;
+    const viaToken = !item.content?.number;
+    const issue = viaToken ? seen.get(item.id) : item.content;
+    if (!issue?.number || !isTrackedRepository(env, issue.repository.nameWithOwner)) continue;
+    if (now - Date.parse(item.updatedAt) < SETTLE_MS) continue;
+    const stage = stageFor(labelNames(issue), issue.state);
+    if (item.stage?.name === stage) continue;
+    drifted.push({ issue, client: viaToken ? boardToken : gh });
+  }
+
+  const moved = [];
+  for (const { issue, client } of drifted.slice(0, MAX_MOVES)) {
+    const stage = await syncIssueToBoard(client, project, issue.id);
+    moved.push(`${issue.repository.nameWithOwner}#${issue.number} → ${stage}`);
+  }
+  let summary = `reconcile: ${items.length} cards read, ${moved.length} moved`;
+  if (moved.length) summary += ` (${moved.join(", ")})`;
+  if (drifted.length > MAX_MOVES) summary += `, ${drifted.length - MAX_MOVES} left for the next run`;
+  if (hidden.length && !boardToken) {
+    summary += `; ${hidden.length} card${hidden.length > 1 ? "s" : ""} hidden from the App: set BOARD_TOKEN`;
+  }
+  log(summary);
+  return summary;
+}
+
 // backfill(gh, env, repositories, log): puts every open issue of those
 // repositories on the board. gh needs the `project` and `repo` scopes.
 export async function backfill(gh, env, repositories, log) {

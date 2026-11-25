@@ -175,9 +175,54 @@ run_install_vscode_config() {
   run_install_vscode_config
   assert_success
   local expected
-  expected=$(grep -v '//' "$CONFIG_DIR/vscode/extensions.json" | jq -r '.recommendations[] | "--install-extension \(.)"')
+  expected=$(sed '/^ *\/\//d' "$CONFIG_DIR/vscode/extensions.json" | jq -r '.recommendations[] | "--install-extension \(.)"')
   run cat "$CODE_LOG"
   assert_output "$expected"
+}
+
+@test "install_vscode_config reads an extensions.json whatever its comments (issue 128)" {
+  # Dropping every line holding `//` also dropped a value with a trailing
+  # comment, and any line holding a URL.
+  stub_code
+  local config="$BATS_TEST_TMPDIR/config"
+  mkdir -p "$config/vscode"
+  cp "$CONFIG_DIR/vscode/settings.json" "$CONFIG_DIR/vscode/mcp.json" "$config/vscode/"
+  cat > "$config/vscode/extensions.json" <<'JSON'
+{
+  // see https://code.visualstudio.com/docs
+  "recommendations": [
+    // general
+    "one.first", // trailing comment
+    "two.second"   // the last one
+  ],
+  "homepage": "https://example.com/a//b" // a URL is not a comment
+}
+JSON
+  run env HOME="$FAKE_HOME" INSTALLED="" PATH="$BATS_TEST_TMPDIR/bin:$PATH" bash -c \
+    "source '$REPO_ROOT/os/helpers/links.sh' && source '$HELPER' && install_vscode_config '$config' '$FAKE_HOME/vscode-user'"
+  assert_success
+  run cat "$CODE_LOG"
+  assert_output "--install-extension one.first
+--install-extension two.second"
+}
+
+@test "strip_jsonc_comments drops a comment holding a quote, and a block comment" {
+  run bash -c "source '$HELPER' && strip_jsonc_comments <<'JSON' | jq -c .
+{
+  /* a block
+     comment, \"quoted\" */
+  \"a\": \"x\", // the \"best\" one
+  \"b\": \"say \\\"hi\\\" // not a comment\" /* inline */
+}
+JSON"
+  assert_success
+  assert_output '{"a":"x","b":"say \"hi\" // not a comment"}'
+}
+
+@test "strip_jsonc_comments keeps a URL inside a value" {
+  run bash -c "source '$HELPER' && printf '%s\n' '{ \"url\": \"https://example.com/a//b\", // note' '  // whole line' '  \"k\": 1 }' | strip_jsonc_comments | jq -c ."
+  assert_success
+  assert_output '{"url":"https://example.com/a//b","k":1}'
 }
 
 @test "install_vscode_config skips an installed extension, whatever its case" {
