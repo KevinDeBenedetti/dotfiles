@@ -749,6 +749,18 @@ setup() {
   [ "$revs" -eq "$notes" ]
 }
 
+@test "prek validates renovate.json with Renovate's own validator" {
+  # The jq tests above know the shape of the file, not Renovate's options: an
+  # unknown one, or one that needs a migration (--strict), fails the commit
+  # (issue 146). renovate.json is repository config, not self-hosted global
+  # config (--no-global).
+  run grep -A4 '^repo = "https://github.com/renovatebot/pre-commit-hooks"$' "$REPO_ROOT/prek.toml"
+  assert_success
+  assert_line '# renovate: datasource=github-tags depName=renovatebot/pre-commit-hooks'
+  assert_line --regexp '^rev = "[0-9a-f]{40}"  # frozen: [0-9]+\.[0-9]+\.[0-9]+$'
+  assert_line '  { id = "renovate-config-validator", args = ["--strict", "--no-global"], files = "^renovate\\.json$" },'
+}
+
 # --- The board Worker is deployed by CI (issues 131, 137) ---
 
 @test "the board Worker is deployed once the CI/CD of a push to main passed, after its tests" {
@@ -862,14 +874,15 @@ board_history() {
 @test "the prek hook repositories are pinned by commit SHA, the tag kept as a comment" {
   # A tag can be moved or pushed again; a full SHA cannot (issue 127). The
   # owner's own github-workflows hooks stay on their tag: its propagate-release
-  # job moves that pin with each release, and reads a tag there.
+  # job moves that pin with each release, and reads a tag there. Renovate's
+  # hooks tag their releases without a `v`.
   local repo rev pinned=0
   while IFS=$'\t' read -r repo rev; do
     [ "$repo" = "https://github.com/KevinDeBenedetti/github-workflows" ] && continue
-    [[ "$rev" =~ ^rev\ =\ \"[0-9a-f]{40}\"\ \ #\ frozen:\ v[0-9][0-9.]*$ ]] || fail "$repo is not pinned by SHA: $rev"
+    [[ "$rev" =~ ^rev\ =\ \"[0-9a-f]{40}\"\ \ #\ frozen:\ v?[0-9][0-9.]*$ ]] || fail "$repo is not pinned by SHA: $rev"
     pinned=$((pinned + 1))
   done < <(awk -F'"' '/^repo = "https:/ { repo = $2 } /^rev = / { print repo "\t" $0 }' "$REPO_ROOT/prek.toml")
-  assert_equal "$pinned" 5
+  assert_equal "$pinned" 6
 }
 
 @test "the shared Renovate preset reads every prek pin, a SHA with its tag comment" {

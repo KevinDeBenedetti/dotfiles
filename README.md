@@ -50,7 +50,8 @@ prek run --all-files   # run every hook once
 ```
 
 They cover file hygiene, gitleaks secret scanning, ShellCheck, yamllint,
-actionlint, docs link checks and the Bats suite: a commit runs the test files
+actionlint, Renovate's validator on `renovate.json`, docs link checks and the
+Bats suite: a commit runs the test files
 that cover its staged files (`scripts/bats-affected.sh`), a push the whole
 suite, both in parallel (`scripts/bats-run.sh`; install GNU `parallel` to
 also split each test file across cores). Commit messages follow
