@@ -1,6 +1,11 @@
 ---
+name: new-issue
 description: File the owner's requests (free text, one or many) as GitHub issues, related ones grouped into one, duplicates skipped, each ready for /next-issue; `dry-run` drafts them without filing.
 argument-hint: "[dry-run] <requests>"
+disable-model-invocation: true
+metadata:
+  opencode/slash: "false"
+  opencode/autoinvoke: "false"
 ---
 
 Turn the owner's requests into GitHub issues that `/next-issue` can work: one
@@ -8,7 +13,7 @@ issue per reviewable change, written from the code it touches.
 
 <!-- Single source shared by Claude Code, OpenCode and VS Code Copilot
      (linked by os/helpers/links.sh). Keep it tool-neutral. The issues it files
-     are worked by next-issue.md; audit.md files its own findings. -->
+     are worked by the next-issue skill; the audit skill files its own findings. -->
 
 Everything you write onto GitHub — titles, bodies — is in English, whatever
 the conversation language, and reads as the owner's own issue:

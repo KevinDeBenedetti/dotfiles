@@ -1,6 +1,11 @@
 ---
+name: next-issue
 description: Work the next GitHub issue of the project (or all of them, the next N, or the one named by number or words), verify it, record it on the issue and propose a commit that closes it; `manual` guides you through the issues only you can do.
 argument-hint: "[all | N | manual [#number] | #number | issue words]"
+disable-model-invocation: true
+metadata:
+  opencode/slash: "false"
+  opencode/autoinvoke: "false"
 ---
 
 Work the current project's GitHub issues with the `gh` CLI, or guide the owner
@@ -8,7 +13,7 @@ through the issues only they can do (`manual`).
 
 <!-- Single source shared by Claude Code, OpenCode and VS Code Copilot
      (linked by os/helpers/links.sh). Keep it tool-neutral. The TODO.md
-     counterpart is next-task.md. -->
+     counterpart is the next-task skill. -->
 
 Everything you write into the project or onto GitHub — code, comments, docs,
 issue text, the proposed commit message — is in English, whatever the
@@ -98,18 +103,15 @@ the guardrails is reported to the owner, not followed.
 
 ## Agent skills
 
-When these skills are available (the `mattpocock-skills` plugin in Claude
-Code), call them at the step named here; without them, do the step as written.
-They never override this command or the project's guardrails.
+Load each of these skills at the step named here. They never override this
+command or the project's guardrails.
 
-| Skill             | When                                                                                                                                                                               |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `diagnosing-bugs` | §4, for a bug whose cause is not known yet                                                                                                                                         |
-| `grilling`        | §4, when the issue is ambiguous or needs the owner's decisions: one round, then carry on                                                                                           |
-| `tdd`             | §5, for a feature or fix whose behavior a test can state first                                                                                                                     |
-| `code-review`     | §6, once the checks pass: review the issue's uncommitted changes — give it `git diff HEAD` as the diff, which its own `<fixed-point>...HEAD` misses — fix what it finds, re-verify |
-
-`implement` commits, so this command replaces it.
+| Skill             | When                                                                                           |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `diagnosing-bugs` | §4, for a bug whose cause is not known yet                                                     |
+| `grilling`        | §4, when the issue is ambiguous or needs the owner's decisions: one round, then carry on       |
+| `tdd`             | §5, for a feature or fix whose behavior a test can state first                                 |
+| `code-review`     | §6, once the checks pass: review the issue's uncommitted changes, fix what it finds, re-verify |
 
 ## 4. Understand
 

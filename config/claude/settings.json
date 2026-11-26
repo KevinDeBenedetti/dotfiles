@@ -575,7 +575,17 @@
     "anthropic-skills:web-artifacts-builder": "user-invocable-only",
     "anthropic-skills:xlsx": "user-invocable-only",
     "context7-mcp": "user-invocable-only",
-    "langfuse": "user-invocable-only"
+    "langfuse": "user-invocable-only",
+    "mattpocock-skills:code-review": "user-invocable-only",
+    "mattpocock-skills:codebase-design": "user-invocable-only",
+    "mattpocock-skills:diagnosing-bugs": "user-invocable-only",
+    "mattpocock-skills:domain-modeling": "user-invocable-only",
+    "mattpocock-skills:grilling": "user-invocable-only",
+    "mattpocock-skills:pr": "user-invocable-only",
+    "mattpocock-skills:prototype": "user-invocable-only",
+    "mattpocock-skills:research": "user-invocable-only",
+    "mattpocock-skills:tdd": "user-invocable-only",
+    "mattpocock-skills:writing-for-agents": "user-invocable-only"
   },
   "hooks": {
     "PreToolUse": [

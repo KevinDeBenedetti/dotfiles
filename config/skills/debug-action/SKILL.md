@@ -1,5 +1,6 @@
 ---
-description: Debug a failing GitHub Actions run from a run/job URL, a run ID or a pasted error log (defaults to the most recent failed run of the current branch, then of the repo).
+name: debug-action
+description: Debug a failing GitHub Actions run from a run/job URL, a run ID or a pasted error log (defaults to the most recent failed run of the current branch, then of the repo). Use when a CI run, workflow or pipeline job fails, before changing anything.
 argument-hint: "[run URL | run ID | pasted log]"
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: docs-hub
-description: Create, update, or audit the docs/ folder of a repository so it publishes correctly on the kevindebenedetti.github.io documentation hub (frontmatter, page layout, sidebar order, relative links). Use when adding, editing, moving, or reviewing any Markdown file under docs/, or when a code or config change requires its documentation to be updated.
+description: Contract between a repository's docs/ folder and the kevindebenedetti.github.io documentation hub - frontmatter, page layout, sidebar order, relative links. Use in a repository owned by KevinDeBenedetti when adding, editing, moving or reviewing a Markdown file under docs/, or when a code or config change makes its documentation stale. Does not apply to other owners' repositories.
 ---
 
 # Documentation under `docs/` (kevindebenedetti.github.io hub)

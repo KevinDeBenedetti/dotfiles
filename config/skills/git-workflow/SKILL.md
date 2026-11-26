@@ -76,25 +76,12 @@ git checkout -b fix/42-retry-uploads
 
 ## Session branch
 
-A Claude desktop app session opens in a worktree on a branch the app
-generated: `<prefix>/<words>-<6 hex>` (prefix `claude` by default), for
-example `claude/fix-login-redirect-a1b2c3`. While that branch has no upstream
-(`git config branch.<name>.merge` prints nothing), rename it after the work as
-soon as you know what the work is, before the first change — yours to run,
-since nothing outside this worktree knows the name yet:
-
-```bash
-git branch -m fix/login-redirect-safari
-```
-
-The name follows the rule above: `<type>/<slug>`, or `<type>/<number>-<slug>`
-for an issue, and free. Once pushed, the name stays.
-
-Where the sandbox keeps `.git/config` read-only, git renames the branch, then
-fails to update that file ("could not lock config file", exit 128): with no
-upstream there was nothing in it to move, so the rename is done once
-`git branch --show-current` prints the new name. Any other failure: hand the
-command to the owner.
+A branch the Claude desktop app generated for the session,
+`<prefix>/<words>-<6 hex>` (`claude/fix-login-redirect-a1b2c3`), with no
+upstream yet, is yours to rename after the work, before the first change:
+`git branch -m <type>/<slug>`. Read [session-branch.md](./session-branch.md)
+first: how to tell such a branch, and the rename that fails on a read-only
+`.git/config`.
 
 ## Commit hand-over
 
@@ -155,8 +142,7 @@ is rebased (below).
   `.github` repository has one — a pull request opened on GitHub already
   carries it: fill its sections in place, and keep its comments and any block
   a workflow rewrites (`<!-- pr-description:start -->` … `end`). Without a
-  template, the `pr` skill's when it is available (mattpocock-skills);
-  otherwise `## Summary` — what changed and why, a few bullets — and
+  template, `## Summary` — what changed and why, a few bullets — and
   `## Evidence` — the checks run and their result. Then one `Fixes #<number>`
   line per issue the branch closes. In English, with nothing that could not go
   in a commit (no secret, no real IP address or host name), and no AI
@@ -188,30 +174,10 @@ gh pr edit 87 --title 'feat(issues): sync triage labels to the project board' --
 
 ### Rebase a conflicting one
 
-Fetch the base yourself (`git fetch origin main`); `git merge-tree
---write-tree --name-only origin/main HEAD` names the conflicting files without
-touching the working tree. The owner starts the rebase, which stops at the
-conflicts before making any commit:
-
-```bash
-git rebase origin/main
-```
-
-Resolve each file in the working tree — keep both sides where each added its
-own line — check that no `<<<<<<<` marker is left, and run the project's
-checks. Then hand the end of it, with the files you resolved; `GIT_EDITOR=true`
-keeps the commit message and opens no editor:
-
-```bash
-git add AGENTS.md README.md && GIT_EDITOR=true git rebase --continue
-```
-
-The rebase rewrote the branch, so its push is forced, with a lease that
-refuses when the remote branch moved meanwhile:
-
-```bash
-git push --force-with-lease
-```
+A pull request in conflict with its base is rebased before anything else: the
+owner starts the rebase, you resolve the files, the owner continues it and
+forces the push with a lease. The exact sequence is in
+[rebase.md](./rebase.md): read it before handing the first command.
 
 ### Open a new one
 

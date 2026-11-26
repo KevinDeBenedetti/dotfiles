@@ -2,11 +2,13 @@
 
 ## Claude Code
 
-- Skills `commit-types`, `git-workflow`, `readme`, `docs-hub`, `todo-md` and `manual-steps` (from `config/skills/`, installed in
-  `~/.claude/skills/`) apply here: invoke them through the Skill tool when the
-  task matches, rather than reproducing their rules from memory.
+- The skills of `config/skills/` (installed in `~/.claude/skills/`, listed in
+  `AGENTS.md`) apply here: load the one that matches the task rather than
+  reproducing its rules from memory. `writing-for-agents` covers every edit
+  of a skill, of `AGENTS.md` and of this file.
 - `config/claude/settings.json` is the guardrail reference and is write-denied
   in the sandbox: propose the exact edit to the owner instead of working
   around it.
-- Claude-only slash commands live in `config/claude/commands/`; commands shared
-  with other tools live in `config/commands/`.
+- The slash commands (`/next-issue`, `/commit`, `/pr`, …) are user-invoked
+  skills in `config/skills/`, shared with the other tools: there is no
+  `commands/` directory any more.

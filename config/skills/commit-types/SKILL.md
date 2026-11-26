@@ -5,9 +5,10 @@ description: Conventional Commits format, type selection and changelog/release i
 
 # Commit Types
 
-Conventional Commits type selection for this repository's releases. Use when
-writing or reviewing a commit message, generating one with `git aicommit`, or
-predicting how a change will land in the changelog.
+Conventional Commits format and type selection for the owner's repositories,
+which share one release-please configuration. Use when writing or reviewing a
+commit message, generating one with `git aicommit`, or predicting how a change
+will land in the changelog.
 
 ## Format (always)
 
@@ -44,15 +45,13 @@ Every commit message is a Conventional Commit — never free-form text:
 
 Spec: <https://www.conventionalcommits.org/en/v1.0.0/>.
 
-The same rules are inlined for VS Code's "Generate commit message" button in
-`config/vscode/settings.json`
-(`github.copilot.chat.commitMessageGeneration.instructions`): keep both in sync.
-
 ## Type → release effect
 
-The release-please config (`release-type: "simple"`, no custom
+The shared release-please config (`release-type: "simple"`, no custom
 `changelog-sections`, `bump-minor-pre-major: true`) uses release-please's
-default changelog sections:
+default changelog sections. A repository whose own
+`.github/release/release-please-config.json` sets `changelog-sections` follows
+that file instead: read it before predicting a changelog.
 
 | Type | Changelog |
 | ---- | --------- |
@@ -71,7 +70,7 @@ type (`refactor!:`) still appears in the changelog.
 ## Rules
 
 - House rule: do not use `refactor`. release-please would accept it (hidden,
-  like `chore`), but this repo standardises on `chore` for a pure refactor with
+  like `chore`), but the owner's repositories standardise on `chore` for a pure refactor with
   no user-facing effect.
 - Prefer the narrowest type that is true: `fix` over `feat` when the change
   repairs existing behavior, `perf` when the goal is speed.
@@ -80,8 +79,6 @@ type (`refactor!:`) still appears in the changelog.
 
 ## Source of truth
 
-The release-please configuration lives in the `github-workflows` repo at
-`.github/release/release-please-config.json` (mirrored here at the same path).
-When it changes (e.g. a custom `changelog-sections` block is added), update
-this table and the prompt in `scripts/ai/git-aicommit` to match — they must
-stay in sync.
+The shared release-please configuration lives in the owner's
+`github-workflows` repository, at `.github/release/release-please-config.json`;
+each repository mirrors it at the same path.

@@ -2,10 +2,12 @@
 # Functional tests for the Claude Code skill hooks in config/claude/hooks/:
 # skill-router.sh (UserPromptSubmit) names the skills a prompt matches, and
 # skill-context.sh (SessionStart) gives the standing skill policy for the
-# repository the session opens in. Both answer with additionalContext only.
+# repository the session opens in. Both answer with additionalContext only,
+# and name only skills of config/skills/.
 
 setup() {
   DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+  SKILLS="$DIR/../config/skills"
   ROUTER="$DIR/../config/claude/hooks/skill-router.sh"
   CONTEXT="$DIR/../config/claude/hooks/skill-context.sh"
 
@@ -15,7 +17,6 @@ setup() {
   unset DOTFILES_SKILL_ROUTER
   export HOME="$BATS_TEST_TMPDIR/home"
   mkdir -p "$HOME/.claude"
-  echo '{"enabledPlugins": {"mattpocock-skills@claude-plugins-official": true}}' > "$HOME/.claude/settings.json"
   REPO="$BATS_TEST_TMPDIR/repo"
   mkdir -p "$REPO" && git -C "$REPO" init -q -b main
 }
@@ -39,7 +40,7 @@ session() { # session [source] — run the session hook, print its JSON
 @test "router: a reported failure asks for diagnosing-bugs" {
   run prompt "the install script crashes on Debian 12, see the log"
   assert_success
-  assert_output --partial 'mattpocock-skills:diagnosing-bugs'
+  assert_output --partial '`diagnosing-bugs`'
 }
 
 @test "router: a French failure report matches too" {
@@ -63,7 +64,7 @@ session() { # session [source] — run the session hook, print its JSON
   refute_output --partial 'tdd'
   track tests/install.bats
   run prompt "implement a --dry-run flag for the installer"
-  assert_output --partial 'mattpocock-skills:tdd'
+  assert_output --partial '`tdd`'
 }
 
 @test "router: a bug fix gets the diagnosis first, then tdd" {
@@ -82,9 +83,9 @@ session() { # session [source] — run the session hook, print its JSON
 
 @test "router: reviews of changes, infrastructure audits, design and agent docs" {
   run prompt "review my changes since main before I merge"
-  assert_output --partial 'mattpocock-skills:code-review'
+  assert_output --partial '`code-review`'
   run prompt "audit the terraform and kubernetes setup for security"
-  assert_output --partial '`audit`'
+  assert_output --partial '`/audit`'
   run prompt "refactor the guardrail policy into one module"
   assert_output --partial 'codebase-design'
   run prompt "update AGENTS.md with the new port convention"
@@ -108,7 +109,9 @@ session() { # session [source] — run the session hook, print its JSON
   assert_output ""
   run prompt "yes, fix it"
   assert_output ""
-  run prompt "use mattpocock-skills:tdd to fix the crash"
+  run prompt "use the tdd skill to fix the crash"
+  assert_output ""
+  run prompt "load the \`diagnosing-bugs\` skill, the build is broken"
   assert_output ""
 }
 
@@ -135,7 +138,7 @@ session() { # session [source] — run the session hook, print its JSON
   assert_output ""
 }
 
-@test "router: a commit or push the owner ran from the chat asks for git-workflow, plugin or not" {
+@test "router: a commit or push the owner ran from the chat asks for git-workflow" {
   git -C "$REPO" symbolic-ref HEAD refs/heads/feat/x
   run prompt "<bash-input>git push</bash-input><bash-stdout></bash-stdout><bash-stderr>To github.com:o/r.git
    1a2b3c4..5d6e7f8  feat/x -> feat/x</bash-stderr>"
@@ -151,7 +154,6 @@ session() { # session [source] — run the session hook, print its JSON
   assert_output --partial 'branch command that moves the commit off it'
   run prompt "<bash-input>git commit -m 'docs: explain when to push'</bash-input><bash-stdout>[feat/x 6e7f8a9] docs: explain when to push</bash-stdout><bash-stderr></bash-stderr>"
   assert_output --partial 'committed on'
-  echo '{}' > "$HOME/.claude/settings.json"
   run prompt "<bash-input>git -C sub push -u origin feat/x</bash-input><bash-stdout></bash-stdout><bash-stderr>branch 'feat/x' set up to track 'origin/feat/x'.</bash-stderr>"
   assert_output --partial '`git-workflow`'
   DOTFILES_SKILL_ROUTER=off run prompt "<bash-input>git push</bash-input><bash-stdout></bash-stdout><bash-stderr></bash-stderr>"
@@ -175,7 +177,7 @@ error: failed to push some refs</bash-stderr>"
   done
 }
 
-@test "router: a session on the app's generated branch is told to rename it after the work, plugin or not" {
+@test "router: a session on the app's generated branch is told to rename it after the work" {
   git -C "$REPO" symbolic-ref HEAD refs/heads/claude/fix-login-redirect-a1b2c3
   run prompt "the login redirect is broken on Safari"
   assert_output --partial 'Session branch (dotfiles hook)'
@@ -186,7 +188,6 @@ error: failed to push some refs</bash-stderr>"
   # Even a short reply: the branch keeps its generated name until renamed.
   run prompt "yes"
   assert_output --partial 'git branch -m'
-  echo '{}' > "$HOME/.claude/settings.json"
   run prompt "add a dark theme to the settings page"
   assert_output --partial 'git branch -m'
   refute_output --partial 'Skill routing'
@@ -221,12 +222,32 @@ error: failed to push some refs</bash-stderr>"
   assert_output --partial 'diagnosing-bugs'
 }
 
-@test "router: silent when switched off or when the plugin is not enabled" {
+@test "router: silent when switched off; needs no plugin and no settings file" {
   DOTFILES_SKILL_ROUTER=off run prompt "the install script crashes on Debian 12"
   assert_output ""
-  echo '{}' > "$HOME/.claude/settings.json"
+  rm -rf "$HOME/.claude"
   run prompt "the install script crashes on Debian 12"
-  assert_output ""
+  assert_output --partial '`diagnosing-bugs`'
+}
+
+@test "router and context name only skills that exist in config/skills" {
+  # A hint for a skill that is not installed sends Claude looking for nothing.
+  local name missing=()
+  for name in $(grep -ohE '(^|[[:space:]])hint /?[a-z-]+ "' "$ROUTER" | awk '{print $2}' | tr -d / | sort -u) \
+              $(grep -ohE '"- \\`[a-z-]+\\`:' "$CONTEXT" | tr -dc 'a-z\n-' | sed 's/^-*//' | sort -u); do
+    [ -f "$SKILLS/$name/SKILL.md" ] || missing+=("$name")
+  done
+  [ "${#missing[@]}" -eq 0 ] || fail "hooks name skills that do not exist: ${missing[*]}"
+  # The list is not empty: the patterns above still match the hooks.
+  run bash -c "grep -cE '(^|[[:space:]])hint /?[a-z-]+ \"' '$ROUTER'"
+  [ "$output" -ge 10 ]
+}
+
+@test "router: a user-invoked skill is offered as the owner's command, not as one to load" {
+  run prompt "audit the terraform and kubernetes setup for security"
+  assert_output --partial "the owner's to run"
+  run grep -q '^disable-model-invocation: true$' "$SKILLS/audit/SKILL.md"
+  assert_success
 }
 
 @test "router: emits UserPromptSubmit additionalContext, never a block" {
@@ -241,11 +262,11 @@ error: failed to push some refs</bash-stderr>"
   assert_success
   run jq -r '.hookSpecificOutput.additionalContext' <<<"$output"
   assert_output --partial 'diagnosing-bugs'
-  assert_output --partial 'Never use `implement`'
+  refute_output --partial 'mattpocock'
   refute_output --partial 'tdd'
   track src/app_test.go
   run bash -c "$(declare -f session); REPO='$REPO' CONTEXT='$CONTEXT' session | jq -r .hookSpecificOutput.additionalContext"
-  assert_output --partial 'mattpocock-skills:tdd'
+  assert_output --partial '`tdd`'
 }
 
 @test "context: names the infrastructure, CI and TODO.md it finds" {
@@ -256,17 +277,6 @@ error: failed to push some refs</bash-stderr>"
   assert_output --partial '`debug-action`'
   assert_output --partial '/next-task'
   refute_output --partial 'domain-modeling'
-}
-
-@test "context: tells the owner, at startup only, when an agent repo lacks the plugin setup" {
-  touch "$REPO/AGENTS.md"
-  run bash -c "$(declare -f session); REPO='$REPO' CONTEXT='$CONTEXT' session startup | jq -r '.systemMessage // empty'"
-  assert_output --partial 'setup-matt-pocock-skills'
-  run bash -c "$(declare -f session); REPO='$REPO' CONTEXT='$CONTEXT' session compact | jq -r '.systemMessage // empty'"
-  assert_output ""
-  mkdir -p "$REPO/docs/agents" && touch "$REPO/docs/agents/issue-tracker.md"
-  run bash -c "$(declare -f session); REPO='$REPO' CONTEXT='$CONTEXT' session startup | jq -r '.systemMessage // empty'"
-  assert_output ""
 }
 
 @test "context: on a shared branch, asks for the branch command before the first commit" {
@@ -283,14 +293,11 @@ error: failed to push some refs</bash-stderr>"
   refute_output --partial 'git checkout -b'
 }
 
-@test "context: silent when switched off; without the plugin, only the branch line" {
+@test "context: silent when switched off; off a shared branch, the policy comes without a branch line" {
   DOTFILES_SKILL_ROUTER=off run session
   assert_output ""
-  echo '{"enabledPlugins": {}}' > "$HOME/.claude/settings.json"
-  run bash -c "$(declare -f session); REPO='$REPO' CONTEXT='$CONTEXT' session | jq -r .hookSpecificOutput.additionalContext"
-  assert_output --partial 'This session is on `main`'
-  refute_output --partial 'mattpocock-skills'
   git -C "$REPO" symbolic-ref HEAD refs/heads/feat/x
-  run session
-  assert_output ""
+  run bash -c "$(declare -f session); REPO='$REPO' CONTEXT='$CONTEXT' session | jq -r .hookSpecificOutput.additionalContext"
+  assert_output --partial '`diagnosing-bugs`'
+  refute_output --partial 'This session is on'
 }

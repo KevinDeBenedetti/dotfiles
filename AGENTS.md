@@ -26,13 +26,29 @@ fresh clone; `make help` lists every target). Docker targets
   must be re-installed after editing it.
 - Documentation lives in `docs/` and is the source of truth; keep `README.md`
   short and link to it.
+- The Conventional Commits rules exist in three places and must change
+  together: `config/skills/commit-types/SKILL.md` (reference), the prompt of
+  `scripts/ai/git-aicommit`, and
+  `github.copilot.chat.commitMessageGeneration.instructions` in
+  `config/vscode/settings.json`. Update them too when the release-please
+  config (`.github/release/release-please-config.json`) changes.
 
 ## Skills
 
-Shared skills in `config/skills/` (`commit-types`, `git-workflow`, `readme`,
-`docs-hub`, `todo-md`, `manual-steps`) load automatically in every tool. Use
-them instead of improvising. The shared `/next-task` command
-(`config/commands/`) works a project's `TODO.md` with `todo-md`, and
+Every skill lives in `config/skills/<name>/` and is linked into the three
+tools by `os/helpers/links.sh`. Use them instead of improvising.
+
+**Model-invoked** (load the one that matches the work):
+
+- owner's conventions: `commit-types`, `git-workflow`, `readme`, `docs-hub`,
+  `todo-md`, `manual-steps`, `debug-action`;
+- engineering, adapted from mattpocock/skills (`config/skills/NOTICE.md`):
+  `diagnosing-bugs`, `tdd`, `code-review`, `grilling`, `codebase-design`,
+  `domain-modeling`, `prototype`, `research`, `writing-for-agents`.
+
+**User-invoked** (the owner types `/<name>`; never load one on your own):
+`next-task`, `next-issue`, `new-issue`, `audit`, `commit`, `pr`, `explain`.
+`/next-task` works a project's `TODO.md` with `todo-md`, and
 `/next-task manual` guides the owner through its manual steps with
 `manual-steps`. `/next-issue` is its twin over GitHub issues, and the one this
 repository uses. `/audit` inspects the whole repository, read-only, and files
@@ -43,9 +59,12 @@ the current branch's pull request up to date, or hands the commands that get
 it there.
 
 Rules for editing skills: edit them in `config/skills/<name>/` only (never in
-`~/.claude/skills/`), keep frontmatter to `name` + `description`, no
-tool-specific syntax, `SKILL.md` under ~500 lines. See `docs/config/skills.md`;
-update its "Existing skills" table when adding one.
+`~/.claude/skills/`), no tool-specific syntax, `SKILL.md` under ~500 lines.
+Frontmatter is `name` + `description`, plus `argument-hint` when the skill
+takes one; a user-invoked skill adds `disable-model-invocation: true` and the
+two `opencode/*` metadata keys (`tests/configs.bats` checks the set). See
+`docs/config/skills.md`; update its "Existing skills" table and the lists
+above when adding one.
 
 ## Guardrails (hard rules)
 

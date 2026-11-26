@@ -1,6 +1,11 @@
 ---
+name: audit
 description: Audit the whole repository (code, tests, docs, agent docs, dependencies, CI, infrastructure, security), report only actionable findings and file them as GitHub issues for triage; `dry-run` reports without filing.
 argument-hint: "[dry-run] [path or lens]"
+disable-model-invocation: true
+metadata:
+  opencode/slash: "false"
+  opencode/autoinvoke: "false"
 ---
 
 Audit the current repository as a whole, report only actionable findings, and
@@ -8,7 +13,7 @@ file the ones worth tracking as GitHub issues the owner triages.
 
 <!-- Single source shared by Claude Code, OpenCode and VS Code Copilot
      (linked by os/helpers/links.sh). Keep it tool-neutral. The issues it files
-     are worked by next-issue.md. -->
+     are worked by the next-issue skill. -->
 
 Everything you write onto GitHub — issue titles and bodies — is in English,
 whatever the conversation language, and reads as the owner's own work:
@@ -63,11 +68,9 @@ back (§4) before reporting it.
 
 ## Agent skills
 
-When these skills are available (the `mattpocock-skills` plugin in Claude
-Code), call them for the lens named here; without them, audit the lens as
-written. They never override this command or the project's guardrails: a
-skill that would edit a file, write a report into the repository or commit
-only lends its method here.
+Load each of these skills for the lens named here. They never override this
+command or the project's guardrails: a skill that would edit a file or write
+a report into the repository only lends its method here.
 
 | Skill                | Lens                                                                                                                                                |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |

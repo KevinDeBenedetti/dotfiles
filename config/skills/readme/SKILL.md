@@ -1,6 +1,6 @@
 ---
 name: readme
-description: Generate or update a repository README.md following the standard architecture - badges (CI, release, OpenSSF Scorecard, license), one-line tagline, features, prerequisites, usage examples, a link to the unified docs site, and the security/license sections a public repository needs. Use when creating, rewriting, restructuring, or auditing a project README.
+description: Standard README.md architecture of KevinDeBenedetti's repositories - badges, tagline, features, prerequisites, usage, a link to the documentation hub, security and license sections. Use when creating, rewriting, restructuring or auditing the README of a repository he owns. In another owner's repository, follow that project's own README conventions instead.
 ---
 
 # Generate or update the repository `README.md`

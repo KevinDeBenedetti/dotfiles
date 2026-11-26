@@ -172,12 +172,14 @@ Running `-d` symlinks (or copies) config files from the repository into `$HOME`.
 | `config/shell/*`                | `~/.config/dotfiles/`                                         | symlink  |
 | `config/ssh/config`             | `~/.ssh/config`                                               | symlink  |
 | `config/claude/settings.json`   | `~/.claude/settings.json`                                     | symlink  |
-| `config/claude/commands/*`      | `~/.claude/commands/`                                         | symlink  |
 | `config/claude/hooks/*`         | `~/.claude/hooks/`                                            | symlink  |
-| `config/commands/*.md`          | `~/.claude/commands/`                                         | symlink  |
-| `config/commands/*.md`          | `~/.config/opencode/commands/`                                | symlink  |
-| `config/commands/*.md`          | `~/Library/Application Support/Code/User/prompts/*.prompt.md` | symlink² |
 | `config/skills/*/`              | `~/.claude/skills/`                                           | symlink  |
+| `config/skills/*/`              | `~/.copilot/skills/`                                          | symlink  |
+| `config/skills/*/SKILL.md`      | `~/.config/opencode/commands/*.md`                            | symlink³ |
+| `config/agents/AGENTS.md`       | `~/.claude/AGENTS.md`                                         | symlink  |
+| `config/claude/CLAUDE.md`       | `~/.claude/CLAUDE.md`                                         | symlink  |
+| `config/agents/AGENTS.md`       | `~/.config/opencode/AGENTS.md`                                | symlink  |
+| `config/agents/AGENTS.md`       | `~/.copilot/copilot-instructions.md`                          | symlink  |
 | `config/opencode/opencode.json` | `~/.config/opencode/opencode.json`                            | symlink  |
 | `config/copilot/hooks/*`        | `~/.copilot/hooks/`                                           | symlink  |
 | `config/ai-tools/`              | `~/.config/ai-tools`                                          | symlink  |
@@ -189,7 +191,9 @@ Running `-d` symlinks (or copies) config files from the repository into `$HOME`.
 
 > ¹ `.zshrc` is copied rather than symlinked because the init script applies macOS-specific patches: `gsed` alias and Homebrew paths for Apple Silicon (`/opt/homebrew`).
 >
-> ² Only when VS Code is installed: `settings.json` and `mcp.json` need the `code` CLI on `PATH`, prompt files need the VS Code User directory to exist.
+> ² Only when VS Code is installed: `settings.json` and `mcp.json` need the `code` CLI on `PATH`.
+>
+> ³ Only for a user-invoked skill (a slash command): see [Agent Skills](../config/skills.md#invocation).
 
 ::: tip
 These links point at the checkout the init script ran from. Run it from a clean

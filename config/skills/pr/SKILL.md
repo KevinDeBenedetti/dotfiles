@@ -1,6 +1,11 @@
 ---
+name: pr
 description: Bring the current branch's pull request up to date - its title and description, from the branch's commits - or hand the runnable commands that get it there - branch off main or dev, commit, push, gh pr create.
 argument-hint: "[base branch]"
+disable-model-invocation: true
+metadata:
+  opencode/slash: "false"
+  opencode/autoinvoke: "false"
 ---
 
 Take the current branch to an up-to-date pull request, following the

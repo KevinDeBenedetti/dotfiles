@@ -1,6 +1,11 @@
 ---
+name: next-task
 description: Work the next task of the project's TODO.md (or all of them, the next N, or the one matching some words), verify it, record it and propose a commit; `manual` guides you step by step through its manual steps instead.
 argument-hint: "[all | N | manual [step | group] | task words]"
+disable-model-invocation: true
+metadata:
+  opencode/slash: "false"
+  opencode/autoinvoke: "false"
 ---
 
 Work tasks from the current project's `TODO.md`, or guide the owner through
@@ -74,19 +79,16 @@ manual mode, the skill's opening plan does it.
 
 ## Agent skills
 
-When these skills are available (the `mattpocock-skills` plugin in Claude
-Code), call them at the step named here; without them, do the step as written.
-They never override this command or the project's guardrails: no commit, no
-push, and `TODO.md` stays in the `todo-md` format.
+Load each of these skills at the step named here. They never override this
+command or the project's guardrails: no commit, no push, and `TODO.md` stays
+in the `todo-md` format.
 
-| Skill             | When                                                                                                                                                                              |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `diagnosing-bugs` | §4, for a `FIX` whose cause is not known yet                                                                                                                                      |
-| `grilling`        | §4, when the task is ambiguous or needs the owner's decisions: one round, then carry on                                                                                           |
-| `tdd`             | §5, for a `FEAT` or `FIX` whose behavior a test can state first                                                                                                                   |
-| `code-review`     | §6, once the checks pass: review the task's uncommitted changes — give it `git diff HEAD` as the diff, which its own `<fixed-point>...HEAD` misses — fix what it finds, re-verify |
-
-Never call `implement`: it commits. This command is its replacement here.
+| Skill             | When                                                                                          |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `diagnosing-bugs` | §4, for a `FIX` whose cause is not known yet                                                  |
+| `grilling`        | §4, when the task is ambiguous or needs the owner's decisions: one round, then carry on       |
+| `tdd`             | §5, for a `FEAT` or `FIX` whose behavior a test can state first                               |
+| `code-review`     | §6, once the checks pass: review the task's uncommitted changes, fix what it finds, re-verify |
 
 ## 4. Understand
 

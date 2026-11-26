@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
 # Claude Code UserPromptSubmit hook — read each prompt, and when it matches the
-# kind of work a mattpocock-skills skill (or one of this repo's skills) is
-# built for, hand Claude a short hint naming that skill. A hook cannot invoke a
-# skill itself: the hint is `additionalContext`, which Claude reads with the
-# prompt and acts on. It never blocks the prompt.
+# kind of work one of the skills of config/skills/ is built for, hand Claude a
+# short hint naming that skill. A hook cannot invoke a skill itself: the hint
+# is `additionalContext`, which Claude reads with the prompt and acts on. It
+# never blocks the prompt. Every skill named here exists in config/skills/
+# (tests/skill-hooks.bats checks it).
 #
 # Stays silent when the prompt is a slash command (a skill was already picked),
-# already names a skill, is too short to say what it is about ("yes", "ok"),
-# or when the plugin is not enabled. At most two hints per prompt.
+# already names a skill, or is too short to say what it is about ("yes",
+# "ok"). At most two hints per prompt.
 #
 # A command the owner ran from the chat arrives as a <bash-input> prompt. Its
-# output is no request, so it gets no skill hint, with one exception, plugin
-# or not: a commit or push that went through gets the next step of the
-# git-workflow skill (push, then the pull request's title and description).
+# output is no request, so it gets no skill hint, with one exception: a commit
+# or push that went through gets the next step of the git-workflow skill
+# (push, then the pull request's title and description).
 #
 # A session the Claude desktop app opened in a worktree sits on a generated
 # branch, `<prefix>/<words>-<6 hex>`. While it has that name and no upstream,
 # every prompt also asks Claude to rename it after the work, `<type>/<slug>`
-# (git-workflow skill, "Session branch"), plugin or not.
+# (git-workflow skill, "Session branch").
 #
 #   DOTFILES_SKILL_ROUTER          on (default); off: never hint.
 #   DOTFILES_SESSION_BRANCH_PREFIX the app's branch prefix setting (default
@@ -61,7 +62,7 @@ git_step() {
   else
     next="the owner committed${branch:+ on \`$branch\`} from the chat: on a shared branch (main, dev, …), hand the branch command that moves the commit off it; otherwise the push command, then the pull request step."
   fi
-  jq -n --arg c "Git step (dotfiles hook): $next Follow the \`git-workflow\` skill (Skill tool), in your next reply." \
+  jq -n --arg c "Git step (dotfiles hook): $next Follow the \`git-workflow\` skill, in your next reply." \
     '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $c}}'
 }
 case $trimmed in '<bash-input>'*) git_step; exit 0 ;; esac
@@ -90,13 +91,9 @@ finish() {
   exit 0
 }
 
-plugin=mattpocock-skills@claude-plugins-official
-enabled=$(jq -r --arg p "$plugin" '.enabledPlugins[$p] // false' "$HOME/.claude/settings.json" 2>/dev/null)
-[ "$enabled" = true ] || finish
-
 [ "${#trimmed}" -ge 12 ] || finish
 case $trimmed in /*) finish ;; esac
-grep -qiE 'mattpocock-skills:|Skill tool' <<<"$prompt" && finish
+grep -qiE 'Skill tool|(use|load|with|follow) the `?[a-z-]+`? skill' <<<"$prompt" && finish
 
 # matches <ERE> — the prompt holds one of the alternatives as a whole word.
 # C locale: accented letters are bytes outside [[:alnum:]], so they still
@@ -122,53 +119,49 @@ if matches "$failure"; then
   if matches "$ci" && ! matches "$infra"; then
     hint debug-action "a CI run fails: read its log and find the cause before changing anything"
   else
-    hint mattpocock-skills:diagnosing-bugs "something is reported broken, failing or slow: reproduce and find the cause before fixing"
+    hint diagnosing-bugs "something is reported broken, failing or slow: reproduce and find the cause before fixing"
   fi
 fi
 
 if matches "audit|security review|harden(ing)?|s[ée]curit[ée]" && matches "$infra"; then
-  hint audit "an infrastructure audit: report only actionable findings"
+  hint /audit "an infrastructure audit: the command is the owner's to run, so offer it; a read-only look here reports only actionable findings"
 fi
 
 if matches "review|relis|relire|revue|before (i|we) (merge|commit)"; then
-  matches "repo(sitory)?|codebase" || hint mattpocock-skills:code-review "review the changes against the repo's standards and the task's spec"
+  matches "repo(sitory)?|codebase" || hint code-review "review the changes against the repo's standards and the task's spec"
 fi
 
 if matches "grill|stress[- ]test|poke holes|challenge (my|this|the) (plan|idea|design)"; then
-  hint mattpocock-skills:grilling "stress-test the plan with the owner, one question at a time"
+  hint grilling "stress-test the plan with the owner, in rounds of numbered questions"
 fi
 
 if matches "refactor(ing)?|architecture|deep modules?|seams?|decouple|restructure|interface|module boundar(y|ies)"; then
-  hint mattpocock-skills:codebase-design "shape the module and its interface before writing the code"
+  hint codebase-design "shape the module and its interface before writing the code"
 fi
 
 if matches "glossary|adrs?|terminology|domain model(ing)?|ubiquitous language"; then
-  hint mattpocock-skills:domain-modeling "name the concepts; keep GLOSSARY.md / docs/adr in step"
+  hint domain-modeling "name the concepts; keep GLOSSARY.md / docs/adr in step"
 fi
 
 if matches "prototype|spike|poc|proof of concept|throwaway"; then
-  hint mattpocock-skills:prototype "answer the design question with a throwaway prototype first"
+  hint prototype "answer the design question with a throwaway prototype first"
 fi
 
 if matches "research|investigate|compare (the )?(options|librar(y|ies)|tools|approaches)|which (library|tool|approach) should"; then
-  hint mattpocock-skills:research "check primary sources before deciding"
-fi
-
-if matches "pull request|pr (body|description)|open (a|the) pr|write (a|the) pr"; then
-  hint mattpocock-skills:pr "write the PR body"
+  hint research "check primary sources before deciding"
 fi
 
 if matches "SKILL\.md|AGENTS\.md|CLAUDE\.md|(new|a|the|this) skill"; then
-  hint mattpocock-skills:writing-for-agents "the text is written for agents"
+  hint writing-for-agents "the text is written for agents"
 fi
 
 if matches "implement|add (a |an |the )?(feature|option|flag|command|target|check|test)|new feature|fix|ajoute[rz]?|impl[ée]mente[rz]?|corrige[rz]?" && has_tests; then
-  hint mattpocock-skills:tdd "this repository has a test suite: write the failing test first"
+  hint tdd "this repository has a test suite: write the failing test first"
 fi
 
 [ "${#hints[@]}" -gt 0 ] || finish
 
-ctx="Skill routing (dotfiles hook): this prompt matches the skills below. Invoke each with the Skill tool before starting that part of the work, unless it clearly does not fit; say in one line which ones you skip and why."
+ctx="Skill routing (dotfiles hook): this prompt matches the skills below. Load each one before starting that part of the work, unless it clearly does not fit; say in one line which ones you skip and why."
 for h in "${hints[@]}"; do ctx+=$'\n'"$h"; done
 
 finish "$ctx"
