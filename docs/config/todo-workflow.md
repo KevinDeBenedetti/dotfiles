@@ -106,7 +106,7 @@ The plugin also feeds the file. In a repository set up with
 `/mattpocock-skills:setup-matt-pocock-skills` to use `TODO.md` as its tracker,
 the planning skills write tasks that `/next-task` then works. This repository
 is not one of them: it tracks its work in GitHub Issues (see
-[Issue Tracker](../agents/issue-tracker.md) and
+`.agents/issue-tracker.md` and
 [Issue Workflow](./issue-workflow.md)). With `TODO.md` as the tracker:
 
 1. `grilling` settles a design with you.
