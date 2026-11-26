@@ -47,8 +47,9 @@ State the mode — and in batch mode the issues in scope — before starting.
 1. Check the tracker answers: `gh issue list --limit 1`. When `gh` is missing,
    not signed in or cannot reach GitHub, say which and stop: the issues are the
    task list, and there is no fallback.
-2. Read `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` when
-   the project has them: they give its conventions and its label names. Without
+2. Read `.agents/issue-tracker.md` and `.agents/triage-labels.md` (in
+   `docs/agents/` in an older project) when the project has them: they give
+   its conventions and its label names. Without
    them the labels are the defaults below. When the repository has no `done`
    label yet (§7 sets it), create it:
    `gh label create done --force --color 6F42C1 --description "Finished by an agent: waiting for the owner's commit"`.

@@ -60,9 +60,9 @@ list them and ask. A file that holds two pieces goes hunk by hunk with
 
 ## 3. Find each piece's issue
 
-Read the project's `docs/agents/issue-tracker.md` and
-`docs/agents/triage-labels.md` when it has them. Then, for each piece, the
-first source that names an issue:
+Read the project's `.agents/issue-tracker.md` and `.agents/triage-labels.md`
+(in `docs/agents/` in an older project) when it has them. Then, for each
+piece, the first source that names an issue:
 
 1. the argument's number;
 2. the branch name, `<type>/<number>-<slug>`;

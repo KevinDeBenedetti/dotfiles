@@ -57,8 +57,9 @@ starting.
    run its read-only checks — lint, type-check, tests — when the session
    allows. A check that fails on the default branch is a finding.
 5. Unless the mode is `dry-run`, check the tracker answers
-   (`gh issue list --limit 1`) and read `docs/agents/issue-tracker.md` and
-   `docs/agents/triage-labels.md` when the project has them. When `gh` is
+   (`gh issue list --limit 1`) and read `.agents/issue-tracker.md` and
+   `.agents/triage-labels.md` (in `docs/agents/` in an older project) when the
+   project has them. When `gh` is
    missing, not signed in or cannot reach GitHub, say which and carry on as
    `dry-run`.
 

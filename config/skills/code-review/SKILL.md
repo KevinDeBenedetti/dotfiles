@@ -31,9 +31,9 @@ is not empty before going on; ask the owner when neither case is clear.
 ## 2. Find the spec
 
 In this order: the issue a commit, the branch name or the caller names (fetch
-it as `docs/agents/issue-tracker.md` says, when the project has that file);
-the `TODO.md` task being worked; a file the owner passed; a spec under
-`docs/` or `specs/` matching the branch. None: the Spec axis reports "no spec
+it as `.agents/issue-tracker.md` says, or `docs/agents/` in an older project,
+when the project has that file); the `TODO.md` task being worked; a file the
+owner passed; a spec under `docs/` or `specs/` matching the branch. None: the Spec axis reports "no spec
 available".
 
 ## 3. Find the standards

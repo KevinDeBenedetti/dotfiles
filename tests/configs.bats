@@ -1590,7 +1590,7 @@ todo_layout() {
   local label
   for label in needs-triage needs-info ready-for-agent ready-for-human wontfix done; do
     grep -qE "gh label create $label " "$REPO_ROOT/docs/config/issue-workflow.md" || fail "no gh label create for $label"
-    grep -qF "\`$label\`" "$REPO_ROOT/docs/agents/triage-labels.md" || fail "triage-labels.md misses $label"
+    grep -qF "\`$label\`" "$REPO_ROOT/.agents/triage-labels.md" || fail "triage-labels.md misses $label"
   done
 }
 

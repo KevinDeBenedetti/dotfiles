@@ -37,8 +37,9 @@ The requests are free text: a list, a paragraph, several asks in one sentence.
 
 1. Check the tracker answers: `gh issue list --limit 1`. When `gh` is missing,
    not signed in or cannot reach GitHub, say which and carry on as `dry-run`.
-2. Read `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` when
-   the project has them: they give its conventions and its label names.
+2. Read `.agents/issue-tracker.md` and `.agents/triage-labels.md` (in
+   `docs/agents/` in an older project) when the project has them: they give
+   its conventions and its label names.
 3. List the open issues once, for §5:
    `gh issue list --state open --limit 200 --json number,title,labels`.
 

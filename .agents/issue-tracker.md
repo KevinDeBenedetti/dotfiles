@@ -1,13 +1,9 @@
----
-title: Issue Tracker
----
-
 # Issue Tracker
 
 How the agent skills (`to-spec`, `to-tickets`, `triage`, `wayfinder`, …) track
 work in this repository: issues and specs are GitHub issues of
 `KevinDeBenedetti/dotfiles`, reached with the `gh` CLI. `/next-issue`
-implements them (see [Issue Workflow](../config/issue-workflow.md)).
+implements them (see [Issue Workflow](../docs/config/issue-workflow.md)).
 
 This repository is public, and so are its issues. Write there only what could
 go in a commit: no secret, no real IP address or host name, no content of a

@@ -16,8 +16,8 @@ one.
 
 `GLOSSARY.md` and `docs/adr/` at the repository root; a `GLOSSARY-MAP.md`
 there means several contexts, each with its own glossary. The project's
-`docs/agents/domain.md` wins when it says otherwise. Create a file only when
-there is something to write in it.
+`.agents/domain.md` (`docs/agents/` in an older project) wins when it says
+otherwise. Create a file only when there is something to write in it.
 
 ## While designing
 
