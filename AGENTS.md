@@ -89,12 +89,12 @@ above when adding one.
 
 ### Issue tracker
 
-Tickets are GitHub issues of this public repository, worked by `/next-issue`; write there only what could go in a commit. See `docs/agents/issue-tracker.md`.
+Tickets are GitHub issues of this public repository, worked by `/next-issue`; write there only what could go in a commit. See `.agents/issue-tracker.md`.
 
 ### Triage labels
 
-The five default labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), plus `urgent` and `done` (finished by an agent, waiting for the owner's commit). See `docs/agents/triage-labels.md`.
+The five default labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), plus `urgent` and `done` (finished by an agent, waiting for the owner's commit). See `.agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root, created only when needed. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root, created only when needed. See `.agents/domain.md`.

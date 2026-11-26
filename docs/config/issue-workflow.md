@@ -45,7 +45,8 @@ gh label create urgent          --force --color B60205 --description "Goes first
 | `urgent`          | Goes first among the candidates               |                              |
 
 A project that names its labels differently says so in its
-`docs/agents/triage-labels.md`, which the command reads first.
+`.agents/triage-labels.md` (`docs/agents/` in an older project), which the
+command reads first.
 
 ::: warning
 Anyone can write an issue or a comment on a public repository, but only people

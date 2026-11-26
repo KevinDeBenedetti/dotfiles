@@ -1,7 +1,3 @@
----
-title: Triage Labels
----
-
 # Triage Labels
 
 The skills speak in terms of five canonical triage roles. This repository uses
