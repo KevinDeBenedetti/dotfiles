@@ -88,7 +88,7 @@ repo = "https://github.com/KevinDeBenedetti/github-workflows"
 # Pinned by tag, unlike the others: github-workflows' propagate-release job
 # moves this pin with each of its releases, and reads a tag here.
 # renovate: datasource=github-tags depName=KevinDeBenedetti/github-workflows
-rev = "v0.56.2"
+rev = "v0.57.0"
 hooks = [
   { id = "check-docs-links" },
 ]
