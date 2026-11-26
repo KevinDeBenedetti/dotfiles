@@ -14,26 +14,38 @@ export class GitHubError extends Error {
   }
 }
 
+// send(token, path, init): the parsed JSON body of a call and the path of the
+// page after it (null on the last one), throwing a GitHubError on a non-2xx
+// answer or a GraphQL error.
+async function send(token, path, init = {}) {
+  const response = await fetch(`${API}${path}`, {
+    ...init,
+    headers: {
+      authorization: `Bearer ${token}`,
+      accept: "application/vnd.github+json",
+      "content-type": "application/json",
+      "user-agent": "project-board-worker",
+      "x-github-api-version": "2022-11-28",
+    },
+  });
+  const text = await response.text();
+  if (!response.ok) throw new GitHubError(`${init.method ?? "GET"} ${path}: ${response.status} ${text}`, response.status);
+  const body = text ? JSON.parse(text) : null;
+  if (body?.errors) throw new GitHubError(`${path}: ${JSON.stringify(body.errors)}`, response.status);
+  return { body, next: nextPath(response.headers.get("link")) };
+}
+
+// The rel="next" target of a Link header, as a path of the API: the token is
+// never sent to another host.
+function nextPath(link) {
+  const url = /<([^>]+)>;\s*rel="next"/.exec(link ?? "")?.[1];
+  return url?.startsWith(`${API}/`) ? url.slice(API.length) : null;
+}
+
 // client(token): a function (path, init) → parsed JSON body, throwing a
 // GitHubError on a non-2xx answer or a GraphQL error.
 export function client(token) {
-  return async (path, init = {}) => {
-    const response = await fetch(`${API}${path}`, {
-      ...init,
-      headers: {
-        authorization: `Bearer ${token}`,
-        accept: "application/vnd.github+json",
-        "content-type": "application/json",
-        "user-agent": "project-board-worker",
-        "x-github-api-version": "2022-11-28",
-      },
-    });
-    const text = await response.text();
-    if (!response.ok) throw new GitHubError(`${init.method ?? "GET"} ${path}: ${response.status} ${text}`, response.status);
-    const body = text ? JSON.parse(text) : null;
-    if (body?.errors) throw new GitHubError(`${path}: ${JSON.stringify(body.errors)}`, response.status);
-    return body;
-  };
+  return async (path, init) => (await send(token, path, init)).body;
 }
 
 // graphql(gh, query, variables): the data of a GraphQL query.
@@ -107,10 +119,15 @@ export async function installationClient(env, lookup) {
   };
 }
 
-// appClient(env): a client authenticated as the App itself (its JWT), for the
-// /app endpoints.
-export async function appClient(env) {
-  return client(await appJwt(env));
+// appPages(env): a function (path) → { items, next } authenticated as the App
+// itself (its JWT), for the /app lists read page by page: a page's items, and
+// the path of the page after it (null on the last one).
+export async function appPages(env) {
+  const jwt = await appJwt(env);
+  return async (path) => {
+    const { body, next } = await send(jwt, path);
+    return { items: body, next };
+  };
 }
 
 let slug;

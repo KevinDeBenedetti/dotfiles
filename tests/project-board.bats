@@ -665,21 +665,72 @@ $(report 41 closed 400)")
   refute_line --regexp '^POST /repos/owner/dotfiles/issues \{'
 }
 
-@test "a full page of deliveries says the report may be cut only when it reaches back to its start" {
-  # GitHub keeps days of deliveries: a full page is the usual case.
-  local cards="" n
-  cards="$(delivery 5 issues labeled 500)"$'\n'
-  for n in $(seq 1 99); do cards+="$(delivery $((60 + n)) issues labeled 200)"$'\n'; done
-  DELIVERIES=$(jq -sc . <<<"$cards")
-  export DELIVERIES
+@test "a failure on a later page of deliveries is reported, and the pages stop where the report starts" {
+  # The last report stopped three hours ago, three pages back. The first page
+  # holds no failure: the ones behind it are still read.
+  DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues labeled 200)
+$(delivery 6 issues labeled 200)
+$(delivery 20 issues closed 502)
+$(delivery 30 issues labeled 200)
+$(delivery 200 issues labeled 200)
+$(delivery 210 issues opened 503)
+$(delivery 300 issues reopened 504)")
+  REPORT_ISSUES=$(jq -sc . <<<"$(report 42 open 180)")
+  export DELIVERIES REPORT_ISSUES DELIVERIES_PAGE=2
   VARS="$report_vars" reconcile
   assert_success
+  assert_line "DELIVERIES ?per_page=100 as the App"
+  assert_line "DELIVERIES ?per_page=100&cursor=2 as the App"
+  assert_line "DELIVERIES ?per_page=100&cursor=4 as the App"
+  # The third page reaches back before the report's start: the fourth is not read.
+  refute_line --partial "cursor=6"
+  local comment
+  comment=$(grep '^POST /repos/owner/dotfiles/issues/42/comments ' <<<"$output")
+  [[ "$comment" == *"| issues | closed | 502 |"* ]] || fail "the failure of the second page is missing: $comment"
+  [[ "$comment" != *"503"* ]] || fail "a failure from before the last report is listed"
   refute_output --partial "the earliest ones are missing"
+  assert_line --partial "deliveries: 1 failed since "
+}
+
+@test "pages of deliveries without a failure since the last report, no write" {
+  DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues labeled 200)
+$(delivery 6 issues labeled 200)
+$(delivery 200 issues labeled 500)")
+  REPORT_ISSUES=$(jq -sc . <<<"$(report 42 open 180)")
+  export DELIVERIES REPORT_ISSUES DELIVERIES_PAGE=2
+  VARS="$report_vars" reconcile
+  assert_success
+  assert_line --regexp '^deliveries: 0 failed since [0-9T:.-]+Z$'
+  refute_line --partial "POST /repos/owner/dotfiles"
+  refute_line --partial "PATCH /repos/owner/dotfiles"
+}
+
+@test "a report over more pages of deliveries than it reads says the earliest ones are missing" {
+  # Five pages at most: the last delivery of the hour is not read.
+  local cards="" n
+  cards="$(delivery 5 issues labeled 500)"$'\n'
+  for n in $(seq 1 4); do cards+="$(delivery $((5 + n)) issues labeled 200)"$'\n'; done
+  cards+="$(delivery 20 issues closed 502)"$'\n'
+  DELIVERIES=$(jq -sc . <<<"$cards")
+  export DELIVERIES DELIVERIES_PAGE=1
+  VARS="$report_vars" reconcile
+  assert_success
+  run grep -c '^DELIVERIES ' <<<"$output"
+  assert_output 5
+  VARS="$report_vars" reconcile
+  assert_output --partial "more deliveries than 5 pages since the last report: the earliest ones are missing"
+  refute_output --partial "502"
+  # Nothing failed in the pages read: the log says how far that goes.
+  DELIVERIES=$(jq -c '.[0].status_code = 200' <<<"$DELIVERIES")
+  VARS="$report_vars" reconcile
+  assert_line --regexp '^deliveries: 0 failed since [0-9T:.-]+Z, in the 5 pages read$'
+  # The whole list read, however full its pages: nothing is missing.
   cards="$(delivery 5 issues labeled 500)"$'\n'
   for n in $(seq 1 99); do cards+="$(delivery 30 issues labeled 200)"$'\n'; done
   DELIVERIES=$(jq -sc . <<<"$cards")
-  VARS="$report_vars" reconcile
-  assert_output --partial "the earliest ones are missing"
+  DELIVERIES_PAGE=100 VARS="$report_vars" reconcile
+  assert_success
+  refute_output --partial "the earliest ones are missing"
 }
 
 @test "without REPORT_REPOSITORY the deliveries are not read" {

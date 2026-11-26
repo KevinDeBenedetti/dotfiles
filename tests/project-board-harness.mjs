@@ -29,6 +29,8 @@
 //                    an App token gets no content for a hidden card. The add
 //                    mutation answers each card's own issue and column.
 //   DELIVERIES       JSON array: the App's recent webhook deliveries
+//   DELIVERIES_PAGE  how many of them a page holds (default: the per_page
+//                    asked); the next page is named by the Link header
 //   REPORT_ISSUES    JSON array: the issues the App opened in the report
 //                    repository ({number, state, title, body}), newest first;
 //                    a list of the open ones leaves the closed out
@@ -102,7 +104,16 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.pathname === "/app/hook/deliveries") {
     verifyJwt(token);
     console.log(`DELIVERIES ${url.search} as the App`);
-    return Response.json(json("DELIVERIES", "[]"));
+    const all = json("DELIVERIES", "[]");
+    const size = Number(process.env.DELIVERIES_PAGE ?? url.searchParams.get("per_page") ?? 30);
+    const start = Number(url.searchParams.get("cursor") ?? 0);
+    const headers = {};
+    if (start + size < all.length) {
+      const next = new URL(url);
+      next.searchParams.set("cursor", String(start + size));
+      headers.link = `<${next}>; rel="next"`;
+    }
+    return Response.json(all.slice(start, start + size), { headers });
   }
   if ((match = /^\/app\/installations\/(\d+)\/access_tokens$/.exec(url.pathname))) {
     verifyJwt(token);

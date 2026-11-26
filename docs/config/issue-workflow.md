@@ -222,7 +222,9 @@ deliveries of the board Worker**, in `REPORT_REPOSITORY` (`wrangler.toml`),
 or comments on it while it is open. The issue's body keeps where the report
 stopped (a `reported-until` HTML comment), so a run that did not happen
 leaves no gap; without a report yet, the run reads the hour before it. The
-report lists the time, event, action and status of each failure, never a
+deliveries are read page by page (100 a page) back to that point, five pages
+at most a run: a report over more of them says that the earliest are missing.
+The report lists the time, event, action and status of each failure, never a
 repository or an issue: that repository is public. The reason is on the
 Recent Deliveries page. Close the issue once the cause is fixed; the next
 failure opens a new one.

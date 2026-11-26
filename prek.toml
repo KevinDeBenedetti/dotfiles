@@ -79,6 +79,21 @@ hooks = [
   { id = "actionlint" },
 ]
 
+# ─── Renovate config validation ─────────────────────────────────────────────
+# Renovate's own validator on renovate.json, as in
+# KevinDeBenedetti/renovate-config: an unknown option, a bad regex or an
+# option that needs a migration (--strict) fails the commit instead of the
+# first Renovate run. The file is repository config, not self-hosted global
+# config (--no-global). prek installs the hook's Node environment on its
+# first run.
+[[repos]]
+repo = "https://github.com/renovatebot/pre-commit-hooks"
+# renovate: datasource=github-tags depName=renovatebot/pre-commit-hooks
+rev = "416b68126322e9321373a6fb30419e126b8fdfb0"  # frozen: 45.1.0
+hooks = [
+  { id = "renovate-config-validator", args = ["--strict", "--no-global"], files = "^renovate\\.json$" },
+]
+
 # ─── Reusable hooks (KevinDeBenedetti/github-workflows) ──────────────────────
 # - check-docs-links: relative links in docs/ must not escape docs/
 # Commit-message generation is handled by scripts/ai/git-aicommit (`git aicommit`),
