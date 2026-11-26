@@ -247,7 +247,7 @@ Its workflow skills (`triage`, `to-spec`, `to-tickets`, `wayfinder`) read a
 per-repository setup: run `/mattpocock-skills:setup-matt-pocock-skills` once in
 each repository that uses them. In this repository that setup makes GitHub
 Issues their tracker, so the tickets they write are worked by `/next-issue`:
-see [Issue Tracker](../agents/issue-tracker.md) and
+see `.agents/issue-tracker.md` and
 [Issue Workflow](./issue-workflow.md). A repository whose setup names `TODO.md`
 is worked by `/next-task` instead
 ([TODO Workflow](./todo-workflow.md#agent-skills-in-claude-code)).

@@ -1594,6 +1594,24 @@ todo_layout() {
   done
 }
 
+@test "every relative link of the docs reaches a file inside docs/" {
+  # CI's lychee job checks the same, but the prek hook skips without lychee: a
+  # moved page (docs/agents/ to .agents/) broke two links unseen. Outside
+  # docs/ is unpublished on the documentation hub (docs-hub skill).
+  local file link target bad=""
+  while IFS= read -r file; do
+    while IFS= read -r link; do
+      target=${link%%#*}
+      [ -n "$target" ] || continue
+      # The target's directory, resolved (macOS has no realpath -m).
+      target=$(cd "$(dirname "$REPO_ROOT/$file")" && cd "$(dirname "$target")" 2>/dev/null && echo "$(pwd -P)/$(basename "$target")") || target=""
+      [ -n "$target" ] && [ -e "$target" ] || { bad+="$file: $link"$'\n'; continue; }
+      case "$target" in "$(cd "$REPO_ROOT" && pwd -P)/docs/"*) ;; *) bad+="$file: $link (outside docs/)"$'\n' ;; esac
+    done < <(grep -oE '\]\([^)[:space:]]+\)' "$REPO_ROOT/$file" | sed 's/^](//; s/)$//' | grep -vE '^([a-z]+:|#|/)')
+  done < <(cd "$REPO_ROOT" && git ls-files 'docs/*.md')
+  [ -z "$bad" ] || fail "broken links:"$'\n'"$bad"
+}
+
 @test "make validate lints every tracked YAML file, as the prek hook does" {
   run sed -n '/^validate:/,/^$/p' "$REPO_ROOT/Makefile"
   assert_output --partial "git ls-files"
