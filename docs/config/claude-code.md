@@ -12,12 +12,12 @@ User-level Claude Code settings and the system-wide managed policy.
 | ------------------------------------- | -------------------------------------------------------------------------------- | ----------------- |
 | `config/claude/settings.json`         | `~/.claude/settings.json`                                                        | symlink           |
 | `config/claude/managed-settings.json` | `/Library/Application Support/ClaudeCode/` (macOS) / `/etc/claude-code/` (Linux) | copy (root-owned) |
-| `config/claude/commands/*`            | `~/.claude/commands/`                                                            | symlink           |
 | `config/claude/hooks/*`               | `~/.claude/hooks/`                                                               | symlink           |
 
-> Shared agent skills (also read by OpenCode and VS Code Copilot) live in
-> `config/skills/` and are linked into `~/.claude/skills/` — see
-> [Skills](./skills.md).
+> Agent skills, the slash commands among them, live in `config/skills/` and
+> are linked into `~/.claude/skills/`; the global rules of
+> `config/agents/AGENTS.md` are linked to `~/.claude/AGENTS.md`, which
+> `~/.claude/CLAUDE.md` (`config/claude/CLAUDE.md`) imports. Both are shared with OpenCode and VS Code Copilot — see [Skills](./skills.md).
 
 > This file is the **reference** for agent guardrails. OpenCode
 > (`config/opencode/opencode.json` → `permission`) and VS Code Copilot
@@ -150,7 +150,7 @@ Changes made in the working copy go live only after review, commit and
 | `PreToolUse`       | `rtk hook claude`    | Rewrites Bash commands through `rtk` for token-optimized output                                                    |
 | `Stop`             | `docs-sync-check.sh` | Code changed but neither `docs/` nor `README.md` did → asks for the `docs-hub` / `readme` skills, once per turn    |
 | `Stop`             | `next-steps.sh`      | Shows the next steps (branch, re-stage, commit, push, `/pr`, blocked or next task, triage) and `🖐 Manual` steps    |
-| `SessionStart`     | `skill-context.sh`   | Tells Claude when to use the `mattpocock-skills` skills unasked, and to branch off a shared branch first           |
+| `SessionStart`     | `skill-context.sh`   | Tells Claude when to load the engineering skills unasked, and to branch off a shared branch first                  |
 | `UserPromptSubmit` | `skill-router.sh`    | Names the skills a prompt matches (at most two); the next git step after yours; renames the app's session branch  |
 
 The `git commit` / `git push` and `kubectl … get secret(s)` hooks are also in
@@ -181,34 +181,29 @@ Two variables, set in the `env` block, tune it:
 
 #### Skill hooks
 
-Two hooks make Claude reach for the `mattpocock-skills` skills (see
-Plugins below) during ordinary work, not only when you type their slash
-command. Both return `additionalContext`, which Claude reads with the session
-or the prompt; neither blocks anything, and both stay silent when the plugin is
-not enabled, except for the git lines below, which come from the
-`git-workflow` skill of this repository.
+Two hooks make Claude reach for the engineering skills of `config/skills/`
+(see [Skills](./skills.md#existing-skills)) during ordinary work, without
+being asked. Both return `additionalContext`, which Claude reads with the
+session or the prompt; neither blocks anything. They need no plugin, and
+`tests/skill-hooks.bats` fails when one of them names a skill that
+`config/skills/` does not hold.
 
 - `skill-context.sh` runs at session start, after `/clear` and after a
   compaction. It gives the standing policy: `diagnosing-bugs` before fixing a
   reported failure, `codebase-design` for a new or reshaped module,
   `code-review` on a multi-file change before the commit is proposed,
-  `writing-for-agents` for `SKILL.md` / `AGENTS.md` / `CLAUDE.md`, `pr` for a
-  pull request body. It adds what fits the repository's tracked files: `tdd`
+  `writing-for-agents` for `SKILL.md` / `AGENTS.md` / `CLAUDE.md`. It adds what fits the repository's tracked files: `tdd`
   when there is a test suite, `domain-modeling` when there is a `GLOSSARY.md`
-  or `docs/adr/`, the `audit` command when there is infrastructure (Terraform,
-  Ansible, Helm, Kustomize, Kubernetes manifests, Docker), `debug-action` when
-  there are GitHub workflows, `/next-task` when there is a `TODO.md`. It always
-  forbids `implement` and `implement-spec`, which commit. A session that
-  opens on a shared branch is told to hand you the `git checkout -b` command
-  before the first commit. At startup, in a
-  repository with an `AGENTS.md` or `CLAUDE.md` but no
-  `docs/agents/issue-tracker.md`, it also tells you (not Claude) to run
-  `/mattpocock-skills:setup-matt-pocock-skills`.
+  or `docs/adr/`, your `/audit` command when there is infrastructure
+  (Terraform, Ansible, Helm, Kustomize, Kubernetes manifests, Docker),
+  `debug-action` when there are GitHub workflows, `/next-task` when there is a
+  `TODO.md`. A session that opens on a shared branch is told to hand you the
+  `git checkout -b` command before the first commit.
 - `skill-router.sh` reads each prompt and matches it, in English or French,
   against the kinds of work the skills cover: a failure (`diagnosing-bugs`, or
   `debug-action` for a CI run), a review of changes, an infrastructure audit,
-  a refactor, a plan to grill, a prototype, research, a pull request, agent
-  docs, and a feature or fix in a repository with tests (`tdd`). It skips
+  a refactor, a plan to grill, a prototype, research, agent docs, and a
+  feature or fix in a repository with tests (`tdd`). It skips
   slash commands, replies shorter than 12 characters, prompts that already
   name a skill, and the reports of subagents and events of the app
   (`<agent-message>`, `<task-notification>`, …), which arrive as prompts but
@@ -238,8 +233,17 @@ is trusted with your account. Install one with
 `claude plugin install <plugin>@<marketplace>`: it writes `enabledPlugins`
 through the `~/.claude/settings.json` symlink into the tracked file.
 
-`mattpocock-skills` skills are namespaced (`/mattpocock-skills:tdd`, …). Its
-workflow skills (`triage`, `to-spec`, `to-tickets`, `wayfinder`) read a
+`mattpocock-skills` is kept for its user-invoked planning flows, typed as
+`/mattpocock-skills:<name>`. The nine engineering skills it shares with
+`config/skills/` (`tdd`, `diagnosing-bugs`, `code-review`, `grilling`,
+`codebase-design`, `domain-modeling`, `prototype`, `research`,
+`writing-for-agents`) are owned there, for the three tools: the plugin's
+copies are hidden from the model through `skillOverrides`, so Claude sees each
+of them once. Its `pr` skill is hidden the same way: the `git-workflow` skill
+holds the pull request body rule, and `/pr` is the owned command. The owned
+`code-review` skill replaces Claude Code's bundled `/code-review` (its effort
+levels, `--fix`, `ultra`); the bundled review stays reachable as `/review`.
+Its workflow skills (`triage`, `to-spec`, `to-tickets`, `wayfinder`) read a
 per-repository setup: run `/mattpocock-skills:setup-matt-pocock-skills` once in
 each repository that uses them. In this repository that setup makes GitHub
 Issues their tracker, so the tickets they write are worked by `/next-issue`:
@@ -251,7 +255,8 @@ is worked by `/next-task` instead
 Unused skills are hidden from the model through `skillOverrides` (value
 `user-invocable-only`): they leave the skill listing Claude reads at the start
 of every session but stay available by hand as `/<name>`. The claude.ai-synced
-skills, `langfuse` and `context7-mcp` are hidden this way, which keeps the
+skills, `langfuse`, `context7-mcp` and the plugin's copies of the owned
+engineering skills are hidden this way, which keeps the
 listing within its budget so the descriptions of the visible skills are not
 truncated. Delete an entry to make the skill visible again.
 

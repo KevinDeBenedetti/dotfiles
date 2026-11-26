@@ -13,7 +13,7 @@ steps, in Claude Code, OpenCode and VS Code Copilot alike (see
 | Piece                | Source                                | Role                                                     |
 | -------------------- | ------------------------------------- | -------------------------------------------------------- |
 | `todo-md` skill      | `config/skills/todo-md/SKILL.md`      | Format of `TODO.md`, applied to every edit of the file   |
-| `/next-task` command | `config/commands/next-task.md`        | Picks, implements, verifies and records tasks            |
+| `/next-task` command | `config/skills/next-task/SKILL.md`    | Picks, implements, verifies and records tasks            |
 | `manual-steps` skill | `config/skills/manual-steps/SKILL.md` | Guided chat through the `🖐 Manual` steps, one at a time |
 
 ## Sections
@@ -85,11 +85,10 @@ grounded recommendations and five security findings for triage.
 5. When `🖐 Manual` has open steps, it asks whether to go through them now and,
    on a yes, continues with the guided session [below](#manual-steps).
 
-## Agent skills in Claude Code
+## Agent skills
 
-In Claude Code, `/next-task` also calls the skills of the `mattpocock-skills`
-plugin (see [Claude Code](./claude-code.md)) where they fit. The other tools do
-not have them and run the same steps without them.
+`/next-task` loads four engineering skills of `config/skills/` at fixed steps,
+in the three tools alike (see [Skills](./skills.md#existing-skills)).
 
 | Skill             | Used by `/next-task`                                                         |
 | ----------------- | ---------------------------------------------------------------------------- |
@@ -98,17 +97,19 @@ not have them and run the same steps without them.
 | `tdd`             | To write the test first for a `FEAT` or `FIX`                                |
 | `code-review`     | To review the task's changes once the checks pass, before it is recorded     |
 
+The planning flows are not owned yet: in Claude Code they come from the
+`mattpocock-skills` plugin (see [Claude Code](./claude-code.md#plugins)).
 `to-tickets` only runs when you call it (`/mattpocock-skills:to-tickets`): the
 agent splits a task too big for one change itself.
 
-The same plugin feeds the file. In a repository set up with
+The plugin also feeds the file. In a repository set up with
 `/mattpocock-skills:setup-matt-pocock-skills` to use `TODO.md` as its tracker,
 the planning skills write tasks that `/next-task` then works. This repository
 is not one of them: it tracks its work in GitHub Issues (see
 [Issue Tracker](../agents/issue-tracker.md) and
 [Issue Workflow](./issue-workflow.md)). With `TODO.md` as the tracker:
 
-1. `/mattpocock-skills:grilling` settles a design with you.
+1. `grilling` settles a design with you.
 2. `/mattpocock-skills:to-spec` writes it to `.scratch/<feature>/spec.md`.
 3. `/mattpocock-skills:to-tickets` cuts it into task lines, added to
    `🤖 Agent recommendations`.

@@ -1,6 +1,11 @@
 ---
+name: commit
 description: Commit the current changes - group them by piece of work, tie each to the GitHub issue it closes, write its Conventional Commit and hand the stage-and-commit command, then the push and the pull request that close those issues on merge.
 argument-hint: "[issue number | words | all]"
+disable-model-invocation: true
+metadata:
+  opencode/slash: "false"
+  opencode/autoinvoke: "false"
 ---
 
 Turn the uncommitted changes into commits the owner runs from the chat, each
@@ -96,7 +101,7 @@ For each piece, in the order they build on each other:
   when longer than three lines.
 
 ```bash
-git add config/commands/commit.md tests/configs.bats && git commit -m 'feat(commands): add a commit command' -m 'Fixes #42'
+git add config/skills/commit/SKILL.md tests/configs.bats && git commit -m 'feat(skills): add a commit skill' -m 'Fixes #42'
 ```
 
 The project's hooks run on the commit; when the owner's output shows one

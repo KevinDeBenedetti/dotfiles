@@ -31,35 +31,53 @@ run_link_shared_configs() {
   assert_symlink_to "$CONFIG_DIR/shell/functions.sh" "$FAKE_HOME/.config/dotfiles/functions.sh"
 }
 
-@test "link_shared_configs links every claude global command into HOME" {
+@test "link_shared_configs gives opencode a command for every user-invoked skill, and only those" {
   run run_link_shared_configs
   assert_success
-  local cmd
-  for cmd in "$CONFIG_DIR"/claude/commands/*; do
-    assert_symlink_to "$cmd" "$FAKE_HOME/.claude/commands/$(basename "$cmd")"
+  local skill name
+  for skill in "$CONFIG_DIR"/skills/*/SKILL.md; do
+    name=$(basename "$(dirname "$skill")")
+    if grep -q '^disable-model-invocation: true$' "$skill"; then
+      assert_symlink_to "$skill" "$FAKE_HOME/.config/opencode/commands/$name.md"
+    else
+      assert_not_exists "$FAKE_HOME/.config/opencode/commands/$name.md"
+    fi
   done
+  assert_symlink_to "$CONFIG_DIR/skills/next-task/SKILL.md" "$FAKE_HOME/.config/opencode/commands/next-task.md"
 }
 
-@test "link_shared_configs links every shared command into claude, opencode and copilot" {
+@test "link_shared_configs links no command or prompt file for claude and copilot: skills are their commands" {
   local vscode_user="$FAKE_HOME/.config/Code/User"
   [ "$(uname -s)" = "Darwin" ] && vscode_user="$FAKE_HOME/Library/Application Support/Code/User"
   mkdir -p "$vscode_user"
   run run_link_shared_configs
   assert_success
-  local cmd name
-  for cmd in "$CONFIG_DIR"/commands/*.md; do
-    name=$(basename "$cmd" .md)
-    assert_symlink_to "$cmd" "$FAKE_HOME/.claude/commands/$name.md"
-    assert_symlink_to "$cmd" "$FAKE_HOME/.config/opencode/commands/$name.md"
-    assert_symlink_to "$cmd" "$vscode_user/prompts/$name.prompt.md"
-  done
+  assert_not_exists "$FAKE_HOME/.claude/commands"
+  assert_not_exists "$vscode_user/prompts"
 }
 
-@test "link_shared_configs skips copilot prompts when VS Code is absent" {
+@test "link_shared_configs removes the links an earlier version left to the dropped command dirs" {
+  local vscode_user="$FAKE_HOME/.config/Code/User"
+  [ "$(uname -s)" = "Darwin" ] && vscode_user="$FAKE_HOME/Library/Application Support/Code/User"
+  mkdir -p "$FAKE_HOME/.claude/commands" "$FAKE_HOME/.config/opencode/commands" "$vscode_user/prompts"
+  ln -s "$CONFIG_DIR/commands/next-task.md" "$FAKE_HOME/.claude/commands/next-task.md"
+  ln -s "$CONFIG_DIR/claude/commands/explain.md" "$FAKE_HOME/.claude/commands/explain.md"
+  ln -s "$CONFIG_DIR/commands/pr.md" "$FAKE_HOME/.config/opencode/commands/pr-old.md"
+  ln -s "$CONFIG_DIR/commands/pr.md" "$vscode_user/prompts/pr.prompt.md"
+  # Not ours to remove: the owner's own command, and a dead link to elsewhere.
+  echo "mine" > "$FAKE_HOME/.claude/commands/mine.md"
+  ln -s "$FAKE_HOME/gone.md" "$FAKE_HOME/.claude/commands/elsewhere.md"
   run run_link_shared_configs
   assert_success
-  assert_not_exists "$FAKE_HOME/.config/Code/User/prompts"
-  assert_not_exists "$FAKE_HOME/Library/Application Support/Code/User/prompts"
+  assert_not_exists "$FAKE_HOME/.claude/commands/next-task.md"
+  [ ! -L "$FAKE_HOME/.claude/commands/next-task.md" ]
+  [ ! -L "$FAKE_HOME/.claude/commands/explain.md" ]
+  [ ! -L "$FAKE_HOME/.config/opencode/commands/pr-old.md" ]
+  [ ! -L "$vscode_user/prompts/pr.prompt.md" ]
+  assert_file_exists "$FAKE_HOME/.claude/commands/mine.md"
+  [ -L "$FAKE_HOME/.claude/commands/elsewhere.md" ]
+  # The live opencode command link of the skill is untouched.
+  assert_symlink_to "$CONFIG_DIR/skills/pr/SKILL.md" "$FAKE_HOME/.config/opencode/commands/pr.md"
 }
 
 @test "link_shared_configs links every shared skill into HOME" {
@@ -70,6 +88,41 @@ run_link_shared_configs() {
     [ -d "$skill" ] || continue
     assert_symlink_to "$skill" "$FAKE_HOME/.claude/skills/$(basename "$skill")"
   done
+}
+
+@test "link_shared_configs links every shared skill into copilot's personal skills" {
+  run run_link_shared_configs
+  assert_success
+  local skill
+  for skill in "$CONFIG_DIR"/skills/*/; do
+    [ -d "$skill" ] || continue
+    assert_symlink_to "$skill" "$FAKE_HOME/.copilot/skills/$(basename "$skill")"
+  done
+  # OpenCode reads ~/.agents/skills as well as ~/.claude/skills: a third copy
+  # there would list every skill twice.
+  assert_not_exists "$FAKE_HOME/.agents/skills"
+}
+
+@test "link_shared_configs links the global agent rules into the three tools" {
+  run run_link_shared_configs
+  assert_success
+  local rules="$CONFIG_DIR/agents/AGENTS.md"
+  # Claude Code reads an entry file of its own, which imports the shared rules
+  # next to it and keeps the Claude-only imports out of them.
+  assert_symlink_to "$rules" "$FAKE_HOME/.claude/AGENTS.md"
+  assert_symlink_to "$CONFIG_DIR/claude/CLAUDE.md" "$FAKE_HOME/.claude/CLAUDE.md"
+  assert_symlink_to "$rules" "$FAKE_HOME/.config/opencode/AGENTS.md"
+  assert_symlink_to "$rules" "$FAKE_HOME/.copilot/copilot-instructions.md"
+}
+
+@test "link_shared_configs backs up an existing global rules file before linking" {
+  mkdir -p "$FAKE_HOME/.claude"
+  echo "mine" > "$FAKE_HOME/.claude/CLAUDE.md"
+  run run_link_shared_configs
+  assert_success
+  assert_symlink_to "$CONFIG_DIR/claude/CLAUDE.md" "$FAKE_HOME/.claude/CLAUDE.md"
+  run bash -c "cat '$FAKE_HOME'/.claude/CLAUDE.md.bak.*"
+  assert_output "mine"
 }
 
 @test "link_shared_configs moves an existing regular skill dir out of the skills dir" {

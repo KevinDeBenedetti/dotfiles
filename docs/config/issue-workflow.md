@@ -323,7 +323,7 @@ The agent reads the project's own rules first (`AGENTS.md`, `GLOSSARY.md`,
 `docs/adr/`), then audits each lens that applies: correctness, architecture,
 tests, standards, documentation, domain language, agent docs, dependencies,
 CI/CD, infrastructure (Terraform, Ansible, Kubernetes/Helm, Docker) and
-security. With the `mattpocock-skills` plugin, each lens leans on the matching
+security. Each lens leans on the matching
 skill (`codebase-design`, `domain-modeling`, `code-review`,
 `writing-for-agents`, `diagnosing-bugs`, `research`).
 

@@ -46,6 +46,29 @@ link_with_backup() {
   ln -sfn "$src" "$dest"
 }
 
+# prune_stale_links <dir> <prefix>... — remove the symlinks of <dir> whose
+# target starts with one of the prefixes and no longer exists: what an earlier
+# version of this script linked from a path the repository has since dropped.
+# A live link, a regular file or a link to anywhere else is left alone.
+prune_stale_links() {
+  local dir="$1" link target prefix
+  shift
+  [ -d "$dir" ] || return 0
+  for link in "$dir"/*; do
+    [ -L "$link" ] && [ ! -e "$link" ] || continue
+    target=$(readlink "$link")
+    for prefix in "$@"; do
+      case $target in
+        "$prefix"*)
+          rm -f "$link"
+          printf '[prune] Removed stale link %s\n' "$link"
+          break
+          ;;
+      esac
+    done
+  done
+}
+
 # Print VS Code's "User" directory for this platform.
 vscode_user_dir() {
   if [ "$(uname -s)" = "Darwin" ]; then
@@ -116,12 +139,20 @@ link_shared_configs() {
   mkdir -p "$HOME/.claude"
   link_with_backup "$config_dir/claude/settings.json" "$HOME/.claude/settings.json"
 
-  # Claude Code global commands → ~/.claude/commands/
-  if [ -d "$config_dir/claude/commands" ]; then
-    mkdir -p "$HOME/.claude/commands"
-    for item in "$config_dir/claude/commands/"*; do
-      link_with_backup "$item" "$HOME/.claude/commands/$(basename "$item")"
-    done
+  # Global agent rules: config/agents/AGENTS.md is the single source, linked to
+  # the user-level instruction file each tool reads on every session:
+  #   Claude Code → ~/.claude/AGENTS.md, imported by ~/.claude/CLAUDE.md
+  #                 (config/claude/CLAUDE.md), which also holds the imports
+  #                 only Claude Code reads (RTK.md)
+  #   OpenCode    → ~/.config/opencode/AGENTS.md
+  #   VS Code     → ~/.copilot/copilot-instructions.md (Copilot sessions)
+  # An existing file is backed up first (link_with_backup).
+  if [ -f "$config_dir/agents/AGENTS.md" ]; then
+    mkdir -p "$HOME/.config/opencode" "$HOME/.copilot"
+    link_with_backup "$config_dir/agents/AGENTS.md" "$HOME/.claude/AGENTS.md"
+    link_with_backup "$config_dir/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+    link_with_backup "$config_dir/agents/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
+    link_with_backup "$config_dir/agents/AGENTS.md" "$HOME/.copilot/copilot-instructions.md"
   fi
 
   # Claude Code hook scripts → ~/.claude/hooks/, linked one by one (the dir
@@ -135,40 +166,44 @@ link_shared_configs() {
     done
   fi
 
-  # Shared agent commands: config/commands/<name>.md is the single source,
-  # linked into every tool's own command dir so /<name> works everywhere:
-  #   Claude Code → ~/.claude/commands/<name>.md
-  #   OpenCode    → ~/.config/opencode/commands/<name>.md
-  #   VS Code     → <User>/prompts/<name>.prompt.md (Copilot prompt files,
-  #                 only when VS Code's user dir exists)
-  if [ -d "$config_dir/commands" ]; then
-    mkdir -p "$HOME/.claude/commands" "$HOME/.config/opencode/commands"
-    [ -d "$vscode_user" ] && mkdir -p "$vscode_user/prompts"
-    local name
-    for item in "$config_dir/commands/"*.md; do
-      [ -f "$item" ] || continue
-      name=$(basename "$item" .md)
-      link_with_backup "$item" "$HOME/.claude/commands/$name.md"
-      link_with_backup "$item" "$HOME/.config/opencode/commands/$name.md"
-      if [ -d "$vscode_user" ]; then
-        link_with_backup "$item" "$vscode_user/prompts/$name.prompt.md"
-      fi
-    done
-  fi
-
-  # Shared agent skills → ~/.claude/skills/, each skill folder linked
-  # individually. That directory is the pivot read natively by Claude Code,
-  # OpenCode (Claude compat) and VS Code Copilot (personal skills), so one
-  # symlink per skill shares it with all three. NEVER link the skills dir
-  # itself: Claude Code manages its own `synced/` and `.trash/` subdirs there
-  # and a symlink would clobber them.
+  # Shared agent skills, each skill folder linked individually into the two
+  # personal skill directories the three tools read:
+  #   ~/.claude/skills/  → Claude Code (native), OpenCode (Claude compat) and
+  #                        VS Code sessions on the Claude or Local harness
+  #   ~/.copilot/skills/ → VS Code Copilot sessions, GitHub Copilot CLI
+  # ~/.agents/skills/ is left out on purpose: OpenCode reads it too and would
+  # list every skill twice. NEVER link a skills dir itself: Claude Code manages
+  # its own `synced/` and `.trash/` subdirs there and a symlink would clobber
+  # them.
   if [ -d "$config_dir/skills" ]; then
-    mkdir -p "$HOME/.claude/skills"
+    mkdir -p "$HOME/.claude/skills" "$HOME/.copilot/skills"
     for item in "$config_dir/skills/"*/; do
       [ -d "$item" ] || continue
       link_with_backup "$item" "$HOME/.claude/skills/$(basename "$item")"
+      link_with_backup "$item" "$HOME/.copilot/skills/$(basename "$item")"
     done
   fi
+
+  # User-invoked skills (`disable-model-invocation: true`, the former shared
+  # commands) are slash commands in Claude Code and VS Code as they are.
+  # OpenCode gets each one as a command file too, linked to the skill's own
+  # SKILL.md, so `/<name>` works there whatever its version does with skills;
+  # their `opencode/slash: "false"` metadata keeps it from listing them twice.
+  if [ -d "$config_dir/skills" ]; then
+    mkdir -p "$HOME/.config/opencode/commands"
+    for item in "$config_dir/skills/"*/SKILL.md; do
+      [ -f "$item" ] || continue
+      grep -q '^disable-model-invocation: true$' "$item" || continue
+      link_with_backup "$item" "$HOME/.config/opencode/commands/$(basename "$(dirname "$item")").md"
+    done
+  fi
+
+  # The commands used to live in config/commands/ and config/claude/commands/,
+  # linked into each tool's command dir. Those links now point nowhere:
+  # remove them, and nothing else.
+  prune_stale_links "$HOME/.claude/commands" "$config_dir/commands/" "$config_dir/claude/commands/"
+  prune_stale_links "$HOME/.config/opencode/commands" "$config_dir/commands/"
+  prune_stale_links "$vscode_user/prompts" "$config_dir/commands/"
 
   # opencode base config. Only the file is linked: ~/.config/opencode/ also holds
   # opencode's own node_modules/package.json, which must stay local. The tracked

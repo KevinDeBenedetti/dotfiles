@@ -64,8 +64,7 @@ agent marks it *in a terminal*.
   GitHub cut at 72 characters (it ends in `…`) is put back whole.
 - **Description**: the repository's or the account's pull request template
   when there is one, its sections filled in place, with its comments and a
-  `pr-description` block left as they are; otherwise the template of the
-  `mattpocock-skills` `pr` skill when it is installed, or a summary and the
+  `pr-description` block left as they are; otherwise a summary and the
   evidence (checks run). Then one `Fixes #<number>` line per issue the branch
   closes, and no AI attribution. The agent writes it to `PR_BODY.md` in the
   git directory (`git rev-parse --absolute-git-dir`): out of the working tree,

@@ -39,8 +39,8 @@ setup() {
 @test "the configs links.sh links, and no other test names, exist" {
   local f
   for f in copilot/hooks/agent-guard.json ollama/launchd/local.ollama-env.plist \
-           opencode/opencode.json ssh/config claude/commands/debug-action.md \
-           claude/commands/explain.md; do
+           opencode/opencode.json ssh/config skills/debug-action/SKILL.md \
+           skills/explain/SKILL.md agents/AGENTS.md claude/CLAUDE.md; do
     assert_file_exists "$CONFIG_DIR/$f"
   done
 }
@@ -405,6 +405,30 @@ setup() {
   # declaration of the repo would track its default branch instead.
   run jq -e '.extraKnownMarketplaces // {} | has("mattpocock")' "$CONFIG_DIR/claude/settings.json"
   assert_failure
+}
+
+@test "the model-invoked engineering skills are owned; the plugin's copies are hidden from the model" {
+  # They live in config/skills/, shared by the three tools. The plugin stays
+  # for its user-invoked planning flows (triage, to-spec, to-tickets,
+  # wayfinder): its copy of each owned skill would otherwise be listed to
+  # Claude a second time, under the mattpocock-skills: prefix.
+  local name
+  for name in code-review codebase-design diagnosing-bugs domain-modeling grilling prototype research tdd writing-for-agents; do
+    assert_file_exists "$CONFIG_DIR/skills/$name/SKILL.md"
+    # Model-invoked: other skills and the hooks reach them by name.
+    run grep -q '^disable-model-invocation:' "$CONFIG_DIR/skills/$name/SKILL.md"
+    assert_failure
+    run grep -q 'Adapted from mattpocock/skills (MIT)' "$CONFIG_DIR/skills/$name/SKILL.md"
+    assert_success
+    run jq -r --arg k "mattpocock-skills:$name" '.skillOverrides[$k]' "$CONFIG_DIR/claude/settings.json"
+    assert_output "user-invocable-only"
+  done
+  # No override left for a skill that is not owned: it would hide the only copy.
+  run bash -c "jq -r '.skillOverrides | keys[] | select(startswith(\"mattpocock-skills:\")) | sub(\"^mattpocock-skills:\"; \"\")' '$CONFIG_DIR/claude/settings.json' | while read -r n; do [ -f '$CONFIG_DIR/skills/'\$n/SKILL.md ] || echo \$n; done"
+  assert_output ""
+  # The licence notice the adaptation owes.
+  run grep -q 'Copyright (c) 2026 Matt Pocock' "$CONFIG_DIR/skills/NOTICE.md"
+  assert_success
 }
 
 @test "the ECC plugin is not enabled or declared" {
@@ -798,6 +822,39 @@ PY
   assert_success
 }
 
+# --- Global agent rules (Claude Code, OpenCode, VS Code Copilot) ---
+
+@test "the global agent rules carry the hard rules and stay short" {
+  local rules="$CONFIG_DIR/agents/AGENTS.md"
+  run grep -q 'The owner stages, commits and pushes' "$rules"
+  assert_success
+  run grep -q 'no AI attribution' "$rules"
+  assert_success
+  run grep -q 'Secrets stay unread and unwritten' "$rules"
+  assert_success
+  # Read on every turn by every tool: a budget, not a manual.
+  [ "$(wc -l < "$rules")" -le 60 ]
+}
+
+@test "Claude Code's global entry file only imports: the shared rules, then the Claude-only files" {
+  # Home-relative imports: the file is reached through a symlink, and a
+  # relative import would depend on which side of the link it resolves from.
+  run grep -v '^@~/\.claude/[A-Za-z.-]*\.md$' "$CONFIG_DIR/claude/CLAUDE.md"
+  assert_output ""
+  run head -n 1 "$CONFIG_DIR/claude/CLAUDE.md"
+  assert_output "@~/.claude/AGENTS.md"
+  # An import syntax only Claude Code reads stays out of the shared rules.
+  run grep -n '^@' "$CONFIG_DIR/agents/AGENTS.md"
+  assert_failure
+}
+
+@test "the pull request body rule lives in git-workflow: the plugin's pr skill is hidden, not referred to" {
+  run jq -r '.skillOverrides["mattpocock-skills:pr"]' "$CONFIG_DIR/claude/settings.json"
+  assert_output "user-invocable-only"
+  run grep -n 'mattpocock' "$CONFIG_DIR/skills/git-workflow/SKILL.md"
+  assert_failure
+}
+
 # --- Shared skills and commands (Claude Code, OpenCode, VS Code Copilot) ---
 
 # Frontmatter keys of a Markdown file, sorted, on one line.
@@ -814,23 +871,42 @@ todo_layout() {
        on && /^## / { print }' "$CONFIG_DIR/skills/todo-md/SKILL.md"
 }
 
-@test "shared skills keep a portable frontmatter: name (= folder) and description" {
+@test "shared skills keep a portable frontmatter: name (= folder), description, and the invocation keys" {
+  # name and description are the Agent Skills spec. argument-hint and
+  # disable-model-invocation are read by Claude Code and VS Code; OpenCode
+  # ignores them and takes its own switches from metadata.
   local skill name
   for skill in "$CONFIG_DIR"/skills/*/; do
     [ -f "$skill/SKILL.md" ] || continue
     run frontmatter_keys "$skill/SKILL.md"
-    assert_output "description name "
+    assert_output --regexp '^(argument-hint )?description (disable-model-invocation metadata )?name $'
     name=$(sed -n 's/^name: *//p' "$skill/SKILL.md" | head -n 1)
     [ "$name" = "$(basename "$skill")" ]
   done
 }
 
-@test "shared commands keep a portable frontmatter: description and argument-hint" {
-  local cmd
-  for cmd in "$CONFIG_DIR"/commands/*.md; do
-    run frontmatter_keys "$cmd"
-    assert_output --regexp '^(argument-hint )?description $'
+@test "a user-invoked skill is closed to the model in the three tools" {
+  # disable-model-invocation covers Claude Code and VS Code. OpenCode ignores
+  # it: opencode/autoinvoke keeps the skill out of its model's reach, and
+  # opencode/slash off leaves /<name> to the command file links.sh installs.
+  local skill found=0
+  for skill in "$CONFIG_DIR"/skills/*/SKILL.md; do
+    grep -q '^disable-model-invocation:' "$skill" || continue
+    found=$((found + 1))
+    run grep -c -E '^disable-model-invocation: true$|^  opencode/slash: "false"$|^  opencode/autoinvoke: "false"$' "$skill"
+    assert_output 3
   done
+  [ "$found" -ge 7 ]
+}
+
+@test "the workflow commands are user-invoked skills, none left as a command file" {
+  local name
+  for name in audit commit explain new-issue next-issue next-task pr; do
+    run grep -q '^disable-model-invocation: true$' "$CONFIG_DIR/skills/$name/SKILL.md"
+    assert_success
+  done
+  assert_not_exists "$CONFIG_DIR/commands"
+  assert_not_exists "$CONFIG_DIR/claude/commands"
 }
 
 @test "the todo-md skill defines the English TODO.md layout" {
@@ -845,7 +921,7 @@ todo_layout() {
 }
 
 @test "next-task defers the TODO.md format to the todo-md skill" {
-  local cmd="$CONFIG_DIR/commands/next-task.md"
+  local cmd="$CONFIG_DIR/skills/next-task/SKILL.md"
   run grep -q '`todo-md` skill' "$cmd"
   assert_success
   # The former French headings live only in the skill's migration table.
@@ -854,7 +930,7 @@ todo_layout() {
 }
 
 @test "next-task manual hands the guided session to the manual-steps skill" {
-  local cmd="$CONFIG_DIR/commands/next-task.md" skill="$CONFIG_DIR/skills/manual-steps/SKILL.md"
+  local cmd="$CONFIG_DIR/skills/next-task/SKILL.md" skill="$CONFIG_DIR/skills/manual-steps/SKILL.md"
   assert_file_exists "$skill"
   run grep -q '^| `manual` or `manual all` ' "$cmd"
   assert_success
@@ -870,7 +946,7 @@ todo_layout() {
 }
 
 @test "next-issue works GitHub issues by label and never closes or commits" {
-  local cmd="$CONFIG_DIR/commands/next-issue.md"
+  local cmd="$CONFIG_DIR/skills/next-issue/SKILL.md"
   assert_file_exists "$cmd"
   run grep -q '^| `manual` ' "$cmd"
   assert_success
@@ -924,21 +1000,31 @@ todo_layout() {
   # The sections follow the same order.
   run bash -c "grep -n '^## ' '$skill' | cut -d' ' -f2- | tr '\n' '|'"
   assert_output 'Runnable commands|Branch first|Session branch|Commit hand-over|Pull request|After a commit or push|'
+  # Two cases only some sessions meet live in reference files beside the
+  # skill, each behind a pointer under its heading.
+  local session="$CONFIG_DIR/skills/git-workflow/session-branch.md"
+  local rebase="$CONFIG_DIR/skills/git-workflow/rebase.md"
+  run grep -qF '](./session-branch.md)' "$skill"
+  assert_success
+  run grep -qF '](./rebase.md)' "$skill"
+  assert_success
   # The app's generated session branch: the agent renames it, unpushed only.
-  run grep -qE '^git branch -m [a-z]+/[a-z0-9-]+$' "$skill"
+  run grep -qE '^git branch -m [a-z]+/[a-z0-9-]+$' "$session"
+  assert_success
+  run grep -qF 'no upstream' "$session"
   assert_success
   # A pull request in conflict with its base: the owner rebases, with no
   # editor, then forces the push with a lease.
-  run grep -qE '^git rebase origin/main$' "$skill"
+  run grep -qE '^git rebase origin/main$' "$rebase"
   assert_success
-  run grep -qE '^git add [^&]+ && GIT_EDITOR=true git rebase --continue$' "$skill"
+  run grep -qE '^git add [^&]+ && GIT_EDITOR=true git rebase --continue$' "$rebase"
   assert_success
-  run grep -qE '^git push --force-with-lease$' "$skill"
+  run grep -qE '^git push --force-with-lease$' "$rebase"
   assert_success
   # The body fills the pull request template and keeps a workflow's block.
   run grep -qF '<!-- pr-description:start -->' "$skill"
   assert_success
-  run grep -qE 'gh pr merge|git add (-A|\.)( |$)|git push (-f|--force)( |$)' "$skill"
+  run grep -qE 'gh pr merge|git add (-A|\.)( |$)|git push (-f|--force)( |$)' "$skill" "$session" "$rebase"
   assert_failure
 }
 
@@ -946,7 +1032,7 @@ todo_layout() {
   # The PreToolUse guard reads the whole command line: a body quoting git's
   # commit or push subcommand would get the command denied.
   local file
-  for file in commands/next-issue.md commands/audit.md commands/new-issue.md; do
+  for file in skills/next-issue/SKILL.md skills/audit/SKILL.md skills/new-issue/SKILL.md; do
     run grep -F "<<'EOF'" "$CONFIG_DIR/$file"
     assert_failure
     run grep -qF -- '--body-file "$(git rev-parse --absolute-git-dir)/ISSUE_BODY.md"' "$CONFIG_DIR/$file"
@@ -955,7 +1041,7 @@ todo_layout() {
 }
 
 @test "the pr command brings the branch's pull request up to date through git-workflow" {
-  local cmd="$CONFIG_DIR/commands/pr.md"
+  local cmd="$CONFIG_DIR/skills/pr/SKILL.md"
   assert_file_exists "$cmd"
   run grep -q '`git-workflow` skill' "$cmd"
   assert_success
@@ -964,7 +1050,7 @@ todo_layout() {
 }
 
 @test "the commit command hands a Conventional Commit that closes its issues, never commits itself" {
-  local cmd="$CONFIG_DIR/commands/commit.md"
+  local cmd="$CONFIG_DIR/skills/commit/SKILL.md"
   assert_file_exists "$cmd"
   run grep -q '`git-workflow` skill' "$cmd"
   assert_success
@@ -982,16 +1068,16 @@ todo_layout() {
 
 @test "next-issue, next-task and manual-steps hand the owner's commands over through git-workflow" {
   local file
-  for file in commands/next-issue.md commands/next-task.md skills/manual-steps/SKILL.md; do
+  for file in skills/next-issue/SKILL.md skills/next-task/SKILL.md skills/manual-steps/SKILL.md; do
     run grep -q '`git-workflow`' "$CONFIG_DIR/$file"
     assert_success
   done
   # A picked issue on a shared branch gets its branch command first.
-  run bash -c "sed -n '/^## 3\\. Pick/,/^## Agent skills/p' '$CONFIG_DIR/commands/next-issue.md' | grep -q 'branch command'"
+  run bash -c "sed -n '/^## 3\\. Pick/,/^## Agent skills/p' '$CONFIG_DIR/skills/next-issue/SKILL.md' | grep -q 'branch command'"
   assert_success
   # git add -p prompts for each hunk: it cannot run from the chat.
   for file in next-issue next-task; do
-    run grep -F '`git add -p`' "$CONFIG_DIR/commands/$file.md"
+    run grep -F '`git add -p`' "$CONFIG_DIR/skills/$file/SKILL.md"
     assert_output --partial 'in a terminal'
   done
 }
@@ -1012,16 +1098,8 @@ todo_layout() {
   assert_failure
 }
 
-@test "a shared command never takes the name of a Claude-only one" {
-  # Both are linked to ~/.claude/commands/<name>.md: one would replace the other.
-  local cmd
-  for cmd in "$CONFIG_DIR"/commands/*.md; do
-    [ ! -e "$CONFIG_DIR/claude/commands/$(basename "$cmd")" ]
-  done
-}
-
 @test "new-issue files the owner's requests as grouped issues, never duplicates" {
-  local cmd="$CONFIG_DIR/commands/new-issue.md"
+  local cmd="$CONFIG_DIR/skills/new-issue/SKILL.md"
   assert_file_exists "$cmd"
   run grep -q '^| `dry-run <requests>` ' "$cmd"
   assert_success
@@ -1046,7 +1124,7 @@ todo_layout() {
 }
 
 @test "audit inspects the whole repository read-only and files its findings for triage" {
-  local cmd="$CONFIG_DIR/commands/audit.md" skill
+  local cmd="$CONFIG_DIR/skills/audit/SKILL.md" skill
   assert_file_exists "$cmd"
   run grep -q '^| `dry-run` ' "$cmd"
   assert_success
@@ -1063,7 +1141,7 @@ todo_layout() {
   # The audit changes nothing in the project.
   run grep -q '^The audit is read-only' "$cmd"
   assert_success
-  # Each lens leans on a skill of the mattpocock-skills plugin when it is there.
+  # Each lens leans on one of the engineering skills.
   for skill in codebase-design domain-modeling code-review writing-for-agents diagnosing-bugs research; do
     run grep -q "^| \`$skill\` " "$cmd"
     assert_success
@@ -1359,7 +1437,7 @@ todo_layout() {
   # share, with hooks that test the staged content only (issue 73).
   local cmd summary
   for cmd in next-issue next-task; do
-    summary=$(sed -n '/^## 12\. Summary/,$p' "$CONFIG_DIR/commands/$cmd.md")
+    summary=$(sed -n '/^## 12\. Summary/,$p' "$CONFIG_DIR/skills/$cmd/SKILL.md")
     [ -n "$summary" ] || fail "$cmd.md has no Summary section"
     run grep -F 'one grouped commit' <<<"$summary"
     assert_success
@@ -1371,7 +1449,7 @@ todo_layout() {
     assert_success
   done
   # Every issue of the batch still closes on merge.
-  run bash -c "sed -n '/^## 12\\. Summary/,\$p' '$CONFIG_DIR/commands/next-issue.md' | grep -c 'Fixes #<number>'"
+  run bash -c "sed -n '/^## 12\\. Summary/,\$p' '$CONFIG_DIR/skills/next-issue/SKILL.md' | grep -c 'Fixes #<number>'"
   [ "$output" -ge 2 ]
 }
 
@@ -1407,7 +1485,7 @@ todo_layout() {
 @test "every label the issue commands set puts the issue in a board column" {
   # The board Worker maps these to its Stage columns (.github/project-board/plan.mjs).
   local columns='needs-triage needs-info ready-for-agent ready-for-human wontfix done' label missing=()
-  for label in $(grep -ohE -- '--(add-)?label [a-z-]+' "$CONFIG_DIR"/commands/*.md | awk '{print $2}' | sort -u); do
+  for label in $(grep -ohE -- '--(add-)?label [a-z-]+' "$CONFIG_DIR"/skills/*/SKILL.md | awk '{print $2}' | sort -u); do
     [[ " $columns " == *" $label "* ]] || missing+=("$label")
     grep -qF "\"$label\"" "$REPO_ROOT/.github/project-board/plan.mjs" || missing+=("$label (plan.mjs)")
   done
@@ -1415,13 +1493,13 @@ todo_layout() {
 }
 
 @test "/next-issue records a finished issue as done, so its card moves to Done" {
-  run grep -F -- '--remove-label ready-for-agent --add-label done' "$CONFIG_DIR/commands/next-issue.md"
+  run grep -F -- '--remove-label ready-for-agent --add-label done' "$CONFIG_DIR/skills/next-issue/SKILL.md"
   assert_success
   # The label exists before it is set: creating it is safe to repeat.
-  run grep -F 'gh label create done --force' "$CONFIG_DIR/commands/next-issue.md"
+  run grep -F 'gh label create done --force' "$CONFIG_DIR/skills/next-issue/SKILL.md"
   assert_success
   # Removing ready-for-agent alone would send the card back to Needs triage.
-  run grep -nE -- '--remove-label ready-for-agent`' "$CONFIG_DIR/commands/next-issue.md"
+  run grep -nE -- '--remove-label ready-for-agent`' "$CONFIG_DIR/skills/next-issue/SKILL.md"
   assert_failure
 }
 
@@ -1471,7 +1549,7 @@ todo_layout() {
   # Every command writing to GitHub or proposing a commit says it too.
   local cmd
   for cmd in audit next-issue new-issue next-task pr; do
-    grep -qi 'no AI attribution' "$CONFIG_DIR/commands/$cmd.md" || fail "$cmd.md says nothing about attribution"
+    grep -qi 'no AI attribution' "$CONFIG_DIR/skills/$cmd/SKILL.md" || fail "$cmd.md says nothing about attribution"
   done
 }
 
