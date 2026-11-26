@@ -1,18 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/configuration-options.json",
-  "extends": ["config:recommended"],
-  "description": "Updates arrive once a week, the hooks and the toolchain grouped, so the first run after installation does not open one pull request per pin, each with the full CI.",
-  "schedule": ["before 6am on monday"],
+  "extends": ["github>KevinDeBenedetti/renovate-config"],
+  "description": "The shared preset (KevinDeBenedetti/renovate-config) brings Renovate's best practices, the Monday-morning window, the 3-day release age, the prek.toml hook revs, the labels, and the rule leaving the github-workflows pins to its release propagation. Only this repository's own rules follow: its extra pin formats, its two groups and its checksum-pinned tools.",
   "customManagers": [
-    {
-      "customType": "regex",
-      "description": "Update `rev = \"...\"` pins in prek.toml annotated with a `# renovate:` comment (Renovate's built-in pre-commit manager only handles .pre-commit-config.yaml, not prek.toml). A pin by commit SHA carries its tag in a trailing comment: the SHA is the digest, the comment the version, and both move together. A pin by tag alone is matched by the second pattern.",
-      "managerFilePatterns": ["/(^|/)prek\\.toml$/"],
-      "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+rev = \"(?<currentDigest>[a-f0-9]{40})\" # (?<currentValue>\\S+)",
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+rev = \"(?<currentValue>v[^\"]+)\""
-      ]
-    },
     {
       "customType": "regex",
       "description": "Bump the proto toolchain pins in config/proto/.prototools (Renovate has no native proto manager). Each `<tool> = \"<version>\"` line is annotated with a `# renovate:` comment carrying its datasource/depName.",
@@ -36,28 +26,24 @@
   ],
   "packageRules": [
     {
-      "description": "The prek hooks in one pull request.",
+      "description": "The prek hooks in one pull request of their own, outside the preset's weekly group.",
       "matchFileNames": ["prek.toml"],
       "groupName": "prek hooks"
     },
     {
-      "description": "The proto toolchain (bun, node, pnpm, yarn…) in one pull request.",
+      "description": "The proto toolchain (bun, node, pnpm, yarn…) in one pull request of its own.",
       "matchFileNames": ["config/proto/.prototools"],
       "groupName": "proto toolchain"
     },
     {
-      "description": "github-workflows pins, in the workflows and in prek.toml, move with each of its releases: its propagate-release job opens the pull request, merged once its checks pass, so Renovate would only duplicate it.",
-      "matchPackageNames": ["KevinDeBenedetti/github-workflows"],
-      "enabled": false
-    },
-    {
-      "description": "helm, proto, k9s and Git Credential Manager pin a SHA-256 per platform next to the version: a version bump alone makes the install refuse the new tarball.",
+      "description": "helm, proto, k9s and Git Credential Manager pin a SHA-256 per platform next to the version: a version bump alone makes the install refuse the new tarball. One pull request each, outside the preset's weekly group: the sums are copied by hand, one release at a time.",
       "matchPackageNames": [
         "helm/helm",
         "moonrepo/proto",
         "derailed/k9s",
         "git-ecosystem/git-credential-manager"
       ],
+      "groupName": null,
       "prBodyNotes": ["⚠️ Update the SHA-256 pins next to the version before merging, or the install refuses the new release: copy them from the release (helm: `https://get.helm.sh/helm-<version>-linux-<arch>.tar.gz.sha256sum`; proto, k9s, Git Credential Manager: the `digest` of each asset on the GitHub release)."]
     },
     {

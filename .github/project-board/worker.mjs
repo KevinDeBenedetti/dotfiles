@@ -8,8 +8,8 @@
 //   labels, and closes or reopens it;
 // - on a schedule (wrangler.toml [triggers]): every card is put back in the
 //   column of its labels, for the deliveries that failed (GitHub does not
-//   send them again), and the deliveries that failed in the hour are
-//   reported in an issue of REPORT_REPOSITORY.
+//   send them again), and the deliveries that failed since the last report
+//   are reported in an issue of REPORT_REPOSITORY.
 //
 // Vars (wrangler.toml): PROJECT_OWNER, PROJECT_NUMBER, REPOSITORY_OWNERS,
 // REPORT_REPOSITORY; and

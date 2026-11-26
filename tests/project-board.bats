@@ -513,8 +513,17 @@ delivery() {
 
 report_vars='{"REPORT_REPOSITORY":"owner/dotfiles"}'
 
-@test "no failed delivery in the last hour, no write" {
-  # A failure older than the hour was the previous run's to report.
+# report NUMBER STATE [MINUTES_AGO]: a report issue of the App, which reported
+# the deliveries up to MINUTES_AGO (none: an issue from before the marker).
+report() {
+  jq -nc --argjson number "$1" --arg state "$2" --arg ago "${3:-}" '{
+    number: $number, state: $state, title: "Failed deliveries of the board Worker",
+    body: ("| a table |" + (if $ago == "" then "" else
+      "\n\n<!-- reported-until: \(now - ($ago | tonumber) * 60 | floor | todate) -->" end))}'
+}
+
+@test "no failed delivery in the last hour and no report yet, no write" {
+  # Without a report to start from, the window is the schedule's period.
   DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues labeled 200)
 $(delivery 6 projects_v2_item edited 202)
 $(delivery 75 issues labeled 500)")
@@ -522,8 +531,99 @@ $(delivery 75 issues labeled 500)")
   VARS="$report_vars" reconcile
   assert_success
   assert_line "DELIVERIES ?per_page=100 as the App"
-  assert_line "deliveries: 0 failed in the last hour"
+  assert_line --regexp '^deliveries: 0 failed since [0-9T:.-]+Z$'
   refute_line --partial "POST /repos/owner/dotfiles"
+  refute_line --partial "PATCH /repos/owner/dotfiles"
+}
+
+@test "a page without a failure is not compared with the last report" {
+  DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues labeled 200)")
+  export DELIVERIES
+  VARS="$report_vars" reconcile
+  assert_success
+  assert_line "deliveries: 0 failed"
+  refute_line --partial "LIST /repos/owner/dotfiles/issues"
+}
+
+@test "the failures of a run that did not happen are reported by the next one" {
+  # The last report stopped three hours ago: the run of the hour between was
+  # skipped. What that report already held is not listed again.
+  DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues closed 500)
+$(delivery 90 issues labeled 502)
+$(delivery 200 issues opened 503)")
+  REPORT_ISSUES=$(jq -sc . <<<"$(report 42 open 180)")
+  export DELIVERIES REPORT_ISSUES
+  VARS="$report_vars" reconcile
+  assert_success
+  local comment
+  comment=$(grep '^POST /repos/owner/dotfiles/issues/42/comments ' <<<"$output")
+  [[ "$comment" == *"| issues | closed | 500 |"* && "$comment" == *"| issues | labeled | 502 |"* ]] || fail "a failure since the last report is missing: $comment"
+  [[ "$comment" != *"503"* ]] || fail "a failure of the last report is listed again"
+  assert_line --partial "deliveries: 2 failed since "
+}
+
+@test "a report moves the start of the next one, in the issue itself" {
+  DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues closed 500)")
+  REPORT_ISSUES=$(jq -sc . <<<"$(report 42 open 180)")
+  export DELIVERIES REPORT_ISSUES
+  VARS="$report_vars" reconcile
+  assert_success
+  local log="$output" patch body until
+  patch=$(grep '^PATCH /repos/owner/dotfiles/issues/42 ' <<<"$log")
+  [ -n "$patch" ] || fail "the report's issue was not updated"
+  body=${patch#PATCH /repos/owner/dotfiles/issues/42 }
+  body=$(jq -r '.body' <<<"${body% as inst-11}")
+  # The table stays, one marker only, moved to this run.
+  [[ "$body" == "| a table |"* ]] || fail "the report's text was lost: $body"
+  run grep -c 'reported-until' <<<"$body"
+  assert_output 1
+  until=$(sed -n 's/.*<!-- reported-until: \(.*\) -->.*/\1/p' <<<"$body")
+  run jq -n --arg until "$until" '(now - ($until | sub("\\.[0-9]+Z$"; "Z") | fromdate)) < 60'
+  assert_output true
+  # The comment first: a marker that could not be written repeats a report,
+  # it never hides one.
+  local commented patched
+  commented=$(grep -n '^POST /repos/owner/dotfiles/issues/42/comments ' <<<"$log" | cut -d: -f1)
+  patched=$(grep -n '^PATCH /repos/owner/dotfiles/issues/42 ' <<<"$log" | cut -d: -f1)
+  [ "$commented" -lt "$patched" ]
+}
+
+@test "a failure already reported is not reported again" {
+  # The hourly run after a report: the same failure is still in the hour.
+  DELIVERIES=$(jq -sc . <<<"$(delivery 30 issues closed 500)")
+  REPORT_ISSUES=$(jq -sc . <<<"$(report 42 open 10)")
+  export DELIVERIES REPORT_ISSUES
+  VARS="$report_vars" reconcile
+  assert_success
+  refute_line --partial "POST /repos/owner/dotfiles"
+  refute_line --partial "PATCH /repos/owner/dotfiles"
+}
+
+@test "a closed report still gives the start, and the next failure opens a new one" {
+  DELIVERIES=$(jq -sc . <<<"$(delivery 90 issues closed 500)
+$(delivery 200 issues opened 503)")
+  REPORT_ISSUES=$(jq -sc . <<<"$(report 42 closed 180)")
+  export DELIVERIES REPORT_ISSUES
+  VARS="$report_vars" reconcile
+  assert_success
+  refute_line --partial "issues/42"
+  local post
+  post=$(grep '^POST /repos/owner/dotfiles/issues {' <<<"$output")
+  [[ "$post" == *"| issues | closed | 500 |"* ]] || fail "no new report: $post"
+  [[ "$post" != *"503"* ]] || fail "a failure of the closed report is listed again"
+  [[ "$post" == *"<!-- reported-until: "* ]] || fail "the new report holds no marker"
+}
+
+@test "a report from before the marker starts the window an hour back" {
+  DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues closed 500)
+$(delivery 90 issues opened 503)")
+  REPORT_ISSUES=$(jq -sc . <<<"$(report 42 open)")
+  export DELIVERIES REPORT_ISSUES
+  VARS="$report_vars" reconcile
+  assert_success
+  assert_line --regexp '^POST /repos/owner/dotfiles/issues/42/comments .*\| issues \| closed \| 500 \|.* as inst-11$'
+  refute_output --partial "503"
+  assert_line --regexp '^PATCH /repos/owner/dotfiles/issues/42 .*reported-until'
 }
 
 @test "a first failed delivery opens an issue that names no repository" {
@@ -534,7 +634,7 @@ $(delivery 12 issues opened 200)")
   VARS="$report_vars" reconcile
   assert_success
   assert_line "LIST /repos/owner/dotfiles/issues by board-app[bot] as inst-11"
-  assert_line "deliveries: 2 failed in the last hour, reported in owner/dotfiles"
+  assert_line --regexp '^deliveries: 2 failed since [0-9T:.-]+Z, reported in owner/dotfiles$'
   local post
   post=$(grep '^POST /repos/owner/dotfiles/issues ' <<<"$output")
   [ -n "$post" ] || fail "no issue opened"
@@ -555,7 +655,9 @@ $(delivery 12 issues opened 200)")
 
 @test "a later failure is added to the report still open" {
   DELIVERIES=$(jq -sc . <<<"$(delivery 5 issues closed 500)")
-  REPORT_ISSUES='[{"number":42,"title":"Failed deliveries of the board Worker"},{"number":43,"title":"Something else"}]'
+  REPORT_ISSUES=$(jq -sc . <<<"$(report 43 open | jq -c '.title = "Something else"')
+$(report 42 open 180)
+$(report 41 closed 400)")
   export DELIVERIES REPORT_ISSUES
   VARS="$report_vars" reconcile
   assert_success
@@ -563,7 +665,7 @@ $(delivery 12 issues opened 200)")
   refute_line --regexp '^POST /repos/owner/dotfiles/issues \{'
 }
 
-@test "a full page of deliveries says the hour may be cut only when it reaches back into the hour" {
+@test "a full page of deliveries says the report may be cut only when it reaches back to its start" {
   # GitHub keeps days of deliveries: a full page is the usual case.
   local cards="" n
   cards="$(delivery 5 issues labeled 500)"$'\n'

@@ -700,10 +700,19 @@ setup() {
   assert_success
 }
 
-@test "renovate opens its pull requests in a weekly window, grouped by kind" {
+@test "renovate.json extends the shared preset and keeps only this repository's rules" {
   local cfg="$REPO_ROOT/renovate.json"
-  run jq -r '.schedule[0] // empty' "$cfg"
-  assert_output --regexp '^before [0-9]+am on monday$'
+  # The Monday window, the release age, the prek.toml manager and the
+  # github-workflows rule come from KevinDeBenedetti/renovate-config (issue 142).
+  run jq -c '.extends' "$cfg"
+  assert_output '["github>KevinDeBenedetti/renovate-config"]'
+  run jq -r 'has("schedule") or ([.customManagers[].managerFilePatterns[] | select(test("prek"))] | length > 0)
+    or ([.packageRules[] | select((.matchPackageNames // []) | index("KevinDeBenedetti/github-workflows"))] | length > 0)' "$cfg"
+  assert_output false
+}
+
+@test "renovate groups the prek hooks and the proto toolchain, and leaves the checksum-pinned tools alone" {
+  local cfg="$REPO_ROOT/renovate.json"
   # One pull request for the prek hooks, one for the proto toolchain.
   run jq -r '[.packageRules[] | select(.matchFileNames == ["prek.toml"]) | .groupName] | first // empty' "$cfg"
   assert_output "prek hooks"
@@ -711,8 +720,9 @@ setup() {
   assert_output "proto toolchain"
   # The SHA-256 pinned release tools stay one pull request each: their sums are
   # copied by hand, one release at a time.
-  run jq -r '[.packageRules[] | select(.groupName and ((.matchPackageNames // []) | index("helm/helm")))] | length' "$cfg"
-  assert_output "0"
+  # An explicit null: without it they join the preset's weekly group.
+  run jq -c '[.packageRules[] | select((.matchPackageNames // []) | index("helm/helm")) | has("groupName"), .groupName]' "$cfg"
+  assert_output '[true,null]'
 }
 
 @test "the docs give only proto commands the pinned proto has" {
@@ -731,15 +741,6 @@ setup() {
   assert_equal "$prek" "$ci"
 }
 
-@test "renovate has a customManager for prek.toml (built-in pre-commit manager ignores it)" {
-  # The built-in pre-commit manager only matches .pre-commit-config.yaml, so the
-  # `# renovate:` annotations on prek.toml's rev pins need a customManager to fire.
-  run grep -q 'prek' "$REPO_ROOT/renovate.json"
-  assert_success
-  run grep -q '"customManagers"' "$REPO_ROOT/renovate.json"
-  assert_success
-}
-
 @test "every prek.toml rev pin carries a renovate annotation" {
   # Count `rev = ` lines and `# renovate:` comments; they must match so no pin
   # silently drops out of Renovate's coverage.
@@ -748,22 +749,99 @@ setup() {
   [ "$revs" -eq "$notes" ]
 }
 
-# --- The board Worker is deployed by CI (issue 131) ---
+# --- The board Worker is deployed by CI (issues 131, 137) ---
 
-@test "a push to main that changes the board Worker deploys it, after its tests" {
+@test "the board Worker is deployed once the CI/CD of a push to main passed, after its tests" {
   local wf="$REPO_ROOT/.github/workflows/project-board.yml"
   assert_file_exists "$wf"
-  # Only main, only the Worker's own files (and this workflow).
+  # After the whole CI/CD of main, never on a push or a pull request directly.
   run sed -n '/^on:$/,/^[a-z]/p' "$wf"
+  assert_line "  workflow_run:"
+  assert_line "    workflows: [CI/CD]"
+  assert_line "    types: [completed]"
   assert_line "    branches: [main]"
-  assert_line "      - '.github/project-board/**'"
+  refute_line "  push:"
   refute_output --partial "pull_request"
-  # The tests run before the deploy, in the same job.
-  local tests deploy
+  # Only a green run, of a push, in this repository: a fork's pull request from
+  # a branch named main also completes a CI/CD run "on main".
+  run grep -c "github.event.workflow_run.conclusion == 'success'\|github.event.workflow_run.event == 'push'\|github.event.workflow_run.head_repository.full_name == github.repository" "$wf"
+  assert_output 3
+  # The commit CI tested is the one checked out and deployed, with its history
+  # (changed.sh compares it to the deployed commit).
+  run grep -c 'ref: ${{ github.event.workflow_run.head_sha || github.sha }}\|fetch-depth: 0' "$wf"
+  assert_output 2
+  run grep -c 'VERSION:$HEAD_SHA"' "$wf"
+  assert_output 1
+  # The change check, the tests, then the deploy, in the same job.
+  local changed tests deploy
+  changed=$(grep -n 'bash .github/project-board/changed.sh' "$wf" | head -n1 | cut -d: -f1)
   tests=$(grep -n 'bats tests/project-board.bats' "$wf" | head -n1 | cut -d: -f1)
   deploy=$(grep -n 'wrangler@[0-9.]* deploy --config .github/project-board/wrangler.toml --var "VERSION:' "$wf" | head -n1 | cut -d: -f1)
-  [ -n "$tests" ] && [ -n "$deploy" ] || fail "the workflow lacks the tests or the deploy command"
-  [ "$tests" -lt "$deploy" ] || fail "the deploy runs before the tests"
+  [ -n "$changed" ] && [ -n "$tests" ] && [ -n "$deploy" ] || fail "the workflow lacks the change check, the tests or the deploy command"
+  [ "$changed" -lt "$tests" ] && [ "$tests" -lt "$deploy" ] || fail "the change check, the tests and the deploy are out of order"
+}
+
+# board_history: a repository in $BATS_TEST_TMPDIR/board whose commits are
+# $base (the Worker), $docs (another file), $worker (the Worker again), $wf
+# (the deploy workflow) and, on a branch off $base, $side.
+board_history() {
+  # git exports GIT_DIR to its hooks: the fixture would act on this repository.
+  # shellcheck disable=SC2046 # one variable name per word
+  unset $(git rev-parse --local-env-vars)
+  cd "$BATS_TEST_TMPDIR" && git init -q -b main board && cd board || return 1
+  git config user.name test && git config user.email test@example.com
+  git config commit.gpgsign false && git config core.hooksPath /dev/null
+  mkdir -p .github/project-board .github/workflows
+  record() { echo "$2" >>"$1" && git add "$1" && git commit -qm "$2" && git rev-parse HEAD; }
+  base=$(record .github/project-board/worker.mjs base)
+  git checkout -q -b side
+  side=$(record .github/project-board/worker.mjs side)
+  git checkout -q main
+  docs=$(record README.md docs)
+  worker=$(record .github/project-board/worker.mjs worker)
+  wf=$(record .github/workflows/project-board.yml workflow)
+}
+
+@test "the board Worker is deployed when its code changed since the deployed commit" {
+  board_history
+  # A commit that failed CI in between is covered: the range starts at the
+  # deployed commit, not at the pushed one's parent.
+  run bash "$REPO_ROOT/.github/project-board/changed.sh" "$base" "$wf"
+  assert_success
+  assert_output --partial "deploy: "
+  run bash "$REPO_ROOT/.github/project-board/changed.sh" "$docs" "$worker"
+  assert_output --partial "deploy: "
+  # The deploy workflow is part of the Worker's deploy.
+  run bash "$REPO_ROOT/.github/project-board/changed.sh" "$worker" "$wf"
+  assert_output --partial "deploy: "
+}
+
+@test "the board Worker is not deployed when nothing of it changed since the deployed commit" {
+  board_history
+  run bash "$REPO_ROOT/.github/project-board/changed.sh" "$base" "$docs"
+  assert_success
+  assert_output --partial "skip: "
+  run bash "$REPO_ROOT/.github/project-board/changed.sh" "$wf" "$wf"
+  assert_output --partial "skip: "
+}
+
+@test "a CI run that ends late does not put an older board Worker back" {
+  board_history
+  run bash "$REPO_ROOT/.github/project-board/changed.sh" "$wf" "$base"
+  assert_success
+  assert_output --partial "skip: "
+}
+
+@test "the board Worker is deployed when the deployed commit cannot be compared" {
+  board_history
+  local deployed
+  # Never deployed by CI, an answer that is no commit, a commit that is not in
+  # main's history: deploying again is safe, missing a change is not.
+  for deployed in "" unknown 0123456789abcdef0123456789abcdef01234567 "$side" "--help"; do
+    run bash "$REPO_ROOT/.github/project-board/changed.sh" "$deployed" "$wf"
+    assert_success
+    assert_output --partial "deploy: "
+  done
 }
 
 @test "the board deploy job has read-only contents, pinned actions and its secrets from the repository" {
@@ -788,30 +866,35 @@ setup() {
   local repo rev pinned=0
   while IFS=$'\t' read -r repo rev; do
     [ "$repo" = "https://github.com/KevinDeBenedetti/github-workflows" ] && continue
-    [[ "$rev" =~ ^rev\ =\ \"[0-9a-f]{40}\"\ #\ v[0-9][0-9.]*$ ]] || fail "$repo is not pinned by SHA: $rev"
+    [[ "$rev" =~ ^rev\ =\ \"[0-9a-f]{40}\"\ \ #\ frozen:\ v[0-9][0-9.]*$ ]] || fail "$repo is not pinned by SHA: $rev"
     pinned=$((pinned + 1))
   done < <(awk -F'"' '/^repo = "https:/ { repo = $2 } /^rev = / { print repo "\t" $0 }' "$REPO_ROOT/prek.toml")
   assert_equal "$pinned" 5
 }
 
-@test "renovate moves a prek SHA pin and its tag comment together" {
-  # The custom manager reads the SHA as the digest and the comment as the
-  # version, on the real file: one match per SHA-pinned repository.
+@test "the shared Renovate preset reads every prek pin, a SHA with its tag comment" {
+  # The prek.toml manager is the preset's (KevinDeBenedetti/renovate-config,
+  # default.json). Its two matchStrings are copied here: the frozen form reads
+  # the SHA as the digest and the `# frozen:` comment as the version, the tag
+  # form reads a tag. Run on the real file: one match per pin.
   # Python reads Renovate's named groups; the Docker test image has none.
   command -v python3 >/dev/null 2>&1 || skip "python3 not installed"
-  local pattern
-  pattern=$(jq -r '.customManagers[] | select(.managerFilePatterns[0] | test("prek")) | .matchStrings[]' "$REPO_ROOT/renovate.json" | grep currentDigest)
-  [ -n "$pattern" ] || fail "no matchString captures currentDigest for prek.toml"
-  run python3 - "$pattern" "$REPO_ROOT/prek.toml" <<'PY'
+  run python3 - "$REPO_ROOT/prek.toml" <<'PY'
 import re, sys
-pattern = re.sub(r"\(\?<", "(?P<", sys.argv[1])
-for m in re.finditer(pattern, open(sys.argv[2]).read()):
-    print(m["depName"], m["currentValue"], len(m["currentDigest"]))
+head = r'#\s*renovate:\s*datasource=(?P<datasource>\S+)\s+depName=(?P<depName>\S+)(?:\s+packageName=(?P<packageName>\S+))?(?:\s+versioning=(?P<versioning>\S+))?(?:\s+extractVersion=(?P<extractVersion>\S+))?\s*\n\s*rev\s*=\s*'
+tag = head + r'"(?P<currentValue>[^"]*[^"0-9a-f][^"]*)"'
+frozen = head + r'"(?P<currentDigest>[0-9a-f]{40})"[ \t]*#[ \t]*frozen:[ \t]*(?P<currentValue>\S+)'
+text = open(sys.argv[1]).read()
+for m in re.finditer(frozen, text):
+    print("frozen", m["depName"], m["currentValue"], len(m["currentDigest"]))
+for m in re.finditer(tag, text):
+    print("tag", m["depName"], m["currentValue"])
 PY
   assert_success
-  assert_line "pre-commit/pre-commit-hooks v5.0.0 40"
-  assert_line "gitleaks/gitleaks v8.30.1 40"
-  assert_equal "${#lines[@]}" 5
+  assert_line "frozen pre-commit/pre-commit-hooks v5.0.0 40"
+  assert_line "frozen gitleaks/gitleaks v8.30.1 40"
+  assert_line --regexp '^tag KevinDeBenedetti/github-workflows v[0-9.]+$'
+  assert_equal "${#lines[@]}" "$(grep -c '^rev = ' "$REPO_ROOT/prek.toml")"
 }
 
 # --- Agent instructions (AGENTS.md / CLAUDE.md) ---

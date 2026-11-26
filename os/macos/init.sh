@@ -18,17 +18,26 @@ REPO_ROOT="$( cd -- "$SCRIPT_PATH/../.." >/dev/null 2>&1 ; pwd -P )"
 CONFIG_DIR="$REPO_ROOT/config"
 HELPERS_DIR="$REPO_ROOT/os/helpers"
 
-# Remote execution support: if sub-scripts are missing (e.g. running via "bash <(curl ...)"),
-# clone the repo to a permanent directory and re-exec from there with the same arguments.
-# Using a permanent location (not mktemp) ensures that symlinks created by the install script
-# remain valid across reboots — macOS wipes per-user temp dirs (/var/folders/.../T/) on logout.
+# >>> remote bootstrap — the same text in os/debian/init.sh and os/macos/init.sh
+# (tests/init.bats compares them): each script runs alone through
+# "bash <(curl ...)", with nothing beside it to source, so a change made here
+# is copied into the other.
+#
+# When the sub-scripts are missing, the whole repository is cloned and init.sh
+# re-run from there with the same arguments. A full clone cannot miss a newly
+# added sourced script the way a hand-maintained list of files could, and a
+# permanent directory (not mktemp) keeps the symlinks the install creates valid
+# across reboots: macOS wipes its per-user temp directories on logout.
 REPO_URL="https://github.com/KevinDeBenedetti/dotfiles.git"
 DOTFILES_INSTALL_DIR="${DOTFILES_INSTALL_DIR:-$HOME/.dotfiles}"
 # The ref the bootstrap checks out: the latest release, bumped by
 # release-please, so a fresh host never runs a half-merged main. Override it
 # to test another one (DOTFILES_REF=main).
 DOTFILES_REF="${DOTFILES_REF:-v0.19.0}" # x-release-please-version
-if [ ! -f "$SCRIPT_PATH/setup-base.sh" ]; then
+
+# bootstrap_checkout: clones the repository at $DOTFILES_REF into
+# $DOTFILES_INSTALL_DIR, or moves the clone already there to that ref.
+bootstrap_checkout() {
   if [ -d "$DOTFILES_INSTALL_DIR/.git" ]; then
     printf '%b' "\n${red}[bootstrap]${no_color} Dotfiles repo found at $DOTFILES_INSTALL_DIR — checking out $DOTFILES_REF...\n\n"
     # A shallow clone (the bootstrap's own) stays shallow; a full one stays full.
@@ -42,6 +51,10 @@ if [ ! -f "$SCRIPT_PATH/setup-base.sh" ]; then
     printf '%b' "\n${red}[bootstrap]${no_color} Sub-scripts not found locally — cloning dotfiles repository ($DOTFILES_REF) to $DOTFILES_INSTALL_DIR...\n\n"
     git clone --depth=1 --branch "$DOTFILES_REF" "$REPO_URL" "$DOTFILES_INSTALL_DIR"
   fi
+}
+# <<< remote bootstrap
+if [ ! -f "$SCRIPT_PATH/setup-base.sh" ]; then
+  bootstrap_checkout
   exec bash "$DOTFILES_INSTALL_DIR/os/macos/init.sh" "$@"
 fi
 
