@@ -330,6 +330,30 @@ released_tag() {
   done
 }
 
+# bootstrap_block <os>: the part of init.sh both scripts share, between its
+# two marker comments.
+bootstrap_block() {
+  sed -n '/^# >>> remote bootstrap/,/^# <<< remote bootstrap/p' "$REPO_ROOT/os/$1/init.sh"
+}
+
+@test "the remote bootstrap block is the same in both init scripts" {
+  # Each script runs alone through `bash <(curl …)`, so the block is copied,
+  # not sourced: a fix made in one must reach the other (issue 139).
+  local debian macos
+  debian=$(bootstrap_block debian)
+  macos=$(bootstrap_block macos)
+  # The block holds the whole bootstrap: the ref, the clone and the re-run's fetch.
+  run grep -c '^DOTFILES_REF=\|git clone --depth=1 --branch "$DOTFILES_REF"\|fetch ${_BOOTSTRAP_SHALLOW:+--depth=1} origin "$DOTFILES_REF"\|^# <<< remote bootstrap' <<<"$debian"
+  assert_output 4
+  assert_equal "$macos" "$debian"
+  # Outside it, neither script fetches or clones on its own.
+  local os
+  for os in debian macos; do
+    run bash -c "sed '/^# >>> remote bootstrap/,/^# <<< remote bootstrap/d' '$REPO_ROOT/os/$os/init.sh' | grep -c 'git clone\|git -C .* fetch'"
+    assert_output 0
+  done
+}
+
 @test "release-please bumps the bootstrap's default ref and the documented one-liners" {
   local file config="$REPO_ROOT/.github/release/release-please-config.json"
   for file in os/debian/init.sh os/macos/init.sh; do

@@ -29,8 +29,9 @@
 //                    an App token gets no content for a hidden card. The add
 //                    mutation answers each card's own issue and column.
 //   DELIVERIES       JSON array: the App's recent webhook deliveries
-//   REPORT_ISSUES    JSON array: the open issues the App opened, in the
-//                    report repository
+//   REPORT_ISSUES    JSON array: the issues the App opened in the report
+//                    repository ({number, state, title, body}), newest first;
+//                    a list of the open ones leaves the closed out
 import { createHmac, createVerify, generateKeyPairSync } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
@@ -179,7 +180,8 @@ globalThis.fetch = async (input, init = {}) => {
 
   if (method === "GET" && url.searchParams.has("creator")) {
     console.log(`LIST ${url.pathname} by ${url.searchParams.get("creator")} as ${token}`);
-    return Response.json(json("REPORT_ISSUES", "[]"));
+    const state = url.searchParams.get("state") ?? "open";
+    return Response.json(json("REPORT_ISSUES", "[]").filter((issue) => state === "all" || (issue.state ?? "open") === state));
   }
   if (method === "GET" && (match = /^\/repos\/([^/]+\/[^/]+)\/issues$/.exec(url.pathname))) {
     const issues = json("REPO_ISSUES", "{}")[match[1]] ?? [];

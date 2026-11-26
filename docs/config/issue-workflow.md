@@ -184,10 +184,12 @@ Once, for all repositories:
    gh secret set CLOUDFLARE_ACCOUNT_ID --repo KevinDeBenedetti/dotfiles
    ```
 
-   `.github/workflows/project-board.yml` then runs `tests/project-board.bats`
-   and deploys the Worker on every push to `main` that changes
-   `.github/project-board/`; **Run workflow** on its Actions page deploys it
-   by hand.
+   `.github/workflows/project-board.yml` then deploys the Worker once the
+   whole `CI/CD` workflow of a push to `main` passed, when
+   `.github/project-board/` changed since the commit the running Worker was
+   deployed from (`changed.sh`): a change whose own CI failed goes out with
+   the next green commit. **Run workflow** on its Actions page deploys `main`
+   by hand, whatever changed.
 7. Put the issues opened before the App on the board; running it again is
    safe:
 
@@ -213,13 +215,16 @@ A failed delivery answers 500, with the reason, in the App's Recent
 Deliveries (its **Advanced** settings page), where it can be sent again:
 GitHub does not redeliver a failed delivery on its own. The Worker's logs are in the Cloudflare dashboard.
 
-Each hourly run also reads the App's deliveries of the hour before it: when
+Each hourly run also reads the App's deliveries since its last report: when
 some did not get a 2xx answer, it opens one `needs-triage` issue, **Failed
 deliveries of the board Worker**, in `REPORT_REPOSITORY` (`wrangler.toml`),
-or comments on it while it is open. The report lists the time, event, action
-and status of each failure, never a repository or an issue: that repository
-is public. The reason is on the Recent Deliveries page. Close the issue once
-the cause is fixed; the next failure opens a new one.
+or comments on it while it is open. The issue's body keeps where the report
+stopped (a `reported-until` HTML comment), so a run that did not happen
+leaves no gap; without a report yet, the run reads the hour before it. The
+report lists the time, event, action and status of each failure, never a
+repository or an issue: that repository is public. The reason is on the
+Recent Deliveries page. Close the issue once the cause is fixed; the next
+failure opens a new one.
 
 The Worker answers a `GET` with the commit it was deployed from, so a stale
 deploy shows at once. `curl` its `workers.dev` address (the one

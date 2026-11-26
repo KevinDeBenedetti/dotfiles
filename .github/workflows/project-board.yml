@@ -3,14 +3,15 @@ name: Project board
 
 # Deploys the Cloudflare Worker that keeps the organization's board and the
 # triage labels in step (docs/config/issue-workflow.md#project-board), when its
-# code changes on main. A Worker deployed by hand fell two commits behind for
-# two days: the labels and the board drifted apart meanwhile.
+# code changed on main and the whole CI/CD of that commit passed. A Worker
+# deployed by hand fell two commits behind for two days: the labels and the
+# board drifted apart meanwhile.
 on:
-  push:
+  # Runs from the workflow file of main, once CI/CD ends on main.
+  workflow_run:
+    workflows: [CI/CD]
+    types: [completed]
     branches: [main]
-    paths:
-      - '.github/project-board/**'
-      - '.github/workflows/project-board.yml'
   workflow_dispatch:
 
 permissions:
@@ -25,29 +26,59 @@ jobs:
   deploy:
     name: Test and deploy the Worker
     runs-on: ubuntu-latest
-    # A manual run deploys main only, like a push.
-    if: github.ref == 'refs/heads/main'
+    # A manual run deploys main only, whatever changed. Otherwise only a green
+    # CI/CD run of a push to this repository: a fork's pull request from a
+    # branch named main also completes a run "on main", and this job holds the
+    # Cloudflare token.
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      || (github.event.workflow_run.conclusion == 'success'
+          && github.event.workflow_run.event == 'push'
+          && github.event.workflow_run.head_repository.full_name == github.repository) }}
+    env:
+      # The commit CI passed; github.sha is main's head when this run starts.
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # changed.sh compares this commit with the deployed one.
+          fetch-depth: 0
           # The Bats helpers are submodules.
           submodules: true
           persist-credentials: false
 
-      - name: Install Bats
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends bats
-
-      - name: Test the Worker
-        run: bats tests/project-board.bats
-
-      # The Worker answers a GET with VERSION: the commit it runs.
-      - name: Deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Check the secrets
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "::error::Set the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets (docs/config/issue-workflow.md#project-board)"
             exit 1
           fi
-          npx --yes wrangler@4.168.0 deploy --config .github/project-board/wrangler.toml --var "VERSION:$GITHUB_SHA"
+
+      # The deployed commit is the VERSION variable of the running Worker. A
+      # read that fails leaves it empty, and changed.sh then deploys.
+      - name: Check whether the Worker changed
+        id: changed
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          deployed=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/project-board/settings" \
+            | jq -r '[.result.bindings[]? | select(.name == "VERSION") | .text][0] // ""') || deployed=""
+          decision=$(bash .github/project-board/changed.sh "$deployed" "$HEAD_SHA")
+          echo "$decision"
+          echo "decision=${decision%%:*}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Bats
+        if: steps.changed.outputs.decision != 'skip'
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends bats
+
+      - name: Test the Worker
+        if: steps.changed.outputs.decision != 'skip'
+        run: bats tests/project-board.bats
+
+      # The Worker answers a GET with VERSION: the commit it runs.
+      - name: Deploy
+        if: steps.changed.outputs.decision != 'skip'
+        run: npx --yes wrangler@4.168.0 deploy --config .github/project-board/wrangler.toml --var "VERSION:$HEAD_SHA"
