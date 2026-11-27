@@ -29,7 +29,7 @@ Personal macOS and Debian dotfiles with setup scripts for fast developer environ
 
 <!-- x-release-please-start-version -->
 ```sh
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.19.0/os/macos/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.20.0/os/macos/init.sh) -a
 ```
 <!-- x-release-please-end -->
 
@@ -37,7 +37,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0
 
 <!-- x-release-please-start-version -->
 ```sh
-bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.19.0/os/debian/init.sh) -a
+bash <(curl -fsSL https://raw.githubusercontent.com/KevinDeBenedetti/dotfiles/v0.20.0/os/debian/init.sh) -a
 ```
 <!-- x-release-please-end -->
 
