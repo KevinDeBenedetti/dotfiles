@@ -33,7 +33,7 @@ DOTFILES_INSTALL_DIR="${DOTFILES_INSTALL_DIR:-$HOME/.dotfiles}"
 # The ref the bootstrap checks out: the latest release, bumped by
 # release-please, so a fresh host never runs a half-merged main. Override it
 # to test another one (DOTFILES_REF=main).
-DOTFILES_REF="${DOTFILES_REF:-v0.19.0}" # x-release-please-version
+DOTFILES_REF="${DOTFILES_REF:-v0.20.0}" # x-release-please-version
 
 # bootstrap_checkout: clones the repository at $DOTFILES_REF into
 # $DOTFILES_INSTALL_DIR, or moves the clone already there to that ref.

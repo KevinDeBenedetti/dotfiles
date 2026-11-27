@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.20.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.19.0...v0.20.0) (2026-11-27)
+
+
+### Features
+
+* **skills:** own the engineering skills and turn the commands into skills ([4c04825](https://github.com/KevinDeBenedetti/dotfiles/commit/4c04825a6fd455f530d72aa5257ac5efbaaaa36c))
+* **skills:** read the agent docs from .agents/, docs/agents/ as a fallback ([81ae7ff](https://github.com/KevinDeBenedetti/dotfiles/commit/81ae7ff305c2b699b394802d39e1c333d9a83390))
+
+
+### Bug Fixes
+
+* **docs:** point the issue tracker links to .agents/ ([2d36354](https://github.com/KevinDeBenedetti/dotfiles/commit/2d363541c9ec7ccfea55921376115a0f8a39e2b6))
+* **project-board:** read every page of deliveries a report covers ([d31efce](https://github.com/KevinDeBenedetti/dotfiles/commit/d31efce61c0f0e0aae7f62c15b2903b194997d52)), closes [#145](https://github.com/KevinDeBenedetti/dotfiles/issues/145) [#146](https://github.com/KevinDeBenedetti/dotfiles/issues/146)
+* report board failures since the last report and gate the Worker deploy on CI ([c446018](https://github.com/KevinDeBenedetti/dotfiles/commit/c446018b532d35d166b11c105b1ee8250ba35c40)), closes [#137](https://github.com/KevinDeBenedetti/dotfiles/issues/137) [#138](https://github.com/KevinDeBenedetti/dotfiles/issues/138) [#139](https://github.com/KevinDeBenedetti/dotfiles/issues/139) [#142](https://github.com/KevinDeBenedetti/dotfiles/issues/142)
+
 ## [0.19.0](https://github.com/KevinDeBenedetti/dotfiles/compare/v0.18.0...v0.19.0) (2026-11-25)
 
 
