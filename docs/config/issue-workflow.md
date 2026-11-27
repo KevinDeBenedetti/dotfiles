@@ -177,8 +177,11 @@ Once, for all repositories:
    repositories**, so new ones are covered).
 6. Let CI deploy the Worker from then on: create a Cloudflare API token from
    the **Edit Cloudflare Workers** template (Workers Scripts: Edit), then
-   store it and your account ID (Workers & Pages overview) as repository
-   secrets:
+   store it and your account ID (Workers & Pages overview, or
+   `npx wrangler whoami`) as repository secrets. Leave its client IP filter
+   empty: the runners of GitHub Actions have no fixed address, so a token
+   limited to yours fails every deploy. The token is shown once; when it
+   expires, the deploy fails again until a new one is stored:
 
    ```sh
    gh secret set CLOUDFLARE_API_TOKEN --repo KevinDeBenedetti/dotfiles
